@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+# real datasets (Sparkov / IEEE-CIS / Amazon FDB / ULB) - large and/or Kaggle-auth
+# gated, dropped in manually per README, never committed
+data/*.csv
+# trained model artifact - reproducible via `python scripts/train.py`
+artifacts/*.joblib
