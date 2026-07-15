@@ -9,3 +9,4 @@ __pycache__/
 data/*.csv
 # trained model artifact - reproducible via `python scripts/train.py`
 artifacts/*.joblib
+HANDOFF.md
