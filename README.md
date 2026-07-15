@@ -76,12 +76,13 @@ accuracy figure, is the product.
                    table                 / "review" (abstain)
 ```
 
-Built today (F1, this milestone): the canonical loader, the deterministic synthetic
-fixture, the leakage-safe grouped/temporal split, the baseline model with the
-reject-to-review knob, and the metrics/model-card pipeline. A live `/predict` endpoint,
-a streaming replay, and a dashboard with the knob as a slider are F2 (roadmap below) -
-this milestone is offline training + evaluation only, exactly like FlowSentry's own
-Week-1 milestone was before its FastAPI service landed.
+Built in F1: the canonical loader, the deterministic synthetic fixture, the
+leakage-safe grouped/temporal split, the baseline model with the reject-to-review
+knob, and the metrics/model-card pipeline. Built in F2 (this milestone): a live
+`/predict` + `/health` + `/curve` FastAPI service, a one-row-at-a-time streaming
+replay with real measured latency, a Streamlit dashboard with the review-threshold
+knob as a live slider, and a Dockerfile/docker-compose serving both - mirroring
+FlowSentry's own Week-2 milestone.
 
 ## Results (real, measured, synthetic fixture)
 
@@ -114,6 +115,30 @@ as fraud; tightening the knob sends a handful of the most uncertain transactions
 review (11 of 1,581 at the strictest setting shown) and lifts flagged-fraud precision
 into the high 80s/low 90s.
 
+## Live serving - measured latency (F2)
+
+> Same data note as above: this is the **synthetic fixture's** held-out test split
+> (1,581 rows) replayed one row at a time through the trained artifact - not real
+> Sparkov data (still not downloaded, still Kaggle-gated). It plays the same
+> narrative role (real timestamps, chronologically sorted) but these are not
+> real-transaction-volume numbers. Real output, pasted verbatim, from:
+> `python scripts/stream.py --n 0` on this machine, one run, single-thread, no GPU.
+
+```
+[stream] replaying 1581 transactions from the 'synthetic' test split (review_threshold=0.0)
+...
+[rows   ] 1581   fraud=13  legit=1568  review=0
+[latency] per-row preprocess+decide  mean=12.072 ms  p50=11.074 ms  p95=12.986 ms  p99=13.946 ms
+[through] 76 rows/sec over 20.67s wall (single-thread, this machine, data_source=synthetic)
+```
+
+Per-row latency is dominated by pandas/`ColumnTransformer` overhead on a 1-row frame,
+not the gradient-boosted model itself - `HistGradientBoostingClassifier.predict_proba`
+on one row is fast; building and one-hot-encoding a fresh 1-row DataFrame each time is
+the actual cost. A production version would batch or reuse a warm encoder; this replay
+deliberately does neither, to measure the honest one-row-at-a-time worst case the way
+FlowSentry's `stream.py` does for network flows.
+
 ## Quickstart
 
 ```bash
@@ -126,9 +151,38 @@ pip install -e .                 # optional - scripts/train.py works without it
 
 python scripts/train.py          # trains on the synthetic fixture (no download needed)
                                   # writes artifacts/ledgersentry.joblib + metrics.json
-pytest                           # run the test suite (~15 tests, ~10-20s)
+pytest                           # run the test suite (20 tests, ~15-20s)
 ruff check .                     # lint
 ```
+
+## Serving + dashboard
+
+Requires `artifacts/ledgersentry.joblib` to exist first - run `python scripts/train.py`
+(above) at least once.
+
+```bash
+# FastAPI service: /health, /predict, /curve
+uvicorn ledgersentry.service:app --app-dir src --reload
+# in another shell:
+curl -X POST http://127.0.0.1:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"features": {"amount": 420.85, "category": "travel", "timestamp": "2026-03-04T02:11:00"}, "review_threshold": 0.9}'
+
+# Streaming replay: real per-row latency, printed at the end (see "Live serving" above)
+python scripts/stream.py --n 0
+
+# Streamlit dashboard: review-threshold slider, live coverage/precision, live feed
+streamlit run dashboard/app.py
+
+# Or both services in one container stack (api:8000, dashboard:8501):
+docker compose up --build
+```
+
+`/predict` derives its expected input columns from the FITTED preprocessor inside the
+loaded artifact (not a hardcoded schema), so it isn't locked to the synthetic fixture's
+columns - swap in a real dataset (see "Data" below), retrain, and the same endpoint
+serves whatever `f_*` features that source produced. Missing numeric fields default to
+0, missing `category` defaults to `"unknown"`.
 
 ## Data
 
@@ -155,18 +209,26 @@ src/ledgersentry/
   data.py     canonical schema, real-source loaders, synthetic fixture, leakage-safe split
   model.py    FraudDetector (HistGradientBoostingClassifier + reject-to-review knob)
   train.py    end-to-end pipeline: load -> split -> fit -> evaluate -> write artifacts
+  service.py  FastAPI app: /health, /predict, /curve
+  stream.py   one-row-at-a-time replay of the held-out test split, real measured latency
+dashboard/
+  app.py      Streamlit dashboard: review-threshold slider, live coverage/precision,
+              live inference metrics, alert/review feed
 scripts/
   train.py    CLI entry point: python scripts/train.py
-tests/        synthetic-fixture tests (determinism, split leakage, PR-AUC range, reject knob)
+  stream.py   CLI entry point: python scripts/stream.py
+tests/        synthetic-fixture + service tests (determinism, split leakage, PR-AUC
+              range, reject knob, /health + /predict + /curve)
 docs/
   model_card.md   full measured results + honest limitations
 artifacts/     ledgersentry.joblib (gitignored) + metrics.json (committed - the source
                of truth every number above is copied from)
+Dockerfile / docker-compose.yml   one image, two services (api:8000, dashboard:8501)
 ```
 
 ## Roadmap
 
-**F1: offline baseline (this milestone, DONE)**
+**F1: offline baseline (DONE)**
 - [x] Dataset-agnostic loader: real sources when present, deterministic synthetic
       fallback otherwise
 - [x] Leakage-safe grouped + approximately-temporal split, `entity_id` excluded from
@@ -177,14 +239,18 @@ artifacts/     ledgersentry.joblib (gitignored) + metrics.json (committed - the 
 - [x] Tests (determinism, no group leakage, PR-AUC range, reject-knob behavior) + CI
       (ruff + pytest + a synthetic training smoke test)
 
-**F2: streaming demo + dashboard (not built)**
-- [ ] `/predict` FastAPI endpoint: score a transaction, review threshold as a request
-      parameter, mirroring FlowSentry's `/predict` + `/curve`
-- [ ] Replay Sparkov transactions in timestamp order -> scorer -> live feed, with
-      measured latency (mirrors FlowSentry's Week-2 real-time pipeline)
-- [ ] Dashboard with the review-threshold knob as a live slider (coverage vs precision,
+**F2: streaming demo + dashboard (this milestone, DONE)**
+- [x] `/predict` FastAPI endpoint: score a transaction, review threshold as a request
+      parameter, mirroring FlowSentry's `/predict` + `/curve`; expected columns read
+      off the fitted preprocessor, not hardcoded to the synthetic schema
+- [x] Replay the held-out test split in timestamp order -> scorer -> live feed, with
+      measured latency (real Sparkov still not downloaded - Kaggle-gated - so this
+      replays the synthetic fixture's test split, honestly labeled; see "Live serving"
+      above)
+- [x] Dashboard with the review-threshold knob as a live slider (coverage vs precision,
       live), mirroring FlowSentry's Streamlit reject-knob demo
-- [ ] Dockerfile + docker-compose, matching FlowSentry's container setup
+- [x] Dockerfile + docker-compose, matching FlowSentry's container setup (Docker itself
+      wasn't available to build-test on this machine - see HANDOFF.md)
 
 **F3+: real-data run + hardening (not built)**
 - [ ] Train and report on Sparkov / IEEE-CIS / ULB (real PR-AUC, replacing/joining the

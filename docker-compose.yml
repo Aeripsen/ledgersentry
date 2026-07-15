@@ -1,0 +1,36 @@
+# LedgerSentry local stack: the FastAPI API on 8000 and the Streamlit dashboard on
+# 8501, both from the one image built here.
+services:
+  api:
+    build: .
+    image: ledgersentry:latest
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  dashboard:
+    build: .
+    image: ledgersentry:latest
+    command: streamlit run dashboard/app.py --server.port 8501 --server.address 0.0.0.0
+    environment:
+      - PYTHONPATH=/app/src
+    ports:
+      - "8501:8501"
+    # The synthetic fixture the dashboard replays by default needs zero files
+    # (data.py generates it in-process), so this mount isn't required to run
+    # the demo. It's kept anyway, read-only, as an optional real-data drop-in
+    # path: dropping a real source (Sparkov/IEEE-CIS/ULB/FDB csv) in ./data on
+    # the host makes the dashboard and stream replay pick it up automatically
+    # (see data.py::_detect_real) with no image rebuild. data/ is gitignored
+    # and .dockerignored, so nothing large or gated ships in the image itself.
+    volumes:
+      - ./data:/app/data:ro
+    depends_on:
+      - api
+    restart: unless-stopped
