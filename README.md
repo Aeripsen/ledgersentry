@@ -17,33 +17,49 @@ discipline, same honesty rules, different domain.
   (84% recall)** and 29% of its flags are truly fraud; send the most uncertain 7.1% of
   traffic to human review and the automated flags become **89.8% precise**. The full
   measured coverage / precision / recall table is below.
-- **The edge is honest evaluation:** leakage-safe grouped + temporal splits, PR-AUC
-  instead of accuracy on 99.8%-legit data, and a reject option instead of forced
-  guesses - the same core as my SECRYPT 2026 paper on intrusion detection with a
-  reject option. A defensible measured 0.73 beats a fake 0.99, and anyone who has
-  evaluated a fraud model knows the difference.
-- **Everything is reproducible:** `pip install -r requirements.txt`, drop
-  `data/creditcard.csv` in (one public URL, no login - see Data), run
-  `python scripts/train.py`. Without the file, the same command runs a deterministic
-  synthetic fixture so tests and CI stay green offline. Real and synthetic numbers
-  are never mixed: every metrics file is tagged `is_synthetic`.
+- **Calibrated when it counts:** the raw score is a good ranker and a bad probability
+  (measured: Brier worse than predicting the base rate). A Platt map fit on a
+  train-only slice cuts test-fold Brier 4.2x without moving PR-AUC a bit, so a fraud
+  desk can set the review threshold by expected cost. Isotonic was measured too, and
+  rejected for damaging ranking - the numbers for both are committed.
+- **Fast enough to sit inline:** single-row scoring p99 **1.73 ms** measured against a
+  stated 10 ms budget, with a committed benchmark harness, a profile-driven
+  optimization (before: 5.50 ms), and a CI test that fails if it regresses.
+- **Everything reproduces:** pinned deps, `make reproduce` retrains on the real data
+  and fails unless the metrics match the committed file **byte for byte**. Without the
+  data file, the same pipeline runs a deterministic synthetic fixture so tests and CI
+  stay green offline; real and synthetic numbers are never mixed (`is_synthetic` tag).
 
 ## Money boundary
 
 This is fraud-**detection** software and research only. No trading, no moving money, no
 personalized financial advice, anywhere in this repo.
 
-## Why a reject-to-review option
+## Why the usual approach on this dataset is wrong
 
-Most fraud-model demos report one accuracy number on a dataset that's 99% "legit" - a
-model that predicts "legit" every single time scores 99% accuracy and catches nothing.
-The honest metric on data like this is **PR-AUC** (area under the precision-recall
-curve), not accuracy, and the honest engineering answer to uncertainty is the same one
-FlowSentry uses for network flows: don't force a guess on a transaction the model isn't
-sure about. Score it, and if the confidence is below a chosen bar, route it to `review`
-(a human, or a heavier downstream check) instead. Sweep that bar and you get a
-coverage-vs-precision curve instead of a single number - that curve, not any one
-accuracy figure, is the product.
+The ULB set is the most-used fraud dataset there is, and most results on it are broken
+the same three ways:
+
+1. **Accuracy on 99.8%-legit data.** Predicting "legit" every time scores 99.83%
+   accuracy and catches zero fraud - so every "99.9% accurate" fraud notebook is
+   reporting the base rate back as an achievement. The honest headline at this
+   imbalance is **PR-AUC against its own no-skill baseline** (0.0013 here), plus the
+   operating table. [ADR 002](docs/adr/002-pr-auc-not-accuracy.md).
+2. **Shuffled splits.** A random split trains on Tuesday's fraud to predict Monday's,
+   and grades the model on cards it already memorized. Fraud is adversarial and
+   non-stationary; the only split that predicts deployment is a temporal one, entities
+   kept whole. That is why this repo's 0.73 is not comparable to shuffled-split 0.86s,
+   and refuses to be. [ADR 001](docs/adr/001-temporal-grouped-split.md).
+3. **A forced binary answer.** Real fraud operations run three outcomes, not two -
+   auto-clear, auto-flag, human review - and their actual daily decision is how much
+   review capacity buys how much precision. The model here abstains below a confidence
+   bar, and the deliverable is the measured coverage/precision/recall table over that
+   bar, not one number. [ADR 003](docs/adr/003-reject-to-review-knob.md).
+
+The differentiation of this repo is not the dataset (nothing could be), it is the
+rigor: the strict temporal holdout, the metric that cannot lie at this base rate, the
+reject knob a fraud team actually operates, measured calibration, measured latency,
+and byte-identical reproduction of every committed number.
 
 ## Architecture
 
@@ -174,14 +190,24 @@ pip install -e .                 # optional - scripts/train.py works without it
 
 python scripts/train.py          # no data file present -> synthetic fixture (offline)
                                   # writes artifacts/ledgersentry.joblib + metrics.json
-pytest                           # run the test suite (27 tests, ~20s)
+pytest                           # run the test suite (80 tests)
 ruff check .                     # lint
+mypy                             # type-check src/
 
 # reproduce the REAL ULB numbers (one public file, no login):
 curl -o data/creditcard.csv https://storage.googleapis.com/download.tensorflow.org/data/creditcard.csv
-python scripts/train.py          # detects the file, trains + evaluates on real data,
-                                  # writes artifacts/metrics_ulb_creditcard.json
+python scripts/train.py          # detects the file, trains + evaluates on real data
+python scripts/verify_repro.py   # FAILS unless the regenerated metrics are byte-identical
+                                  # to the committed artifacts/metrics_ulb_creditcard.json
+# (same thing as one target: make reproduce)
+
+python scripts/calibrate.py      # the calibration pipeline -> calibration_<source>.json
+python scripts/bench.py          # the latency/throughput benchmark -> benchmark.json
 ```
+
+Config: defaults are exactly the committed run; override with `LEDGERSENTRY_*` env vars
+or a `ledgersentry.yaml` (see `ledgersentry.example.yaml`). A typo'd option is a loud
+error, not a silent no-op.
 
 ## Serving + dashboard
 
@@ -189,22 +215,22 @@ Requires `artifacts/ledgersentry.joblib` to exist first - run `python scripts/tr
 (above) at least once.
 
 ```bash
-# FastAPI service: /health, /predict, /curve
+# FastAPI service: /health, /ready, /predict, /predict/batch, /drift, /curve
 uvicorn ledgersentry.service:app --app-dir src --reload
 # in another shell:
 curl -X POST http://127.0.0.1:8000/predict \
   -H "Content-Type: application/json" \
   -d '{"features": {"amount": 420.85, "category": "travel", "timestamp": "2026-03-04T02:11:00"}, "review_threshold": 0.9}'
 
-# Streaming replay: real per-row latency, printed at the end (see "Live serving" above)
+# Streaming replay: real per-row latency, printed at the end (see "Measured latency" above)
 python scripts/stream.py --n 0
 
 # Streamlit dashboard: review-threshold slider, live coverage/precision, live feed
 streamlit run dashboard/app.py
 
 # Or both services in one container stack (api:8000, dashboard:8501):
-# (honesty note: the image has not been build-tested yet - Docker was unavailable
-#  on the build machine; the files mirror FlowSentry's known-good setup)
+# (honesty note: the image has not been build-tested - Docker was unavailable
+#  on the build machine)
 docker compose up --build
 ```
 
@@ -235,27 +261,32 @@ so a loader regression turns CI red without shipping any real data.
 
 ```
 src/ledgersentry/
-  data.py     canonical schema, real-source loaders, synthetic fixture, leakage-safe split
-  model.py    FraudDetector (HistGradientBoostingClassifier + reject-to-review knob)
-  train.py    end-to-end pipeline: load -> split -> fit -> evaluate -> write artifacts
-  service.py  FastAPI app: /health, /predict, /curve
-  stream.py   one-row-at-a-time replay of the held-out test split, real measured latency
-dashboard/
-  app.py      Streamlit dashboard: review-threshold slider, live coverage/precision,
-              live inference metrics, alert/review feed
-scripts/
-  train.py    CLI entry point: python scripts/train.py
-  stream.py   CLI entry point: python scripts/stream.py
-tests/        synthetic-fixture, loader, and service tests (determinism, split
-              leakage, PR-AUC range, reject knob, /health + /predict + /curve, and
-              all four real-dataset loaders against tiny true-schema fixture CSVs
-              in tests/fixtures/)
+  config.py      pydantic-settings: env > yaml > defaults (defaults = the committed run)
+  data.py        canonical schema, LOADERS spec table, synthetic fixture, the split
+  registry.py    model registry: hist_gbdt (default) + logreg baseline; one register()
+                 call to add a classifier
+  model.py       FraudDetector + reject knob + curve / expected-cost math
+  scoring.py     TransactionScorer protocol: CompiledScorer (serving) + PandasScorer
+                 (reference + benchmark baseline), pinned equal by tests
+  train.py       load -> split -> fit -> evaluate -> artifacts (+ drift reference)
+  calibration.py Platt/isotonic calibration pipeline, separate from train (ADR 006)
+  drift.py       per-feature PSI vs the training reference frozen in the artifact
+  bench.py       latency/throughput harness -> artifacts/benchmark.json
+  service.py     FastAPI: /predict, /predict/batch, /drift, /health, /ready, /curve
+  stream.py      timestamp-ordered replay of the held-out test split
+dashboard/app.py Streamlit: review-threshold slider, live coverage/precision, feed
+scripts/         thin CLI entry points (train, stream, calibrate, bench, verify_repro)
+tests/           80 tests: determinism, split leakage, reject knob, all four loaders
+                 (true-schema fixtures), compiled-vs-reference scoring parity, latency
+                 regression guard, calibration monotonicity, drift, API behavior
 docs/
-  model_card.md   full measured results (real + synthetic, clearly separated) +
-                  honest limitations
-artifacts/     ledgersentry.joblib (gitignored) + committed metrics: metrics.json
-               (latest run), metrics_ulb_creditcard.json (the real ULB run),
-               metrics_synthetic.json (the offline CI fixture)
+  model_card.md    full measured results (real + synthetic, clearly separated) + limits
+  architecture.md  both pipelines, the three seams, the module map (mermaid)
+  threat_model.md  trust boundaries, the artifact-is-code rule, what deployment owns
+  adr/             the six load-bearing decisions, rejected alternatives named
+artifacts/       committed, per-source: metrics_*.json, calibration_*.json,
+                 benchmark_*.json (+ *.json = latest run); ledgersentry.joblib gitignored
+Makefile         install / test / lint / train / reproduce / bench / serve / dashboard
 Dockerfile / docker-compose.yml   one image, two services (api:8000, dashboard:8501)
 ```
 
@@ -270,16 +301,15 @@ Dockerfile / docker-compose.yml   one image, two services (api:8000, dashboard:8
       weights), reject-to-review knob, coverage-vs-precision curve
 - [x] PR-AUC (not accuracy) reported against its own random-baseline for context
 - [x] Tests (determinism, no group leakage, PR-AUC range, reject-knob behavior) + CI
-      (ruff + pytest + a synthetic training smoke test)
+      (ruff + mypy + pytest + synthetic train/calibrate/bench smoke runs)
 
 **Streaming demo + dashboard (done)**
 - [x] `/predict` FastAPI endpoint: score a transaction, review threshold as a request
       parameter; expected columns read off the fitted preprocessor, not hardcoded to
       the synthetic schema
 - [x] Replay the held-out test split in timestamp order -> scorer -> live feed, with
-      measured latency (real Sparkov still not downloaded - Kaggle-gated - so this
-      replays the synthetic fixture's test split, honestly labeled; see "Live serving"
-      above)
+      measured latency (replays whatever source is in data/ - ULB here - and labels
+      it honestly)
 - [x] Dashboard with the review-threshold knob as a live slider (coverage vs precision,
       live)
 - [x] Dockerfile + docker-compose (not yet build-tested - Docker was unavailable on
@@ -292,8 +322,6 @@ Dockerfile / docker-compose.yml   one image, two services (api:8000, dashboard:8
 - [x] CI tests for all four real-dataset loaders (tiny true-schema fixtures in
       `tests/fixtures/`), including a regression test for the FDB amount-column
       mapping
-- [ ] Sparkov full run (the streaming story - Kaggle-gated download) and IEEE-CIS
-      full run (the headline benchmark)
 
 **Hardening**
 - [x] Confidence calibration: Platt scaling fit on a temporally-later train-only
@@ -304,7 +332,15 @@ Dockerfile / docker-compose.yml   one image, two services (api:8000, dashboard:8
 - [x] Drift monitoring: per-feature PSI against a training reference frozen into
       the artifact, served at `POST /drift` (marginals + null-spikes; honest
       about what it cannot see - `src/ledgersentry/drift.py`)
-- [ ] Threat-model note
+- [x] Threat model: trust boundaries, the artifact-is-code rule, what is
+      deliberately left to deployment - `docs/threat_model.md`
+
+**Open (honest gaps)**
+- [ ] Sparkov full run (the streaming story) and IEEE-CIS full run (the headline
+      benchmark) - both Kaggle-gated downloads
+- [ ] Docker image build-test (Docker unavailable on the build machine)
+- [ ] Rolling-origin (multi-fold temporal) evaluation for variance estimates -
+      the committed numbers are one fold, and say so
 
 ## Attribution
 
