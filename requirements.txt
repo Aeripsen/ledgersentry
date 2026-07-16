@@ -14,4 +14,5 @@ PyYAML==6.0.3
 httpx==0.28.1
 pytest==9.1.1
 ruff==0.15.21
+mypy==2.3.0
 streamlit==1.59.2

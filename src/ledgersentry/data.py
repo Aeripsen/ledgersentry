@@ -220,9 +220,10 @@ def _load_fdb(train_path: Path, test_path: Path | None) -> pd.DataFrame:
 
 class LoaderFn(Protocol):
     """One real-dataset loader: primary file (must exist), optional secondary
-    companion file, out comes a canonical-schema frame via _finalize."""
+    companion file, out comes a canonical-schema frame via _finalize.
+    Positional-only so each loader keeps its own descriptive parameter names."""
 
-    def __call__(self, primary: Path, secondary: Path | None = None) -> pd.DataFrame: ...
+    def __call__(self, primary: Path, secondary: Path | None, /) -> pd.DataFrame: ...
 
 
 @dataclass(frozen=True)
@@ -413,13 +414,12 @@ def temporal_grouped_split(
 
     train_budget = len(df) * (1 - test_size)
     running = 0
-    train_entities = []
+    train_entities: set[str] = set()
     for entity in first_seen.index:
         if running >= train_budget:
             break
-        train_entities.append(entity)
+        train_entities.add(entity)
         running += int(sizes[entity])
-    train_entities = set(train_entities)
 
     is_train = df["entity_id"].isin(train_entities)
     train_df = df.loc[is_train].reset_index(drop=True)

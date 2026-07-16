@@ -60,7 +60,9 @@ def load_stream(n: int = 0) -> tuple[pd.DataFrame, str]:
     return test_df, source
 
 
-def classify_stream(bundle: dict, df: pd.DataFrame, review_threshold: float = 0.0):
+def classify_stream(
+    bundle: dict, df: pd.DataFrame, review_threshold: float = 0.0
+) -> tuple[list[dict], np.ndarray, dict]:
     """Classify one row at a time through the same compiled scorer the /predict
     endpoint serves with. What's timed is exactly the serving work - transform
     one feature dict + model decide. Building the dict happens OUTSIDE the

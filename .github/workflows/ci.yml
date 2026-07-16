@@ -24,8 +24,17 @@ jobs:
       - name: Lint (ruff)
         run: ruff check src tests scripts dashboard
 
+      - name: Type-check (mypy)
+        run: mypy
+
       - name: Test (pytest)
         run: pytest -q
 
       - name: Train on synthetic fallback (smoke test)
         run: python scripts/train.py
+
+      - name: Calibrate on synthetic fallback (smoke test)
+        run: python scripts/calibrate.py
+
+      - name: Benchmark on synthetic fallback (smoke test)
+        run: python scripts/bench.py --n-single 200

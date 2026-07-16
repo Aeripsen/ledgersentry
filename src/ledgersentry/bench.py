@@ -134,7 +134,11 @@ def run(n_single: int = SINGLE_ROW_DEFAULT) -> dict[str, Any]:
         "single_row": {},
         "batch": {},
     }
-    for name, scorer in [("pandas", pandas_scorer), ("compiled", compiled_scorer)]:
+    scorers: list[tuple[str, TransactionScorer]] = [
+        ("pandas", pandas_scorer),
+        ("compiled", compiled_scorer),
+    ]
+    for name, scorer in scorers:
         single = bench_single_row(scorer, rows)
         batch = bench_batch(scorer, df)
         results["single_row"][name] = single

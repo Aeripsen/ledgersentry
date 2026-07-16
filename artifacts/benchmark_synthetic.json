@@ -1,0 +1,50 @@
+{
+  "data_source": "synthetic",
+  "is_synthetic": true,
+  "p99_budget_ms": 10.0,
+  "environment": {
+    "python": "3.13.13",
+    "sklearn": "1.9.0",
+    "pandas": "3.0.3",
+    "numpy": "2.5.1",
+    "joblib": "1.5.3",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 165 Stepping 2, GenuineIntel",
+    "measured_at": "2026-07-16T17:57:12Z"
+  },
+  "single_row": {
+    "pandas": {
+      "n_rows": 200,
+      "mean_ms": 11.6206,
+      "p50_ms": 11.4041,
+      "p95_ms": 13.8747,
+      "p99_ms": 16.0383,
+      "rows_per_sec": 86.1
+    },
+    "compiled": {
+      "n_rows": 200,
+      "mean_ms": 5.0222,
+      "p50_ms": 5.0239,
+      "p95_ms": 6.5186,
+      "p99_ms": 7.1175,
+      "rows_per_sec": 199.1
+    }
+  },
+  "batch": {
+    "pandas": {
+      "n_rows": 1581,
+      "repeats": 5,
+      "best_wall_s": 0.022,
+      "rows_per_sec": 71913.3,
+      "per_row_us": 13.91
+    },
+    "compiled": {
+      "n_rows": 1581,
+      "repeats": 5,
+      "best_wall_s": 0.016,
+      "rows_per_sec": 98788.4,
+      "per_row_us": 10.12
+    }
+  },
+  "budget_verdict": "MEETS"
+}

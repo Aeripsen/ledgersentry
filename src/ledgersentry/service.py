@@ -30,6 +30,7 @@ import json
 import logging
 import time
 from datetime import UTC, datetime
+from typing import Any
 
 import joblib
 import pandas as pd
@@ -84,7 +85,7 @@ _bundle = None
 _scorer_cache: tuple[object, CompiledScorer] | None = None
 
 
-def _load():
+def _load() -> dict[str, Any]:
     global _bundle
     if _bundle is None:
         if not ARTIFACT.exists():
@@ -161,7 +162,7 @@ class Transaction(BaseModel):
 
 
 @app.get("/health")
-def health():
+def health() -> dict[str, str]:
     """Liveness + a status field: always 200 while the process is up, so an
     orchestrator does not kill a pod that merely lacks its artifact."""
     try:
@@ -172,7 +173,7 @@ def health():
 
 
 @app.get("/ready")
-def ready():
+def ready() -> dict[str, Any]:
     """Readiness: 200 only when the artifact is loaded and the compiled scorer
     is built - the binary gate for routing traffic (versus /health, which is
     liveness and stays 200 while degraded)."""
@@ -197,7 +198,7 @@ class BatchRequest(BaseModel):
 
 
 @app.post("/predict")
-def predict(req: Transaction):
+def predict(req: Transaction) -> dict[str, Any]:
     try:
         scorer = _scorer()
     except FileNotFoundError as e:
@@ -229,7 +230,7 @@ def predict(req: Transaction):
 
 
 @app.post("/predict/batch")
-def predict_batch(req: BatchRequest):
+def predict_batch(req: BatchRequest) -> dict[str, Any]:
     """Vectorized scoring: one transform + one model call for the whole batch.
     This is the throughput path (see artifacts/benchmark.json); /predict is the
     latency path. Returns per-row decisions plus which expected model inputs
@@ -272,7 +273,7 @@ def predict_batch(req: BatchRequest):
 
 
 @app.post("/drift")
-def drift(req: BatchRequest):
+def drift(req: BatchRequest) -> dict[str, Any]:
     """PSI drift check of a window of recent transactions against the training
     reference frozen inside the artifact (see drift.py: it flags marginal
     feature shift, not model wrongness - treat alerts as a trigger to look).
@@ -311,7 +312,7 @@ def drift(req: BatchRequest):
 
 
 @app.get("/curve")
-def curve():
+def curve() -> dict[str, Any]:
     path = ARTIFACT_DIR / "metrics.json"
     if not path.exists():
         raise HTTPException(status_code=503, detail="no metrics; run training first")

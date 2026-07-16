@@ -1,0 +1,178 @@
+{
+  "data_source": "synthetic",
+  "is_synthetic": true,
+  "model": "hist_gbdt",
+  "calibration_size": 0.2,
+  "n_fit": 5143,
+  "n_cal": 1276,
+  "n_cal_fraud": 13,
+  "n_test": 1581,
+  "n_test_fraud": 15,
+  "chosen_calibrator": "platt",
+  "chosen_on": "structural rule, decided before fitting: the shipped calibrator must be strictly monotone (provably zero ranking damage); isotonic is fit and fully reported beside it for comparison",
+  "pr_auc_cal_slice": {
+    "raw": 0.8347,
+    "isotonic": 0.8347,
+    "platt": 0.8347
+  },
+  "brier_cal_slice": {
+    "isotonic": 0.002592,
+    "platt": 0.00345
+  },
+  "brier_test": {
+    "raw": 0.004551,
+    "isotonic": 0.004652,
+    "platt": 0.004129
+  },
+  "pr_auc_test": {
+    "raw": 0.7484,
+    "isotonic": 0.5984,
+    "platt": 0.7484
+  },
+  "reliability_raw": {
+    "strategy": "quantile",
+    "n_bins": 10,
+    "mean_predicted": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.076799
+    ],
+    "observed_fraud_rate": [
+      0.0,
+      0.006329,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.088608
+    ]
+  },
+  "reliability_calibrated": {
+    "strategy": "quantile",
+    "n_bins": 10,
+    "mean_predicted": [
+      0.000153,
+      0.000209,
+      0.000258,
+      0.000337,
+      0.000439,
+      0.000607,
+      0.000865,
+      0.001228,
+      0.002166,
+      0.085006
+    ],
+    "observed_fraud_rate": [
+      0.0,
+      0.006329,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.088608
+    ]
+  },
+  "coverage_precision_curve_calibrated": [
+    {
+      "review_threshold": 0.5,
+      "coverage": 1.0,
+      "n_sent_to_review": 0,
+      "n_flagged_fraud": 11,
+      "precision_on_flagged": 0.8182,
+      "fraud_caught_auto": 9,
+      "fraud_in_review_queue": 0,
+      "fraud_missed": 6,
+      "recall_auto": 0.6
+    },
+    {
+      "review_threshold": 0.6,
+      "coverage": 0.9987,
+      "n_sent_to_review": 2,
+      "n_flagged_fraud": 11,
+      "precision_on_flagged": 0.8182,
+      "fraud_caught_auto": 9,
+      "fraud_in_review_queue": 1,
+      "fraud_missed": 5,
+      "recall_auto": 0.6
+    },
+    {
+      "review_threshold": 0.7,
+      "coverage": 0.9981,
+      "n_sent_to_review": 3,
+      "n_flagged_fraud": 11,
+      "precision_on_flagged": 0.8182,
+      "fraud_caught_auto": 9,
+      "fraud_in_review_queue": 1,
+      "fraud_missed": 5,
+      "recall_auto": 0.6
+    },
+    {
+      "review_threshold": 0.8,
+      "coverage": 0.9956,
+      "n_sent_to_review": 7,
+      "n_flagged_fraud": 8,
+      "precision_on_flagged": 1.0,
+      "fraud_caught_auto": 8,
+      "fraud_in_review_queue": 2,
+      "fraud_missed": 5,
+      "recall_auto": 0.5333
+    },
+    {
+      "review_threshold": 0.9,
+      "coverage": 0.9937,
+      "n_sent_to_review": 10,
+      "n_flagged_fraud": 6,
+      "precision_on_flagged": 1.0,
+      "fraud_caught_auto": 6,
+      "fraud_in_review_queue": 4,
+      "fraud_missed": 5,
+      "recall_auto": 0.4
+    },
+    {
+      "review_threshold": 0.95,
+      "coverage": 0.988,
+      "n_sent_to_review": 19,
+      "n_flagged_fraud": 6,
+      "precision_on_flagged": 1.0,
+      "fraud_caught_auto": 6,
+      "fraud_in_review_queue": 6,
+      "fraud_missed": 3,
+      "recall_auto": 0.4
+    },
+    {
+      "review_threshold": 0.99,
+      "coverage": 0.9658,
+      "n_sent_to_review": 54,
+      "n_flagged_fraud": 4,
+      "precision_on_flagged": 1.0,
+      "fraud_caught_auto": 4,
+      "fraud_in_review_queue": 9,
+      "fraud_missed": 2,
+      "recall_auto": 0.2667
+    },
+    {
+      "review_threshold": 1.0,
+      "coverage": 0.0,
+      "n_sent_to_review": 1581,
+      "n_flagged_fraud": 0,
+      "precision_on_flagged": null,
+      "fraud_caught_auto": 0,
+      "fraud_in_review_queue": 15,
+      "fraud_missed": 0,
+      "recall_auto": 0.0
+    }
+  ]
+}

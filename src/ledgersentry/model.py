@@ -28,7 +28,11 @@ uncertain transaction.
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
+from typing import Any
+
 import numpy as np
+from numpy.typing import ArrayLike
 from sklearn.base import BaseEstimator
 from sklearn.pipeline import Pipeline
 
@@ -57,7 +61,7 @@ class FraudDetector(BaseEstimator):
         self.learning_rate = learning_rate
         self.model = model
 
-    def fit(self, X, y) -> FraudDetector:
+    def fit(self, X: ArrayLike, y: ArrayLike) -> FraudDetector:
         y = np.asarray(y).astype(int)
         self.classes_ = np.unique(y)
 
@@ -81,13 +85,15 @@ class FraudDetector(BaseEstimator):
             self.model_.fit(X, y, sample_weight=sample_weight)
         return self
 
-    def predict_proba_fraud(self, X) -> np.ndarray:
+    def predict_proba_fraud(self, X: ArrayLike) -> np.ndarray:
         """P(fraud) per row - the positive-class column of predict_proba."""
         proba = self.model_.predict_proba(X)
         fraud_col = list(self.model_.classes_).index(1)
-        return proba[:, fraud_col]
+        return np.asarray(proba[:, fraud_col])
 
-    def decide(self, X, review_threshold: float = 0.0):
+    def decide(
+        self, X: ArrayLike, review_threshold: float = 0.0
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Return (decision, p_fraud, confidence).
         decision[i] in {"fraud", "legit", "review"}. confidence = max(p_fraud,
         1 - p_fraud), in [0.5, 1.0]. Below review_threshold the decision is
@@ -98,14 +104,18 @@ class FraudDetector(BaseEstimator):
         decision[confidence < review_threshold] = REVIEW
         return decision, p_fraud, confidence
 
-    def coverage_precision_curve(self, X, y, thresholds) -> list[dict]:
+    def coverage_precision_curve(
+        self, X: ArrayLike, y: ArrayLike, thresholds: Sequence[float]
+    ) -> list[dict[str, Any]]:
         """Sweep the review threshold over this model's own scores. The math
         lives in curve_from_scores (below) so calibrated scores can drive the
         exact same table - see calibration.py."""
         return curve_from_scores(self.predict_proba_fraud(X), y, thresholds)
 
 
-def curve_from_scores(p_fraud, y, thresholds) -> list[dict]:
+def curve_from_scores(
+    p_fraud: ArrayLike, y: ArrayLike, thresholds: Sequence[float]
+) -> list[dict[str, Any]]:
     """The reject-knob table for a given fraud-score vector. For each threshold
     we report BOTH sides a fraud desk asks about - precision (are the auto-flags
     right?) and recall (what fraction of real fraud do we actually catch?):
@@ -132,7 +142,7 @@ def curve_from_scores(p_fraud, y, thresholds) -> list[dict]:
     is_fraud = y == 1
     total_fraud = int(is_fraud.sum())
 
-    rows = []
+    rows: list[dict[str, Any]] = []
     for t in thresholds:
         covered = confidence >= t
         flagged = covered & predicted_fraud
@@ -159,8 +169,11 @@ def curve_from_scores(p_fraud, y, thresholds) -> list[dict]:
 
 
 def expected_cost_curve(
-    curve: list[dict], cost_missed_fraud: float, cost_false_flag: float, cost_review: float
-) -> list[dict]:
+    curve: list[dict[str, Any]],
+    cost_missed_fraud: float,
+    cost_false_flag: float,
+    cost_review: float,
+) -> list[dict[str, Any]]:
     """Price each operating point of a reject-knob curve. Costs are REQUIRED
     arguments with no defaults on purpose: real fraud costs are business
     numbers this repo cannot know, so it never bakes any in. Any costs shown

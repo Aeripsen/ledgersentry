@@ -51,7 +51,11 @@ from .config import get_settings
 from .data import build_preprocessor, engineer_time_features, load, temporal_grouped_split
 from .model import FraudDetector, curve_from_scores
 
-_EPS = 1e-6
+# Logit clip bound. Deliberately near float64 resolution: any wider (say 1e-6)
+# and distinct raw scores beyond the clip collapse into ties, which is exactly
+# the ranking damage the strict-monotonicity rule exists to prevent - measured
+# as a real PR-AUC change on the synthetic fixture before tightening.
+_EPS = 1e-12
 RELIABILITY_BINS = 10
 
 
@@ -142,7 +146,7 @@ def main() -> dict:
     # than the headline one, so report its own PR-AUC beside the headline
     pr_auc_calibration_model = float(average_precision_score(y_test, p_test))
 
-    calibrators = {
+    calibrators: dict[str, IsotonicCalibrator | PlattCalibrator] = {
         "isotonic": IsotonicCalibrator().fit(p_cal, y_cal),
         "platt": PlattCalibrator().fit(p_cal, y_cal),
     }
