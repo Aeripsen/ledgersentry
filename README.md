@@ -47,54 +47,34 @@ accuracy figure, is the product.
 
 ## Architecture
 
-```
-   data/*.csv (real, optional)          make_synthetic() (deterministic fallback)
-   Sparkov / IEEE-CIS / ULB / FDB                 seeded, ~1% fraud, has a
-              |                                    timestamp + entity_id column
-              +------------------+------------------+
-                                 v
-                    data.py -- canonical schema
-          (transaction_id, timestamp, entity_id, amount,
-                     category, is_fraud, f_*)
-                                 |
-                                 v
-                 temporal_grouped_split (leakage-safe:
-              every entity_id lands ENTIRELY in train or
-                test, entities ordered by first-seen time)
-                        /                    \
-                       v                      v
-                 train split             test split
-                       |                      |
-                       v                      |
-      build_preprocessor().fit_transform      |
-        (one-hot category + numeric           |
-         passthrough, TRAIN ONLY)             v
-                       |            preprocessor.transform (test)
-                       v                      |
-      FraudDetector.fit()                     |
-    (HistGradientBoostingClassifier,          |
-     balanced sample weights, TRAIN ONLY)     |
-                       |                      |
-                       +----------+-----------+
-                                  v
-                    .predict_proba_fraud() on held-out test
-                                  |
-                                  v
-                confidence = max(p_fraud, 1 - p_fraud)
-                                  |
-                    threshold sweep (the reject knob)
-                          /                \
-                         v                  v
-              coverage x precision      "fraud" / "legit"
-                   table                 / "review" (abstain)
+```mermaid
+flowchart TD
+    subgraph offline["train (scripts/train.py)"]
+        SRC["data/*.csv - Sparkov / IEEE-CIS / FDB / ULB
+(or the seeded synthetic fixture if absent)"]
+        SRC --> CANON["canonical schema (data.py LOADERS table)"]
+        CANON --> SPLIT["temporal_grouped_split - entities whole,
+time-ordered, nothing leaks back from the future"]
+        SPLIT --> FIT["preprocessor + FraudDetector fit on TRAIN only
+(classifier from registry.py, balanced weights)"]
+        FIT --> OUT["metrics_&lt;source&gt;.json + reject-knob table
++ artifact {preprocessor, model, drift_reference}"]
+    end
+    subgraph online["serve (uvicorn ledgersentry.service:app)"]
+        OUT --> CS["CompiledScorer - preprocessor compiled
+to numpy once (p99 1.73 ms measured)"]
+        CS --> EP["/predict /predict/batch
+-> fraud / legit / review"]
+        OUT --> DRIFT["/drift - PSI vs the frozen
+training reference"]
+        CS --> DASH["stream replay + Streamlit dashboard"]
+    end
 ```
 
-Offline core: the canonical loader, the deterministic synthetic fixture, the
-leakage-safe grouped/temporal split, the baseline model with the reject-to-review
-knob, and the metrics/model-card pipeline. Serving layer: a live
-`/predict` + `/health` + `/curve` FastAPI service, a one-row-at-a-time streaming
-replay with real measured latency, a Streamlit dashboard with the review-threshold
-knob as a live slider, and a Dockerfile/docker-compose serving both.
+Full picture with all three seams and the module map: [`docs/architecture.md`](docs/architecture.md).
+The load-bearing decisions each have a short ADR in [`docs/adr/`](docs/adr): why this split
+(001), why PR-AUC (002), why a reject option (003), what was deliberately NOT built (004),
+the compiled scorer (005), and calibration (006).
 
 ## Results on real data (ULB credit-card fraud, measured 2026-07-15)
 
