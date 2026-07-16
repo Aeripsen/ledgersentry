@@ -1,6 +1,6 @@
 # Model card: LedgerSentry FraudDetector
 
-Version 0.1.0 (F3 milestone: first real-data run). Every number on this page is
+Version 0.1.0 (first real-data run). Every number on this page is
 measured. Real-data numbers come from `artifacts/metrics_ulb_creditcard.json`;
 synthetic-fixture numbers come from `artifacts/metrics_synthetic.json` (also the
 committed `artifacts/metrics.json`, which always holds the latest run). Both are
@@ -42,10 +42,10 @@ overwrite each other.
   count_per_class)`, the same formula as scikit-learn's `class_weight="balanced"`),
   computed from the TRAIN split's own class counts and passed to `.fit(sample_weight=)`.
   This is a deliberate choice over resampling (SMOTE/undersampling): weighting never
-  touches `X`, so it cannot suffer the classic "SMOTE fit before the split" leakage bug
-  that the FINTECH_PLAN research specifically flags as the difference between a real
-  0.86 PR-AUC and a fake 0.999. If a future run wants resampling, the rule is the same
-  one that already applies here: fit it on the train split only.
+  touches `X`, so it cannot suffer the classic "SMOTE fit before the split" leakage bug,
+  a well-documented failure mode in the fraud literature that turns a real ~0.86 PR-AUC
+  into a fake 0.999. If a future run wants resampling, the rule is the same one that
+  already applies here: fit it on the train split only.
 - **Implementation:** `src/ledgersentry/model.py`, scikit-learn, seeded
   (`random_state=42`).
 
@@ -193,8 +193,9 @@ volume behind it.
 
 ## Why these numbers, not higher ones (and why that's reported anyway)
 
-A PR-AUC near 1.0 on a fraud task is usually a leakage smell, not a win - see the
-FINTECH_PLAN research on SMOTE-before-split producing a fake "AUC 1.000." The real
+A PR-AUC near 1.0 on a fraud task is usually a leakage smell, not a win - the
+best-known example being SMOTE applied before the split, which manufactures test-fold
+neighbors of training points and produces a fake "AUC 1.000". The real
 0.7278 and the synthetic 0.7884 both sit in a believable range precisely because the
 split was built to block leakage on purpose (and, for the fixture, because the
 generator overlaps its classes on purpose). The honest published range for a mature
@@ -225,8 +226,8 @@ and that trade is the whole point of this project.
    dataset in front of you. Train-set-only calibration (CalibratedClassifierCV) is
    the documented next step.
 5. **No adversarial or drift evaluation.** Out of scope for this baseline; a
-   documented next step, mirroring FlowSentry's Week-3 threat-model work.
-6. **Latency is measured on the synthetic fixture only.** The F2 streaming replay
+   documented next step.
+6. **Latency is measured on the synthetic fixture only.** The streaming replay
    (README "Live serving") measured per-row latency on the synthetic test split;
    the real-data replay at volume is still to come.
 7. **Feature set is what the source provides, nothing engineered beyond time.**

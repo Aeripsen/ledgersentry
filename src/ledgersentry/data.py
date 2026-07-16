@@ -24,8 +24,8 @@ hundreds of MB, so fetching is a manual, documented step (see README "Data").
       https://www.kaggle.com/mlg-ulb/creditcardfraud
 
     Sparkov "Credit Card Transactions Fraud Detection"  data/fraudTrain.csv [+ fraudTest.csv]
-    (kartik2112 on Kaggle, built with the Sparkov simulator - has real timestamps,
-    which is why FINTECH_PLAN.md picks it for the streaming/real-time story)
+    (kartik2112 on Kaggle, built with the Sparkov simulator - has real calendar
+    timestamps, which makes it the natural source for the streaming replay demo)
       trans_date_trans_time, cc_num, merchant, category, amt, ..., is_fraud
       https://www.kaggle.com/datasets/kartik2112/fraud-detection
 
@@ -216,10 +216,10 @@ def _load_fdb(train_path: Path, test_path: Path | None) -> pd.DataFrame:
 
 
 def _detect_real(data_dir: Path) -> pd.DataFrame | None:
-    """First real-dataset file found in `data_dir`, checked in the order named in
-    FINTECH_PLAN.md (Sparkov = streaming demo, IEEE-CIS = headline benchmark,
-    Amazon FDB = comparability, ULB = classic leakage-safe baseline). Returns
-    None (caller falls back to synthetic) if no real files are present."""
+    """First real-dataset file found in `data_dir`, checked in a fixed documented
+    order (Sparkov = streaming demo, IEEE-CIS = headline benchmark, Amazon FDB =
+    comparability, ULB = classic leakage-safe baseline). Returns None (caller
+    falls back to synthetic) if no real files are present."""
     sparkov_train = data_dir / "fraudTrain.csv"
     if sparkov_train.exists():
         return _load_sparkov(sparkov_train, data_dir / "fraudTest.csv")

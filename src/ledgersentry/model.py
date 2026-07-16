@@ -12,8 +12,8 @@ run wants it.
 Imbalance handling: this baseline uses balanced SAMPLE WEIGHTS (computed from the
 train split's own class counts), not resampling (SMOTE/undersampling). That is a
 deliberate choice, not a missing feature: weighting never touches X, so it can't
-suffer the classic SMOTE-before-split leakage bug the FINTECH_PLAN research
-specifically flags (synthetic minority points leaking into the test fold). If a
+suffer the classic SMOTE-before-split leakage bug (synthetic minority points
+generated from the full set leaking into the test fold). If a
 future run wants resampling, fit it on the train split only, exactly the same
 rule that applies to the sample weights here.
 

@@ -20,8 +20,8 @@ discipline, same honesty rules, different domain.
 - **The edge is honest evaluation:** leakage-safe grouped + temporal splits, PR-AUC
   instead of accuracy on 99.8%-legit data, and a reject option instead of forced
   guesses - the same core as my SECRYPT 2026 paper on intrusion detection with a
-  reject option. A defensible measured 0.73 beats a fake 0.99, and hiring managers
-  and reviewers know the difference.
+  reject option. A defensible measured 0.73 beats a fake 0.99, and anyone who has
+  evaluated a fraud model knows the difference.
 - **Everything is reproducible:** `pip install -r requirements.txt`, drop
   `data/creditcard.csv` in (one public URL, no login - see Data), run
   `python scripts/train.py`. Without the file, the same command runs a deterministic
@@ -89,15 +89,14 @@ accuracy figure, is the product.
                    table                 / "review" (abstain)
 ```
 
-Built in F1: the canonical loader, the deterministic synthetic fixture, the
+Offline core: the canonical loader, the deterministic synthetic fixture, the
 leakage-safe grouped/temporal split, the baseline model with the reject-to-review
-knob, and the metrics/model-card pipeline. Built in F2: a live
+knob, and the metrics/model-card pipeline. Serving layer: a live
 `/predict` + `/health` + `/curve` FastAPI service, a one-row-at-a-time streaming
 replay with real measured latency, a Streamlit dashboard with the review-threshold
-knob as a live slider, and a Dockerfile/docker-compose serving both - mirroring
-FlowSentry's own Week-2 milestone.
+knob as a live slider, and a Dockerfile/docker-compose serving both.
 
-## Results - REAL DATA (ULB credit-card fraud, measured 2026-07-15)
+## Results on real data (ULB credit-card fraud, measured 2026-07-15)
 
 Dataset: ULB "Credit Card Fraud Detection" - 284,807 real anonymized European card
 transactions over 2 days, 492 fraud (0.173%). ULB publishes no card/customer id, so
@@ -144,7 +143,7 @@ With no real file in `data/`, the same pipeline runs a deterministic seeded fixt
 numbers are a pipeline proof, not a benchmark claim, and are never mixed with the
 real ones.
 
-## Live serving - measured latency (F2)
+## Live serving - measured latency
 
 > Same data note as above: this is the **synthetic fixture's** held-out test split
 > (1,581 rows) replayed one row at a time through the trained artifact - not real
@@ -267,7 +266,7 @@ Dockerfile / docker-compose.yml   one image, two services (api:8000, dashboard:8
 
 ## Roadmap
 
-**F1: offline baseline (DONE)**
+**Offline baseline (done)**
 - [x] Dataset-agnostic loader: real sources when present, deterministic synthetic
       fallback otherwise
 - [x] Leakage-safe grouped + approximately-temporal split, `entity_id` excluded from
@@ -278,20 +277,20 @@ Dockerfile / docker-compose.yml   one image, two services (api:8000, dashboard:8
 - [x] Tests (determinism, no group leakage, PR-AUC range, reject-knob behavior) + CI
       (ruff + pytest + a synthetic training smoke test)
 
-**F2: streaming demo + dashboard (DONE)**
+**Streaming demo + dashboard (done)**
 - [x] `/predict` FastAPI endpoint: score a transaction, review threshold as a request
-      parameter, mirroring FlowSentry's `/predict` + `/curve`; expected columns read
-      off the fitted preprocessor, not hardcoded to the synthetic schema
+      parameter; expected columns read off the fitted preprocessor, not hardcoded to
+      the synthetic schema
 - [x] Replay the held-out test split in timestamp order -> scorer -> live feed, with
       measured latency (real Sparkov still not downloaded - Kaggle-gated - so this
       replays the synthetic fixture's test split, honestly labeled; see "Live serving"
       above)
 - [x] Dashboard with the review-threshold knob as a live slider (coverage vs precision,
-      live), mirroring FlowSentry's Streamlit reject-knob demo
-- [x] Dockerfile + docker-compose, matching FlowSentry's container setup (not yet
-      build-tested - Docker was unavailable on the build machine; flagged below)
+      live)
+- [x] Dockerfile + docker-compose (not yet build-tested - Docker was unavailable on
+      the build machine; flagged below)
 
-**F3: real-data run (ULB DONE, this milestone)**
+**Real-data run (ULB done)**
 - [x] Train and report on real data: ULB credit-card fraud, 284,807 transactions,
       temporal holdout, PR-AUC 0.7278 - reported beside the synthetic-fixture
       numbers, never silently swapped in for them
@@ -301,11 +300,11 @@ Dockerfile / docker-compose.yml   one image, two services (api:8000, dashboard:8
 - [ ] Sparkov full run (the streaming story - Kaggle-gated download) and IEEE-CIS
       full run (the headline benchmark)
 
-**F4+: hardening (not built)**
-- [ ] Confidence calibration (train-only CalibratedClassifierCV) so review
+**Hardening (not built)**
+- [ ] Confidence calibration (fit on a train-only validation slice) so review
       thresholds are portable across datasets
 - [ ] Drift monitoring, load test with real latency/throughput numbers, threat-model
-      note - mirroring FlowSentry's Week-3 hardening pass
+      note
 
 ## Attribution
 
