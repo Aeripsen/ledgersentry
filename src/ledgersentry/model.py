@@ -1,13 +1,14 @@
 """
 Baseline fraud classifier with a tunable reject (abstain -> "review") knob.
 
-Model: `HistGradientBoostingClassifier` (gradient-boosted trees, scikit-learn).
-Chosen over xgboost because it ships inside scikit-learn - already a dependency,
-so it installs cleanly everywhere including CI with no compiled-wheel risk - and
-it natively handles missing values in numeric features, which matters once a
-real dataset with sparse anonymized columns (ULB's V1..V28, IEEE-CIS's C/D/V
-columns) is dropped in. xgboost is a documented drop-in alternative if a future
-run wants it.
+Default model: `HistGradientBoostingClassifier` (gradient-boosted trees,
+scikit-learn). Chosen over xgboost because it ships inside scikit-learn -
+already a dependency, so it installs cleanly everywhere including CI with no
+compiled-wheel risk - and it natively handles missing values in numeric
+features, which matters once a real dataset with sparse anonymized columns
+(ULB's V1..V28, IEEE-CIS's C/D/V columns) is dropped in. The classifier is
+resolved through registry.py: `logreg` ships as the tested linear baseline,
+and a new model is one register() call, never an edit here.
 
 Imbalance handling: this baseline uses balanced SAMPLE WEIGHTS (computed from the
 train split's own class counts), not resampling (SMOTE/undersampling). That is a
@@ -29,7 +30,9 @@ from __future__ import annotations
 
 import numpy as np
 from sklearn.base import BaseEstimator
-from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.pipeline import Pipeline
+
+from . import registry
 
 FRAUD = "fraud"
 LEGIT = "legit"
@@ -37,10 +40,22 @@ REVIEW = "review"
 
 
 class FraudDetector(BaseEstimator):
-    def __init__(self, random_state: int = 42, max_iter: int = 200, learning_rate: float = 0.1):
+    """`model` is a registry name (see registry.py; `hist_gbdt` is the default
+    behind every committed number, `logreg` the linear baseline). The reject
+    knob, the balanced weighting, and the curve logic below are model-agnostic:
+    swapping the classifier never touches them."""
+
+    def __init__(
+        self,
+        random_state: int = 42,
+        max_iter: int = 200,
+        learning_rate: float = 0.1,
+        model: str = "hist_gbdt",
+    ):
         self.random_state = random_state
         self.max_iter = max_iter
         self.learning_rate = learning_rate
+        self.model = model
 
     def fit(self, X, y) -> FraudDetector:
         y = np.asarray(y).astype(int)
@@ -48,18 +63,22 @@ class FraudDetector(BaseEstimator):
 
         # Balanced sample weights, same formula as sklearn's class_weight="balanced"
         # (n_samples / (n_classes * count_per_class)), computed from TRAIN labels
-        # only. Passed as sample_weight so it works across sklearn versions without
-        # depending on HistGradientBoostingClassifier's own class_weight support.
+        # only. Passed as sample_weight so the same mechanism works for every
+        # registered model instead of depending on per-estimator class_weight support.
         counts = np.bincount(y, minlength=int(y.max()) + 1)
         weight_per_class = counts.sum() / (len(counts) * np.maximum(counts, 1))
         sample_weight = weight_per_class[y]
 
-        self.model_ = HistGradientBoostingClassifier(
-            random_state=self.random_state,
-            max_iter=self.max_iter,
-            learning_rate=self.learning_rate,
+        self.model_ = registry.create(
+            self.model, self.random_state, self.max_iter, self.learning_rate
         )
-        self.model_.fit(X, y, sample_weight=sample_weight)
+        if isinstance(self.model_, Pipeline):
+            # route the weights to the Pipeline's final step (sklearn's own
+            # step-prefixed fit-param convention)
+            final_step = self.model_.steps[-1][0]
+            self.model_.fit(X, y, **{f"{final_step}__sample_weight": sample_weight})
+        else:
+            self.model_.fit(X, y, sample_weight=sample_weight)
         return self
 
     def predict_proba_fraud(self, X) -> np.ndarray:
