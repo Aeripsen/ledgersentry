@@ -321,7 +321,10 @@ Dockerfile / docker-compose.yml   one image, two services (api:8000, dashboard:8
       untouched. Isotonic measured beside it and rejected for damaging PR-AUC
       (ties). Full numbers + the expected-cost tie-in: `docs/model_card.md`
 - [x] Committed latency/throughput benchmark with a regression guard (above)
-- [ ] Drift monitoring, threat-model note
+- [x] Drift monitoring: per-feature PSI against a training reference frozen into
+      the artifact, served at `POST /drift` (marginals + null-spikes; honest
+      about what it cannot see - `src/ledgersentry/drift.py`)
+- [ ] Threat-model note
 
 ## Attribution
 

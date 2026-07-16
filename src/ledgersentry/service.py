@@ -29,6 +29,7 @@ from pydantic import BaseModel, Field
 
 from . import __version__
 from .config import get_settings
+from .drift import drift_report
 from .scoring import CompiledScorer, build_scorer
 
 ARTIFACT_DIR = get_settings().artifact_dir
@@ -193,6 +194,37 @@ def predict_batch(req: BatchRequest):
         ],
         "missing_columns": [c for c in expected if c not in frame.columns],
     }
+
+
+@app.post("/drift")
+def drift(req: BatchRequest):
+    """PSI drift check of a window of recent transactions against the training
+    reference frozen inside the artifact (see drift.py: it flags marginal
+    feature shift, not model wrongness - treat alerts as a trigger to look).
+    Send the same feature dicts /predict/batch takes; review_threshold is
+    ignored here."""
+    try:
+        bundle = _load()
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+    reference = bundle.get("drift_reference")
+    if not reference:
+        raise HTTPException(
+            status_code=503,
+            detail="artifact has no drift reference; retrain with scripts/train.py",
+        )
+    if not req.transactions:
+        raise HTTPException(status_code=422, detail="empty window")
+    cfg = get_settings()
+    window = pd.DataFrame([_derive_time_features(t) for t in req.transactions])
+    try:
+        return drift_report(
+            reference, window, psi_watch=cfg.psi_watch, psi_alert=cfg.psi_alert
+        )
+    except (TypeError, ValueError) as e:
+        raise HTTPException(
+            status_code=422, detail=f"non-numeric value for a numeric feature: {e}"
+        ) from e
 
 
 @app.get("/curve")

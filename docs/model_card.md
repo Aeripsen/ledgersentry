@@ -279,8 +279,13 @@ and that trade is the whole point of this project.
    training data. The /predict endpoint serves the headline (uncalibrated)
    model; a fraud desk that wants probability-unit thresholds should apply the
    committed Platt map from the calibration artifact.
-5. **No adversarial or drift evaluation.** Out of scope for this baseline; a
-   documented next step.
+5. **Drift is monitored on marginals only, and never adversarially evaluated.**
+   The shipped PSI surface (`drift.py`, `POST /drift`) compares each feature's
+   distribution in a scored window against the training reference frozen in the
+   artifact - it catches marginal shift and null-spikes, but not joint-
+   distribution shifts or label drift, and fraud drifts adversarially: treat an
+   alert as a trigger to investigate and retrain, not as the only failure mode.
+   No red-team/adversarial evaluation of the model itself has been done.
 6. **Latency numbers are one machine's.** The committed benchmark
    (`artifacts/benchmark.json`, README "Measured latency") runs on the real ULB
    artifact and test split, but on one commodity machine, single-thread; the

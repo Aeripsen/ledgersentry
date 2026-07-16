@@ -17,7 +17,14 @@ import joblib
 from sklearn.metrics import average_precision_score
 
 from .config import get_settings
-from .data import build_preprocessor, engineer_time_features, load, temporal_grouped_split
+from .data import (
+    build_preprocessor,
+    engineer_time_features,
+    feature_columns,
+    load,
+    temporal_grouped_split,
+)
+from .drift import reference_stats
 from .model import FraudDetector
 
 
@@ -86,9 +93,18 @@ def main(model_name: str | None = None) -> dict:
         f"({caught}/{n_test_fraud} test frauds auto-caught)"
     )
 
+    # drift reference: the TRAIN split's per-feature distribution, frozen into
+    # the artifact beside the model it describes (see drift.py). Numeric
+    # features only; the categorical column is one-hot and low-cardinality.
+    numeric_cols, _ = feature_columns(train_df)
+    drift_reference = reference_stats(train_df, numeric_cols, bins=cfg.psi_bins)
+
     artifact_dir = cfg.artifact_dir
     artifact_dir.mkdir(parents=True, exist_ok=True)
-    joblib.dump({"preprocessor": pre, "model": model}, artifact_dir / "ledgersentry.joblib")
+    joblib.dump(
+        {"preprocessor": pre, "model": model, "drift_reference": drift_reference},
+        artifact_dir / "ledgersentry.joblib",
+    )
     payload = json.dumps(metrics, indent=2)
     # metrics.json is always the latest run; metrics_<source>.json is a per-source
     # snapshot so a real-data run and the synthetic CI fixture can sit side by side

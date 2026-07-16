@@ -55,6 +55,12 @@ class Settings(BaseSettings):
     # serving
     max_batch: int = 10_000
 
+    # drift monitoring: PSI bin count + the conventional credit-scoring
+    # rule-of-thumb thresholds (<0.1 stable, 0.1-0.25 watch, >=0.25 alert)
+    psi_bins: int = 10
+    psi_watch: float = 0.1
+    psi_alert: float = 0.25
+
     @classmethod
     def settings_customise_sources(
         cls,
