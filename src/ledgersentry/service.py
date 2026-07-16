@@ -1,10 +1,16 @@
 """
 FastAPI serving layer for LedgerSentry.
 
-GET  /health         -> liveness + whether a trained model is loaded
+GET  /health         -> liveness (always 200 while up; says if the model is loaded)
+GET  /ready          -> readiness (200 only when the scorer can actually serve)
 POST /predict        -> score one transaction, review_threshold as a request field
 POST /predict/batch  -> score up to MAX_BATCH transactions in one vectorized call
+POST /drift          -> PSI drift check of a window against the training reference
 GET  /curve          -> the measured coverage-vs-precision curve (last train run)
+
+Logging is structured (one JSON object per line) and metadata-only: decisions,
+latencies, counts - never transaction feature values. Threat model, including
+the joblib/pickle trust rule for the artifact: docs/threat_model.md.
 
 Unlike a fixed-schema project, LedgerSentry's feature set is dataset-dependent
 (the synthetic fixture has f_entity_daily_tx_count; Sparkov/IEEE-CIS/ULB would
@@ -21,6 +27,9 @@ compiled path is pinned byte-exact to the reference path by tests/test_scoring.p
 from __future__ import annotations
 
 import json
+import logging
+import time
+from datetime import UTC, datetime
 
 import joblib
 import pandas as pd
@@ -35,6 +44,35 @@ from .scoring import CompiledScorer, build_scorer
 ARTIFACT_DIR = get_settings().artifact_dir
 ARTIFACT = ARTIFACT_DIR / "ledgersentry.joblib"
 MAX_BATCH = get_settings().max_batch  # request-size cap: bounds memory and latency
+
+
+class _JsonFormatter(logging.Formatter):
+    """One JSON object per line: machine-parseable, grep-able, no format drift."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        entry = {
+            "ts": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
+            "level": record.levelname,
+            "event": record.getMessage(),
+        }
+        entry.update(getattr(record, "fields", {}))
+        return json.dumps(entry)
+
+
+logger = logging.getLogger("ledgersentry.service")
+if not logger.handlers:  # don't stack handlers on reload/re-import
+    _handler = logging.StreamHandler()
+    _handler.setFormatter(_JsonFormatter())
+    logger.addHandler(_handler)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+
+
+def _log(event: str, **fields: object) -> None:
+    """Structured log line. Policy: METADATA ONLY - decisions, latencies,
+    counts. Never feature values: transaction fields are card-adjacent data
+    and do not belong in server logs (see docs/threat_model.md)."""
+    logger.info(event, extra={"fields": fields})
 
 app = FastAPI(
     title="LedgerSentry",
@@ -124,11 +162,29 @@ class Transaction(BaseModel):
 
 @app.get("/health")
 def health():
+    """Liveness + a status field: always 200 while the process is up, so an
+    orchestrator does not kill a pod that merely lacks its artifact."""
     try:
         _load()
         return {"status": "ok", "model": "loaded", "version": __version__}
     except FileNotFoundError:
         return {"status": "degraded", "model": "missing", "version": __version__}
+
+
+@app.get("/ready")
+def ready():
+    """Readiness: 200 only when the artifact is loaded and the compiled scorer
+    is built - the binary gate for routing traffic (versus /health, which is
+    liveness and stays 200 while degraded)."""
+    try:
+        scorer = _scorer()
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+    return {
+        "status": "ready",
+        "version": __version__,
+        "expected_features": len(scorer.numeric_cols) + len(scorer.categorical_cols),
+    }
 
 
 class BatchRequest(BaseModel):
@@ -147,17 +203,28 @@ def predict(req: Transaction):
     except FileNotFoundError as e:
         raise HTTPException(status_code=503, detail=str(e)) from e
     feats = _derive_time_features(req.features)
+    t0 = time.perf_counter()
     try:
         result = scorer.score_one(feats, review_threshold=req.review_threshold)
     except (TypeError, ValueError) as e:
         raise HTTPException(
             status_code=422, detail=f"non-numeric value for a numeric feature: {e}"
         ) from e
+    latency_ms = round((time.perf_counter() - t0) * 1000.0, 3)
+    missing = _missing_fields(feats, scorer)
+    _log(
+        "predict",
+        decision=result.decision,
+        p_fraud=round(result.p_fraud, 4),
+        latency_ms=latency_ms,
+        n_missing=len(missing),
+    )
     return {
         "decision": result.decision,
         "p_fraud": round(result.p_fraud, 4),
         "confidence": round(result.confidence, 4),
-        "missing_fields": _missing_fields(feats, scorer),
+        "missing_fields": missing,
+        "latency_ms": latency_ms,
     }
 
 
@@ -175,12 +242,20 @@ def predict_batch(req: BatchRequest):
         return {"n": 0, "results": [], "missing_columns": []}
     rows = [_derive_time_features(t) for t in req.transactions]
     frame = pd.DataFrame(rows)
+    t0 = time.perf_counter()
     try:
         batch = scorer.score_frame(frame, review_threshold=req.review_threshold)
     except (TypeError, ValueError) as e:
         raise HTTPException(
             status_code=422, detail=f"non-numeric value for a numeric feature: {e}"
         ) from e
+    _log(
+        "predict_batch",
+        n=len(rows),
+        n_fraud=int((batch.decisions == "fraud").sum()),
+        n_review=int((batch.decisions == "review").sum()),
+        latency_ms=round((time.perf_counter() - t0) * 1000.0, 3),
+    )
     expected = scorer.numeric_cols + scorer.categorical_cols
     return {
         "n": len(rows),
@@ -218,13 +293,21 @@ def drift(req: BatchRequest):
     cfg = get_settings()
     window = pd.DataFrame([_derive_time_features(t) for t in req.transactions])
     try:
-        return drift_report(
+        report = drift_report(
             reference, window, psi_watch=cfg.psi_watch, psi_alert=cfg.psi_alert
         )
     except (TypeError, ValueError) as e:
         raise HTTPException(
             status_code=422, detail=f"non-numeric value for a numeric feature: {e}"
         ) from e
+    _log(
+        "drift",
+        n_window=report["n_window"],
+        worst_feature=report["worst_feature"],
+        worst_psi=report["worst_psi"],
+        n_alerts=report["n_alerts"],
+    )
+    return report
 
 
 @app.get("/curve")

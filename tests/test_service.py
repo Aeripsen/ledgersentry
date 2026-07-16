@@ -38,6 +38,29 @@ def test_health_ok():
     assert resp.json()["status"] in {"ok", "degraded"}
 
 
+def test_ready_gates_on_scorer(monkeypatch):
+    """/ready must be the binary traffic gate: 200 with a loaded scorer, 503
+    without an artifact (while /health stays 200 - liveness vs readiness)."""
+    monkeypatch.setattr(service, "_bundle", _tiny_bundle())
+    client = TestClient(service.app)
+    resp = client.get("/ready")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "ready"
+    assert resp.json()["expected_features"] > 0
+
+    monkeypatch.setattr(service, "_bundle", None)
+    monkeypatch.setattr(service, "ARTIFACT", service.ARTIFACT_DIR / "does_not_exist.joblib")
+    assert client.get("/ready").status_code == 503
+    assert client.get("/health").status_code == 200
+
+
+def test_predict_reports_latency(monkeypatch):
+    monkeypatch.setattr(service, "_bundle", _tiny_bundle())
+    client = TestClient(service.app)
+    body = client.post("/predict", json={"features": {"amount": 10.0}}).json()
+    assert body["latency_ms"] > 0.0
+
+
 def test_predict_returns_decision(monkeypatch):
     monkeypatch.setattr(service, "_bundle", _tiny_bundle())
     client = TestClient(service.app)
