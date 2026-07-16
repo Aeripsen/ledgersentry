@@ -1,0 +1,68 @@
+{
+  "data_source": "ulb_creditcard",
+  "is_synthetic": false,
+  "n_train": 227846,
+  "n_test": 56961,
+  "train_fraud_rate": 0.0018,
+  "test_fraud_rate": 0.0013,
+  "pr_auc": 0.7278,
+  "pr_auc_random_baseline": 0.0013,
+  "coverage_precision_curve": [
+    {
+      "review_threshold": 0.5,
+      "coverage": 1.0,
+      "n_sent_to_review": 0,
+      "n_flagged_fraud": 216,
+      "precision_on_flagged": 0.2917
+    },
+    {
+      "review_threshold": 0.6,
+      "coverage": 0.9976,
+      "n_sent_to_review": 139,
+      "n_flagged_fraud": 156,
+      "precision_on_flagged": 0.3846
+    },
+    {
+      "review_threshold": 0.7,
+      "coverage": 0.9945,
+      "n_sent_to_review": 312,
+      "n_flagged_fraud": 129,
+      "precision_on_flagged": 0.4419
+    },
+    {
+      "review_threshold": 0.8,
+      "coverage": 0.9898,
+      "n_sent_to_review": 583,
+      "n_flagged_fraud": 105,
+      "precision_on_flagged": 0.5333
+    },
+    {
+      "review_threshold": 0.9,
+      "coverage": 0.9722,
+      "n_sent_to_review": 1582,
+      "n_flagged_fraud": 73,
+      "precision_on_flagged": 0.7397
+    },
+    {
+      "review_threshold": 0.95,
+      "coverage": 0.9291,
+      "n_sent_to_review": 4039,
+      "n_flagged_fraud": 59,
+      "precision_on_flagged": 0.8983
+    },
+    {
+      "review_threshold": 0.99,
+      "coverage": 0.0003,
+      "n_sent_to_review": 56943,
+      "n_flagged_fraud": 0,
+      "precision_on_flagged": null
+    },
+    {
+      "review_threshold": 1.0,
+      "coverage": 0.0,
+      "n_sent_to_review": 56961,
+      "n_flagged_fraud": 0,
+      "precision_on_flagged": null
+    }
+  ]
+}

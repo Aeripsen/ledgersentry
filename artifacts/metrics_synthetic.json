@@ -1,0 +1,68 @@
+{
+  "data_source": "synthetic",
+  "is_synthetic": true,
+  "n_train": 6419,
+  "n_test": 1581,
+  "train_fraud_rate": 0.0101,
+  "test_fraud_rate": 0.0095,
+  "pr_auc": 0.7884,
+  "pr_auc_random_baseline": 0.0095,
+  "coverage_precision_curve": [
+    {
+      "review_threshold": 0.5,
+      "coverage": 1.0,
+      "n_sent_to_review": 0,
+      "n_flagged_fraud": 13,
+      "precision_on_flagged": 0.7692
+    },
+    {
+      "review_threshold": 0.6,
+      "coverage": 0.9994,
+      "n_sent_to_review": 1,
+      "n_flagged_fraud": 13,
+      "precision_on_flagged": 0.7692
+    },
+    {
+      "review_threshold": 0.7,
+      "coverage": 0.9987,
+      "n_sent_to_review": 2,
+      "n_flagged_fraud": 12,
+      "precision_on_flagged": 0.8333
+    },
+    {
+      "review_threshold": 0.8,
+      "coverage": 0.9981,
+      "n_sent_to_review": 3,
+      "n_flagged_fraud": 11,
+      "precision_on_flagged": 0.8182
+    },
+    {
+      "review_threshold": 0.9,
+      "coverage": 0.9981,
+      "n_sent_to_review": 3,
+      "n_flagged_fraud": 11,
+      "precision_on_flagged": 0.8182
+    },
+    {
+      "review_threshold": 0.95,
+      "coverage": 0.9968,
+      "n_sent_to_review": 5,
+      "n_flagged_fraud": 10,
+      "precision_on_flagged": 0.9
+    },
+    {
+      "review_threshold": 0.99,
+      "coverage": 0.993,
+      "n_sent_to_review": 11,
+      "n_flagged_fraud": 9,
+      "precision_on_flagged": 0.8889
+    },
+    {
+      "review_threshold": 1.0,
+      "coverage": 0.0,
+      "n_sent_to_review": 1581,
+      "n_flagged_fraud": 0,
+      "precision_on_flagged": null
+    }
+  ]
+}

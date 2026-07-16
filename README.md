@@ -5,15 +5,27 @@ A gradient-boosted classifier that scores each transaction and, when it isn't co
 either way, abstains and returns `"review"` instead of guessing. It is the FlowSentry
 architecture (my real-time network-intrusion-detection flagship) retargeted from network
 flows to financial transactions: same reject-option idea, same leakage-safe evaluation
-discipline, same honesty rules, different domain. Build once, two flagships.
+discipline, same honesty rules, different domain.
 
-> **Data note, read this first.** Every number below is measured on a **deterministic
-> synthetic transaction fixture** (seeded, 8,000 rows, ~1% fraud), not real financial
-> data. It exists so this pipeline, its tests, and CI are green with zero network access
-> and zero Kaggle-gated downloads. The real-data run (Sparkov / IEEE-CIS / ULB / Amazon
-> `fraud-dataset-benchmark`) is a documented next step - see "Data" below and
-> `HANDOFF.md`. Every metrics artifact this repo produces is tagged `is_synthetic` for
-> exactly this reason, and nothing here is trained on, or points at, real payments.
+**The 90-second version:**
+
+- **Real result:** PR-AUC **0.7278** on the ULB credit-card fraud set (284,807 real
+  anonymized transactions, 492 fraud, 0.17%) with a strictly temporal holdout - train
+  on the first ~40 hours, test on the last ~7.6 hours, nothing from the future leaks
+  back. No-skill baseline on that fold is 0.0013, so that is roughly a 550x lift.
+- **The knob is the product:** fully automated, 29% of flagged transactions are truly
+  fraud; send the most uncertain 7.1% of traffic to human review and automated flags
+  become **89.8% precise**. The full measured coverage-vs-precision table is below.
+- **The edge is honest evaluation:** leakage-safe grouped + temporal splits, PR-AUC
+  instead of accuracy on 99.8%-legit data, and a reject option instead of forced
+  guesses - the same core as my SECRYPT 2026 paper on intrusion detection with a
+  reject option. A defensible measured 0.73 beats a fake 0.99, and hiring managers
+  and reviewers know the difference.
+- **Everything is reproducible:** `pip install -r requirements.txt`, drop
+  `data/creditcard.csv` in (one public URL, no login - see Data), run
+  `python scripts/train.py`. Without the file, the same command runs a deterministic
+  synthetic fixture so tests and CI stay green offline. Real and synthetic numbers
+  are never mixed: every metrics file is tagged `is_synthetic`.
 
 ## Money boundary
 
@@ -78,42 +90,52 @@ accuracy figure, is the product.
 
 Built in F1: the canonical loader, the deterministic synthetic fixture, the
 leakage-safe grouped/temporal split, the baseline model with the reject-to-review
-knob, and the metrics/model-card pipeline. Built in F2 (this milestone): a live
+knob, and the metrics/model-card pipeline. Built in F2: a live
 `/predict` + `/health` + `/curve` FastAPI service, a one-row-at-a-time streaming
 replay with real measured latency, a Streamlit dashboard with the review-threshold
 knob as a live slider, and a Dockerfile/docker-compose serving both - mirroring
 FlowSentry's own Week-2 milestone.
 
-## Results (real, measured, synthetic fixture)
+## Results - REAL DATA (ULB credit-card fraud, measured 2026-07-15)
 
-Dataset: deterministic synthetic transactions, 8,000 rows, seeded (`seed=42`).
-Leakage-safe split: 6,419 train rows / 1,581 test rows, grouped by account
-(`entity_id`) with zero accounts shared between train and test, entities ordered by
-first-seen time so the split is also approximately temporal. Test fraud rate 0.95%
-(15 fraud rows of 1,581).
+Dataset: ULB "Credit Card Fraud Detection" - 284,807 real anonymized European card
+transactions over 2 days, 492 fraud (0.173%). ULB publishes no card/customer id, so
+the grouped split degrades (documented in `data.py`) to a **pure temporal split**:
+227,846 train rows (417 fraud) / 56,961 test rows (75 fraud, 0.132%) - the model is
+evaluated only on the final ~7.6 hours of transactions it has never seen.
 
-**PR-AUC on the imbalanced holdout: 0.7884** (random/no-skill baseline on this fold:
-0.0095 - the model's PR-AUC is roughly 83x the no-skill baseline). Not claimed to be
-comparable to the ~0.86-0.88 published XGBoost numbers on real card data (different,
-synthetic dataset) - see `docs/model_card.md` for why a number well short of 1.0 is the
-expected, honest result here, not a shortfall.
+**PR-AUC on the real imbalanced holdout: 0.7278** (no-skill baseline on this fold:
+0.0013, roughly a 550x lift). Published XGBoost-class numbers on real card data run
+~0.86-0.88, but on random (non-temporal) splits of different datasets - not directly
+comparable, and not claimed to be. See `docs/model_card.md` for the full honesty
+notes. Source of truth: `artifacts/metrics_ulb_creditcard.json`
+(`is_synthetic: false`).
 
-**Coverage vs precision (the reject-to-review knob working):**
+**Coverage vs precision on real data (the reject-to-review knob working):**
 
 | Review threshold | Coverage | Sent to review | Flagged fraud | Precision on flagged |
 |---|---|---|---|---|
-| 0.50 | 100.00% | 0 | 13 | 76.92% |
-| 0.70 | 99.87% | 2 | 12 | 83.33% |
-| 0.90 | 99.81% | 3 | 11 | 81.82% |
-| 0.95 | 99.68% | 5 | 10 | 90.00% |
-| 0.99 | 99.30% | 11 | 9 | 88.89% |
+| 0.50 | 100.00% | 0 | 216 | 29.17% |
+| 0.70 | 99.45% | 312 | 129 | 44.19% |
+| 0.80 | 98.98% | 583 | 105 | 53.33% |
+| 0.90 | 97.22% | 1,582 | 73 | 73.97% |
+| 0.95 | 92.91% | 4,039 | 59 | 89.83% |
 
-Full 8-row table (including 0.60, 0.80, 1.00) in `docs/model_card.md`, generated fresh
-by every run of `scripts/train.py` from `artifacts/metrics.json`. Reading it: at the
-loosest setting the model auto-decides every transaction, right on 77% of what it flags
-as fraud; tightening the knob sends a handful of the most uncertain transactions to
-review (11 of 1,581 at the strictest setting shown) and lifts flagged-fraud precision
-into the high 80s/low 90s.
+Reading it: fully automated, 29% of flagged transactions are truly fraud; route the
+most uncertain 7.1% of traffic to review and the automated flags become 89.8%
+precise. That 3x precision lift for a bounded human-review budget is the product.
+(Above 0.95 the uncalibrated confidence cliff sends almost everything to review -
+measured, shown in the model card's full 8-row table, and called out as a limitation
+rather than hidden.)
+
+### Synthetic fixture (offline CI baseline, labeled synthetic)
+
+With no real file in `data/`, the same pipeline runs a deterministic seeded fixture
+(8,000 rows, ~1% fraud) so tests and CI are green with zero downloads: PR-AUC
+**0.7884** against a 0.0095 no-skill baseline (`artifacts/metrics_synthetic.json`,
+`is_synthetic: true`). Full table and caveats in `docs/model_card.md` - synthetic
+numbers are a pipeline proof, not a benchmark claim, and are never mixed with the
+real ones.
 
 ## Live serving - measured latency (F2)
 
@@ -149,10 +171,15 @@ source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 pip install -e .                 # optional - scripts/train.py works without it
 
-python scripts/train.py          # trains on the synthetic fixture (no download needed)
+python scripts/train.py          # no data file present -> synthetic fixture (offline)
                                   # writes artifacts/ledgersentry.joblib + metrics.json
-pytest                           # run the test suite (20 tests, ~15-20s)
+pytest                           # run the test suite (27 tests, ~20s)
 ruff check .                     # lint
+
+# reproduce the REAL ULB numbers (one public file, no login):
+curl -o data/creditcard.csv https://storage.googleapis.com/download.tensorflow.org/data/creditcard.csv
+python scripts/train.py          # detects the file, trains + evaluates on real data,
+                                  # writes artifacts/metrics_ulb_creditcard.json
 ```
 
 ## Serving + dashboard
@@ -175,6 +202,8 @@ python scripts/stream.py --n 0
 streamlit run dashboard/app.py
 
 # Or both services in one container stack (api:8000, dashboard:8501):
+# (honesty note: the image has not been build-tested yet - Docker was unavailable
+#  on the build machine; the files mirror FlowSentry's known-good setup)
 docker compose up --build
 ```
 
@@ -187,20 +216,17 @@ serves whatever `f_*` features that source produced. Missing numeric fields defa
 ## Data
 
 `src/ledgersentry/data.py` is dataset-agnostic: drop a real file in `data/` and
-`load()` uses it automatically instead of the synthetic fallback. None of these are
-downloaded by this repo - IEEE-CIS and the Amazon benchmark are Kaggle/auth-gated, and
-even the open ones are tens to hundreds of MB, so fetching is a manual step.
+`load()` uses it automatically instead of the synthetic fallback. No dataset is
+committed to or downloaded by this repo - fetching is a manual step. All four loaders
+are exercised in CI against tiny true-schema fixture CSVs (`tests/test_loaders.py`),
+so a loader regression turns CI red without shipping any real data.
 
 | Source | Why | Drop it at | Get it from |
 |---|---|---|---|
-| **Sparkov** (kartik2112, Kaggle) | streaming/real-time demo - has genuine timestamps, 1.85M simulated transactions, 1,000 customers x 800 merchants | `data/fraudTrain.csv` [+ `fraudTest.csv`] | [kaggle.com/datasets/kartik2112/fraud-detection](https://www.kaggle.com/datasets/kartik2112/fraud-detection) |
-| **IEEE-CIS Fraud Detection** (Vesta) | headline benchmark - 590,540 real e-commerce transactions, 393 features | `data/train_transaction.csv` [+ `train_identity.csv`] | [kaggle.com/c/ieee-fraud-detection](https://www.kaggle.com/c/ieee-fraud-detection) |
+| **ULB Credit Card Fraud** | classic baseline, the real-data run above - 284,807 European transactions, 492 fraud | `data/creditcard.csv` | no login needed: `curl -o data/creditcard.csv https://storage.googleapis.com/download.tensorflow.org/data/creditcard.csv` (TensorFlow's hosted copy of the [Kaggle set](https://www.kaggle.com/mlg-ulb/creditcardfraud); verify 284,807 rows / 492 fraud after download) |
+| **Sparkov** (kartik2112, Kaggle) | streaming/real-time demo - has genuine timestamps, 1.85M simulated transactions, 1,000 customers x 800 merchants | `data/fraudTrain.csv` [+ `fraudTest.csv`] | [kaggle.com/datasets/kartik2112/fraud-detection](https://www.kaggle.com/datasets/kartik2112/fraud-detection) (Kaggle login) |
+| **IEEE-CIS Fraud Detection** (Vesta) | headline benchmark - 590,540 real e-commerce transactions, 393 features | `data/train_transaction.csv` [+ `train_identity.csv`] | [kaggle.com/c/ieee-fraud-detection](https://www.kaggle.com/c/ieee-fraud-detection) (Kaggle login) |
 | **Amazon `fraud-dataset-benchmark`** | comparability - a standardized multi-dataset benchmark harness | `data/fdb_train.csv` [+ `fdb_test.csv`] (export `obj.train.to_csv(...)` yourself; the package has no file-export of its own) | [github.com/amazon-science/fraud-dataset-benchmark](https://github.com/amazon-science/fraud-dataset-benchmark) |
-| **ULB Credit Card Fraud** | classic leakage-safe baseline - 284,807 European transactions, 492 fraud | `data/creditcard.csv` | [kaggle.com/mlg-ulb/creditcardfraud](https://www.kaggle.com/mlg-ulb/creditcardfraud) |
-
-Grounding for why these four and why the market/model case holds up:
-`../Transcendent/projects/portfolio-site/FINTECH_PLAN.md` (private planning doc, not
-part of this repo).
 
 ## Repository layout
 
@@ -217,12 +243,16 @@ dashboard/
 scripts/
   train.py    CLI entry point: python scripts/train.py
   stream.py   CLI entry point: python scripts/stream.py
-tests/        synthetic-fixture + service tests (determinism, split leakage, PR-AUC
-              range, reject knob, /health + /predict + /curve)
+tests/        synthetic-fixture, loader, and service tests (determinism, split
+              leakage, PR-AUC range, reject knob, /health + /predict + /curve, and
+              all four real-dataset loaders against tiny true-schema fixture CSVs
+              in tests/fixtures/)
 docs/
-  model_card.md   full measured results + honest limitations
-artifacts/     ledgersentry.joblib (gitignored) + metrics.json (committed - the source
-               of truth every number above is copied from)
+  model_card.md   full measured results (real + synthetic, clearly separated) +
+                  honest limitations
+artifacts/     ledgersentry.joblib (gitignored) + committed metrics: metrics.json
+               (latest run), metrics_ulb_creditcard.json (the real ULB run),
+               metrics_synthetic.json (the offline CI fixture)
 Dockerfile / docker-compose.yml   one image, two services (api:8000, dashboard:8501)
 ```
 
@@ -239,7 +269,7 @@ Dockerfile / docker-compose.yml   one image, two services (api:8000, dashboard:8
 - [x] Tests (determinism, no group leakage, PR-AUC range, reject-knob behavior) + CI
       (ruff + pytest + a synthetic training smoke test)
 
-**F2: streaming demo + dashboard (this milestone, DONE)**
+**F2: streaming demo + dashboard (DONE)**
 - [x] `/predict` FastAPI endpoint: score a transaction, review threshold as a request
       parameter, mirroring FlowSentry's `/predict` + `/curve`; expected columns read
       off the fitted preprocessor, not hardcoded to the synthetic schema
@@ -249,12 +279,22 @@ Dockerfile / docker-compose.yml   one image, two services (api:8000, dashboard:8
       above)
 - [x] Dashboard with the review-threshold knob as a live slider (coverage vs precision,
       live), mirroring FlowSentry's Streamlit reject-knob demo
-- [x] Dockerfile + docker-compose, matching FlowSentry's container setup (Docker itself
-      wasn't available to build-test on this machine - see HANDOFF.md)
+- [x] Dockerfile + docker-compose, matching FlowSentry's container setup (not yet
+      build-tested - Docker was unavailable on the build machine; flagged below)
 
-**F3+: real-data run + hardening (not built)**
-- [ ] Train and report on Sparkov / IEEE-CIS / ULB (real PR-AUC, replacing/joining the
-      synthetic-fixture numbers, never silently swapped in for them)
+**F3: real-data run (ULB DONE, this milestone)**
+- [x] Train and report on real data: ULB credit-card fraud, 284,807 transactions,
+      temporal holdout, PR-AUC 0.7278 - reported beside the synthetic-fixture
+      numbers, never silently swapped in for them
+- [x] CI tests for all four real-dataset loaders (tiny true-schema fixtures in
+      `tests/fixtures/`), including a regression test for the FDB amount-column
+      mapping
+- [ ] Sparkov full run (the streaming story - Kaggle-gated download) and IEEE-CIS
+      full run (the headline benchmark)
+
+**F4+: hardening (not built)**
+- [ ] Confidence calibration (train-only CalibratedClassifierCV) so review
+      thresholds are portable across datasets
 - [ ] Drift monitoring, load test with real latency/throughput numbers, threat-model
       note - mirroring FlowSentry's Week-3 hardening pass
 

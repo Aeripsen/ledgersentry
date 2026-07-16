@@ -170,6 +170,15 @@ def _load_ieee_cis(tx_path: Path, identity_path: Path | None) -> pd.DataFrame:
     return _finalize(out, "ieee_cis")
 
 
+# FDB standardizes the label/entity/time columns but NOT an amount column - each
+# sub-dataset keeps its own name (TransactionAmt on the ieeecis export, amt on
+# sparknov, disbursed_amount on vehicleloan, and the text sets have none at all).
+_FDB_AMOUNT_CANDIDATES = {
+    "transactionamt", "amt", "amount", "transaction_amount", "transactionamount",
+    "disbursed_amount",
+}
+
+
 def _load_fdb(train_path: Path, test_path: Path | None) -> pd.DataFrame:
     """Amazon `fraud-dataset-benchmark` standardized export. The FDB package itself
     has no CSV-export mechanism; this reads whatever you saved from its Python API
@@ -183,17 +192,24 @@ def _load_fdb(train_path: Path, test_path: Path | None) -> pd.DataFrame:
         "EVENT_LABEL", "EVENT_TIMESTAMP", "ENTITY_ID", "ENTITY_TYPE", "LABEL_TIMESTAMP", "EVENT_ID",
     }
     tx_id = raw["EVENT_ID"] if "EVENT_ID" in raw.columns else raw.index.astype(str)
+    # Map the sub-dataset's own amount column (case-insensitive match against the
+    # known FDB names above). When a sub-dataset has no amount-like column at all,
+    # amount is NaN - honestly missing, natively handled by
+    # HistGradientBoostingClassifier - never a fake constant 0.0.
+    amount_col = next((c for c in raw.columns if c.lower() in _FDB_AMOUNT_CANDIDATES), None)
     out = pd.DataFrame(
         {
             "transaction_id": tx_id,
             "timestamp": pd.to_datetime(raw["EVENT_TIMESTAMP"]),
             "entity_id": raw["ENTITY_ID"].astype(str),
-            "amount": raw["TransactionAmt"] if "TransactionAmt" in raw.columns else 0.0,
+            "amount": raw[amount_col] if amount_col is not None else float("nan"),
             "category": None,
             "is_fraud": raw["EVENT_LABEL"],
         }
     )
     for c in raw.columns:
+        if c == amount_col:
+            continue  # already mapped to the canonical `amount`, don't duplicate as f_*
         if c not in reserved and pd.api.types.is_numeric_dtype(raw[c]):
             out[f"{FEATURE_PREFIX}{c}"] = raw[c]
     return _finalize(out, "amazon_fdb")

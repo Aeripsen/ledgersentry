@@ -63,9 +63,17 @@ def main() -> dict:
         "coverage_precision_curve": curve,
     }
 
+    label = "SYNTHETIC FIXTURE" if metrics["is_synthetic"] else f"REAL DATA ({source})"
+    print(f"[eval ] {label}: PR-AUC={pr_auc:.4f} (no-skill baseline {random_baseline:.4f})")
+
     ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
     joblib.dump({"preprocessor": pre, "model": model}, ARTIFACT_DIR / "ledgersentry.joblib")
-    (ARTIFACT_DIR / "metrics.json").write_text(json.dumps(metrics, indent=2))
+    payload = json.dumps(metrics, indent=2)
+    # metrics.json is always the latest run; metrics_<source>.json is a per-source
+    # snapshot so a real-data run and the synthetic CI fixture can sit side by side
+    # in git without one silently overwriting the other's numbers.
+    (ARTIFACT_DIR / "metrics.json").write_text(payload)
+    (ARTIFACT_DIR / f"metrics_{source}.json").write_text(payload)
 
     print(json.dumps(metrics, indent=2))
     print(f"[save ] {ARTIFACT_DIR / 'ledgersentry.joblib'}")
