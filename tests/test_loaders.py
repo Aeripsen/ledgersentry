@@ -139,6 +139,24 @@ def test_fdb_loader_without_amount_column_is_nan_not_zero(tmp_path):
     assert "f_num_links" in df.columns
 
 
+def test_loader_specs_name_their_sources_truthfully(tmp_path):
+    """Each LoaderSpec.name must match the source its loader actually stamps
+    on the frame - a mismatch would mislabel every metric downstream."""
+    staged = {
+        "sparkov": {"sparkov_fraudTrain.csv": "fraudTrain.csv"},
+        "ieee_cis": {"ieee_train_transaction.csv": "train_transaction.csv"},
+        "amazon_fdb": {"fdb_train.csv": "fdb_train.csv"},
+        "ulb_creditcard": {"ulb_creditcard.csv": "creditcard.csv"},
+    }
+    assert {s.name for s in data.LOADERS} == set(staged)
+    for spec in data.LOADERS:
+        d = tmp_path / spec.name
+        d.mkdir()
+        _stage(d, staged[spec.name])
+        df = spec.load(d / spec.primary, d / spec.secondary if spec.secondary else None)
+        assert df.attrs["source"] == spec.name
+
+
 def test_detection_order_prefers_sparkov_over_ulb(tmp_path):
     _stage(
         tmp_path,

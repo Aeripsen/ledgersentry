@@ -47,7 +47,9 @@ labeled `is_synthetic: true` wherever they're reported - see docs/model_card.md.
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Protocol
 
 import numpy as np
 import pandas as pd
@@ -98,9 +100,10 @@ def _finalize(df: pd.DataFrame, source: str) -> pd.DataFrame:
 # none of these are downloaded or committed by this repo)
 # --------------------------------------------------------------------------- #
 
-def _load_ulb(path: Path) -> pd.DataFrame:
+def _load_ulb(path: Path, _secondary: Path | None = None) -> pd.DataFrame:
     """ULB European credit-card set: Time (seconds since the first transaction),
-    V1..V28 (already PCA-anonymized), Amount, Class. There is no customer/card id
+    V1..V28 (already PCA-anonymized), Amount, Class. Single-file source (the
+    secondary slot in its LoaderSpec is unused). There is no customer/card id
     on this dataset, so each row is its own entity: the grouped split degrades to
     a plain temporal split for this source only (documented, not hidden)."""
     raw = pd.read_csv(path)
@@ -215,27 +218,41 @@ def _load_fdb(train_path: Path, test_path: Path | None) -> pd.DataFrame:
     return _finalize(out, "amazon_fdb")
 
 
+class LoaderFn(Protocol):
+    """One real-dataset loader: primary file (must exist), optional secondary
+    companion file, out comes a canonical-schema frame via _finalize."""
+
+    def __call__(self, primary: Path, secondary: Path | None = None) -> pd.DataFrame: ...
+
+
+@dataclass(frozen=True)
+class LoaderSpec:
+    name: str  # must equal the source name the loader's _finalize stamps
+    primary: str  # the file whose presence in data_dir selects this loader
+    secondary: str | None  # optional companion file, joined/concatenated if present
+    load: LoaderFn
+
+
+# Detection order is deliberate and covered by a test: Sparkov (streaming demo)
+# beats IEEE-CIS (headline benchmark) beats Amazon FDB (comparability) beats
+# ULB (classic baseline). Supporting a new source = one loader function + one
+# spec row here; _detect_real never changes.
+LOADERS: tuple[LoaderSpec, ...] = (
+    LoaderSpec("sparkov", "fraudTrain.csv", "fraudTest.csv", _load_sparkov),
+    LoaderSpec("ieee_cis", "train_transaction.csv", "train_identity.csv", _load_ieee_cis),
+    LoaderSpec("amazon_fdb", "fdb_train.csv", "fdb_test.csv", _load_fdb),
+    LoaderSpec("ulb_creditcard", "creditcard.csv", None, _load_ulb),
+)
+
+
 def _detect_real(data_dir: Path) -> pd.DataFrame | None:
-    """First real-dataset file found in `data_dir`, checked in a fixed documented
-    order (Sparkov = streaming demo, IEEE-CIS = headline benchmark, Amazon FDB =
-    comparability, ULB = classic leakage-safe baseline). Returns None (caller
-    falls back to synthetic) if no real files are present."""
-    sparkov_train = data_dir / "fraudTrain.csv"
-    if sparkov_train.exists():
-        return _load_sparkov(sparkov_train, data_dir / "fraudTest.csv")
-
-    ieee_tx = data_dir / "train_transaction.csv"
-    if ieee_tx.exists():
-        return _load_ieee_cis(ieee_tx, data_dir / "train_identity.csv")
-
-    fdb_train = data_dir / "fdb_train.csv"
-    if fdb_train.exists():
-        return _load_fdb(fdb_train, data_dir / "fdb_test.csv")
-
-    ulb = data_dir / "creditcard.csv"
-    if ulb.exists():
-        return _load_ulb(ulb)
-
+    """First LoaderSpec whose primary file exists in `data_dir` wins. Returns
+    None (caller falls back to synthetic) if no real files are present."""
+    for spec in LOADERS:
+        primary = data_dir / spec.primary
+        if primary.exists():
+            secondary = data_dir / spec.secondary if spec.secondary else None
+            return spec.load(primary, secondary)
     return None
 
 
