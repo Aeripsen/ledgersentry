@@ -191,6 +191,59 @@ percentage points - the honest noise floor of a 1,581-row test fold, not a model
 claim. The real-data section above shows what the same knob looks like with actual
 volume behind it.
 
+## Calibration - measured (ULB)
+
+**The problem, measured first.** The raw model's score is a good ranker and a bad
+probability. On the untouched test fold its Brier score is **0.002188 - worse than
+just predicting the 0.13% base rate for every transaction (0.001315)**. The
+reliability curve says why: in the top quantile bin the model predicts an average
+fraud probability of 0.098 where the observed rate is 0.0125, roughly 8x
+overconfident. That is also what created the coverage cliff at threshold 0.99 in
+the raw table above: the units of the knob weren't probabilities.
+
+**The fix, without touching the headline model.** A calibrator must be fit on data
+its model never trained on, and carving that data out of the train window would
+move the committed headline numbers. So calibration runs as its own pipeline
+(`python scripts/calibrate.py`): train on the first 80% of the train window
+(182,277 rows, 365 fraud), fit the calibrator on the remaining 20% (45,569 rows,
+52 fraud - temporally after it), evaluate on the same untouched test fold as
+every other number on this page. Source of truth:
+`artifacts/calibration_ulb_creditcard.json`.
+
+**Results (test fold, measured 2026-07-16):**
+
+| | Brier score | PR-AUC |
+|---|---|---|
+| raw scores | 0.002188 | 0.7544 |
+| Platt (shipped) | **0.000516** | 0.7544 (identical - strictly monotone) |
+| isotonic (reported) | 0.000525 | 0.6728 (**damaged** - see below) |
+| always predict base rate | 0.001315 | - |
+
+Platt scaling cuts Brier 4.2x, from worse-than-constant to 2.5x better than
+constant, and the top reliability bin moves from 0.098-predicted/0.0125-observed
+to 0.011-predicted/0.0125-observed. (The calibration model's raw PR-AUC of 0.7544
+differs from the headline 0.7278 because it trains on 80% of the train window;
+one fold, no significance claim either way.)
+
+**Why Platt ships and isotonic doesn't.** The shipped calibrator must be strictly
+monotone - structurally incapable of changing the ranking. Isotonic is not: it is
+a step function, and with only 52 calibration frauds to pin the steps it collapsed
+distinct scores into ties, dropping test PR-AUC from 0.7544 to 0.6728 while
+looking *fine* on its own calibration slice (0.7585) - isotonic self-evaluation is
+optimistic by construction, so no cal-slice check catches this. Both calibrators'
+full numbers are committed either way.
+
+**What calibration buys the reject knob.** With honest probabilities, thresholds
+mean what they say: "flag if P(fraud) >= 0.5" now yields 58 flags at 87.9%
+precision (versus the raw table's 216 flags at 29.2% - same ranking, different
+units), and a fraud desk can price an operating point instead of eyeballing a
+curve. Using `model.expected_cost_curve` on the headline knob table with
+**illustrative** costs - $200 per missed fraud, $5 per false flag, $2 per human
+review; these are made-up round numbers to show the mechanics, not industry
+figures - the expected cost bottoms out at threshold 0.6 ($2,558 on this fold vs
+$3,165 fully automated). Different cost assumptions move that optimum, which is
+exactly why the function takes costs as required arguments and ships none.
+
 ## Why these numbers, not higher ones (and why that's reported anyway)
 
 A PR-AUC near 1.0 on a fraud task is usually a leakage smell, not a win - the
@@ -219,12 +272,13 @@ and that trade is the whole point of this project.
    thresholds. The real ULB fold is larger (56,961 rows / 75 fraud) but 75 positives
    still leaves visible noise in per-threshold precision; do not over-read small
    differences between adjacent rows.
-4. **Uncalibrated confidence.** `max(p_fraud, 1-p_fraud)` is a HistGradientBoosting
-   probability estimate, not a calibrated probability. On real ULB data the
-   confidence almost never exceeds 0.99 (the measured coverage cliff in the table
-   above), so thresholds are meaningful only against the measured curve for the
-   dataset in front of you. Train-set-only calibration (CalibratedClassifierCV) is
-   the documented next step.
+4. **The headline model's own confidence is uncalibrated.** The raw table above
+   is in uncalibrated units (hence the 0.99 cliff). Calibration is built,
+   measured, and shipped as a separate pipeline (see "Calibration" above) rather
+   than folded into the headline model, because fitting it honestly costs
+   training data. The /predict endpoint serves the headline (uncalibrated)
+   model; a fraud desk that wants probability-unit thresholds should apply the
+   committed Platt map from the calibration artifact.
 5. **No adversarial or drift evaluation.** Out of scope for this baseline; a
    documented next step.
 6. **Latency numbers are one machine's.** The committed benchmark

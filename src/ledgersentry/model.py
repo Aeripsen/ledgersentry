@@ -99,53 +99,93 @@ class FraudDetector(BaseEstimator):
         return decision, p_fraud, confidence
 
     def coverage_precision_curve(self, X, y, thresholds) -> list[dict]:
-        """Sweep the review threshold. For each threshold we report BOTH sides a
-        fraud desk asks about - precision (are the auto-flags right?) and recall
-        (what fraction of real fraud do we actually catch?):
+        """Sweep the review threshold over this model's own scores. The math
+        lives in curve_from_scores (below) so calibrated scores can drive the
+        exact same table - see calibration.py."""
+        return curve_from_scores(self.predict_proba_fraud(X), y, thresholds)
 
-          coverage              fraction of rows the model decides on its own (not
-                                sent to review).
-          precision_on_flagged  of the rows it auto-flags as fraud, the fraction
-                                that are truly fraud. None when nothing is flagged
-                                (precision is undefined, not zero).
-          fraud_caught_auto     true frauds the model auto-flags (covered & fraud).
-          fraud_in_review_queue true frauds routed to a human (below the threshold,
-                                so surfaced for review, not silently cleared).
-          fraud_missed          true frauds auto-cleared as legit (covered & legit) -
-                                the only frauds that actually slip through.
-          recall_auto           fraud_caught_auto / all test frauds: the fraction of
-                                fraud the automated path catches on its own.
 
-        The three fraud_* counts partition every true fraud (caught + queued +
-        missed = total), so recall and the review-queue load are both explicit."""
-        y = np.asarray(y).astype(int)
-        p_fraud = self.predict_proba_fraud(X)
-        confidence = np.maximum(p_fraud, 1 - p_fraud)
-        predicted_fraud = p_fraud >= 0.5
-        is_fraud = y == 1
-        total_fraud = int(is_fraud.sum())
+def curve_from_scores(p_fraud, y, thresholds) -> list[dict]:
+    """The reject-knob table for a given fraud-score vector. For each threshold
+    we report BOTH sides a fraud desk asks about - precision (are the auto-flags
+    right?) and recall (what fraction of real fraud do we actually catch?):
 
-        rows = []
-        for t in thresholds:
-            covered = confidence >= t
-            flagged = covered & predicted_fraud
-            n_flagged = int(flagged.sum())
-            precision = float((y[flagged] == 1).mean()) if n_flagged else None
-            fraud_caught_auto = int((is_fraud & flagged).sum())
-            fraud_in_review_queue = int((is_fraud & ~covered).sum())
-            fraud_missed = int((is_fraud & covered & ~predicted_fraud).sum())
-            recall_auto = fraud_caught_auto / total_fraud if total_fraud else None
-            rows.append(
-                {
-                    "review_threshold": round(float(t), 4),
-                    "coverage": round(float(covered.mean()), 4),
-                    "n_sent_to_review": int((~covered).sum()),
-                    "n_flagged_fraud": n_flagged,
-                    "precision_on_flagged": round(precision, 4) if precision is not None else None,
-                    "fraud_caught_auto": fraud_caught_auto,
-                    "fraud_in_review_queue": fraud_in_review_queue,
-                    "fraud_missed": fraud_missed,
-                    "recall_auto": round(recall_auto, 4) if recall_auto is not None else None,
-                }
-            )
-        return rows
+      coverage              fraction of rows the model decides on its own (not
+                            sent to review).
+      precision_on_flagged  of the rows it auto-flags as fraud, the fraction
+                            that are truly fraud. None when nothing is flagged
+                            (precision is undefined, not zero).
+      fraud_caught_auto     true frauds the model auto-flags (covered & fraud).
+      fraud_in_review_queue true frauds routed to a human (below the threshold,
+                            so surfaced for review, not silently cleared).
+      fraud_missed          true frauds auto-cleared as legit (covered & legit) -
+                            the only frauds that actually slip through.
+      recall_auto           fraud_caught_auto / all test frauds: the fraction of
+                            fraud the automated path catches on its own.
+
+    The three fraud_* counts partition every true fraud (caught + queued +
+    missed = total), so recall and the review-queue load are both explicit."""
+    y = np.asarray(y).astype(int)
+    p_fraud = np.asarray(p_fraud, dtype=float)
+    confidence = np.maximum(p_fraud, 1 - p_fraud)
+    predicted_fraud = p_fraud >= 0.5
+    is_fraud = y == 1
+    total_fraud = int(is_fraud.sum())
+
+    rows = []
+    for t in thresholds:
+        covered = confidence >= t
+        flagged = covered & predicted_fraud
+        n_flagged = int(flagged.sum())
+        precision = float((y[flagged] == 1).mean()) if n_flagged else None
+        fraud_caught_auto = int((is_fraud & flagged).sum())
+        fraud_in_review_queue = int((is_fraud & ~covered).sum())
+        fraud_missed = int((is_fraud & covered & ~predicted_fraud).sum())
+        recall_auto = fraud_caught_auto / total_fraud if total_fraud else None
+        rows.append(
+            {
+                "review_threshold": round(float(t), 4),
+                "coverage": round(float(covered.mean()), 4),
+                "n_sent_to_review": int((~covered).sum()),
+                "n_flagged_fraud": n_flagged,
+                "precision_on_flagged": round(precision, 4) if precision is not None else None,
+                "fraud_caught_auto": fraud_caught_auto,
+                "fraud_in_review_queue": fraud_in_review_queue,
+                "fraud_missed": fraud_missed,
+                "recall_auto": round(recall_auto, 4) if recall_auto is not None else None,
+            }
+        )
+    return rows
+
+
+def expected_cost_curve(
+    curve: list[dict], cost_missed_fraud: float, cost_false_flag: float, cost_review: float
+) -> list[dict]:
+    """Price each operating point of a reject-knob curve. Costs are REQUIRED
+    arguments with no defaults on purpose: real fraud costs are business
+    numbers this repo cannot know, so it never bakes any in. Any costs shown
+    in the docs are labeled illustrative.
+
+      cost_missed_fraud  a fraud auto-cleared as legit (chargeback, loss)
+      cost_false_flag    a legit transaction auto-flagged (friction, support)
+      cost_review        one case routed to the human review queue
+
+    Frauds that land in the review queue are deliberately NOT charged
+    cost_missed_fraud: they were surfaced, and the queue's cost is already
+    counted per-case via cost_review. That is the whole argument for the knob."""
+    priced = []
+    for row in curve:
+        false_flags = row["n_flagged_fraud"] - row["fraud_caught_auto"]
+        total = (
+            row["fraud_missed"] * cost_missed_fraud
+            + false_flags * cost_false_flag
+            + row["n_sent_to_review"] * cost_review
+        )
+        priced.append(
+            {
+                "review_threshold": row["review_threshold"],
+                "n_false_flags": int(false_flags),
+                "expected_cost": round(float(total), 2),
+            }
+        )
+    return priced

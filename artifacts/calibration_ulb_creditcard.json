@@ -1,0 +1,178 @@
+{
+  "data_source": "ulb_creditcard",
+  "is_synthetic": false,
+  "model": "hist_gbdt",
+  "calibration_size": 0.2,
+  "n_fit": 182277,
+  "n_cal": 45569,
+  "n_cal_fraud": 52,
+  "n_test": 56961,
+  "n_test_fraud": 75,
+  "chosen_calibrator": "platt",
+  "chosen_on": "structural rule, decided before fitting: the shipped calibrator must be strictly monotone (provably zero ranking damage); isotonic is fit and fully reported beside it for comparison",
+  "pr_auc_cal_slice": {
+    "raw": 0.7578,
+    "isotonic": 0.7585,
+    "platt": 0.7578
+  },
+  "brier_cal_slice": {
+    "isotonic": 0.000349,
+    "platt": 0.000404
+  },
+  "brier_test": {
+    "raw": 0.002188,
+    "isotonic": 0.000525,
+    "platt": 0.000516
+  },
+  "pr_auc_test": {
+    "raw": 0.7544,
+    "isotonic": 0.6728,
+    "platt": 0.7544
+  },
+  "reliability_raw": {
+    "strategy": "quantile",
+    "n_bins": 10,
+    "mean_predicted": [
+      0.011698,
+      0.01294,
+      0.013184,
+      0.01324,
+      0.013266,
+      0.013326,
+      0.014771,
+      0.01899,
+      0.027051,
+      0.098334
+    ],
+    "observed_fraud_rate": [
+      0.000176,
+      0.000168,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.000193,
+      0.0,
+      0.000176,
+      0.012465
+    ]
+  },
+  "reliability_calibrated": {
+    "strategy": "quantile",
+    "n_bins": 10,
+    "mean_predicted": [
+      6.3e-05,
+      7.2e-05,
+      7.4e-05,
+      7.5e-05,
+      7.5e-05,
+      7.5e-05,
+      8.6e-05,
+      0.000121,
+      0.000196,
+      0.011119
+    ],
+    "observed_fraud_rate": [
+      0.000176,
+      0.000168,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.000193,
+      0.0,
+      0.000176,
+      0.012465
+    ]
+  },
+  "coverage_precision_curve_calibrated": [
+    {
+      "review_threshold": 0.5,
+      "coverage": 1.0,
+      "n_sent_to_review": 0,
+      "n_flagged_fraud": 58,
+      "precision_on_flagged": 0.8793,
+      "fraud_caught_auto": 51,
+      "fraud_in_review_queue": 0,
+      "fraud_missed": 24,
+      "recall_auto": 0.68
+    },
+    {
+      "review_threshold": 0.6,
+      "coverage": 0.9999,
+      "n_sent_to_review": 7,
+      "n_flagged_fraud": 57,
+      "precision_on_flagged": 0.8772,
+      "fraud_caught_auto": 50,
+      "fraud_in_review_queue": 2,
+      "fraud_missed": 23,
+      "recall_auto": 0.6667
+    },
+    {
+      "review_threshold": 0.7,
+      "coverage": 0.9998,
+      "n_sent_to_review": 13,
+      "n_flagged_fraud": 55,
+      "precision_on_flagged": 0.8727,
+      "fraud_caught_auto": 48,
+      "fraud_in_review_queue": 6,
+      "fraud_missed": 21,
+      "recall_auto": 0.64
+    },
+    {
+      "review_threshold": 0.8,
+      "coverage": 0.9998,
+      "n_sent_to_review": 14,
+      "n_flagged_fraud": 55,
+      "precision_on_flagged": 0.8727,
+      "fraud_caught_auto": 48,
+      "fraud_in_review_queue": 6,
+      "fraud_missed": 21,
+      "recall_auto": 0.64
+    },
+    {
+      "review_threshold": 0.9,
+      "coverage": 0.9986,
+      "n_sent_to_review": 77,
+      "n_flagged_fraud": 0,
+      "precision_on_flagged": null,
+      "fraud_caught_auto": 0,
+      "fraud_in_review_queue": 55,
+      "fraud_missed": 20,
+      "recall_auto": 0.0
+    },
+    {
+      "review_threshold": 0.95,
+      "coverage": 0.9983,
+      "n_sent_to_review": 99,
+      "n_flagged_fraud": 0,
+      "precision_on_flagged": null,
+      "fraud_caught_auto": 0,
+      "fraud_in_review_queue": 58,
+      "fraud_missed": 17,
+      "recall_auto": 0.0
+    },
+    {
+      "review_threshold": 0.99,
+      "coverage": 0.9964,
+      "n_sent_to_review": 204,
+      "n_flagged_fraud": 0,
+      "precision_on_flagged": null,
+      "fraud_caught_auto": 0,
+      "fraud_in_review_queue": 60,
+      "fraud_missed": 15,
+      "recall_auto": 0.0
+    },
+    {
+      "review_threshold": 1.0,
+      "coverage": 0.0,
+      "n_sent_to_review": 56961,
+      "n_flagged_fraud": 0,
+      "precision_on_flagged": null,
+      "fraud_caught_auto": 0,
+      "fraud_in_review_queue": 75,
+      "fraud_missed": 0,
+      "recall_auto": 0.0
+    }
+  ]
+}

@@ -315,11 +315,13 @@ Dockerfile / docker-compose.yml   one image, two services (api:8000, dashboard:8
 - [ ] Sparkov full run (the streaming story - Kaggle-gated download) and IEEE-CIS
       full run (the headline benchmark)
 
-**Hardening (not built)**
-- [ ] Confidence calibration (fit on a train-only validation slice) so review
-      thresholds are portable across datasets
-- [ ] Drift monitoring, load test with real latency/throughput numbers, threat-model
-      note
+**Hardening**
+- [x] Confidence calibration: Platt scaling fit on a temporally-later train-only
+      slice; Brier 0.002188 -> 0.000516 on the untouched test fold, ranking
+      untouched. Isotonic measured beside it and rejected for damaging PR-AUC
+      (ties). Full numbers + the expected-cost tie-in: `docs/model_card.md`
+- [x] Committed latency/throughput benchmark with a regression guard (above)
+- [ ] Drift monitoring, threat-model note
 
 ## Attribution
 

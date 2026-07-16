@@ -48,6 +48,10 @@ class Settings(BaseSettings):
     # evaluation: the review thresholds train.py sweeps for the committed curve
     review_thresholds: list[float] = [0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99, 1.0]
 
+    # calibration: fraction of the TRAIN window held out (temporally last) to
+    # fit the calibrator on - data the calibration model never trained on
+    calibration_size: float = 0.2
+
     # serving
     max_batch: int = 10_000
 
