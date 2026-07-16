@@ -99,11 +99,18 @@ def _load() -> dict[str, Any]:
 def _scorer() -> CompiledScorer:
     """Compiled scorer for the current bundle, built once per loaded bundle.
     Keyed by the bundle object itself (identity), so tests that swap the
-    bundle get a fresh scorer and a stale one can never be served."""
+    bundle get a fresh scorer and a stale one can never be served.
+
+    The throwaway score after building pays sklearn's one-time first-predict
+    cost (thread-pool spin-up, dispatch caches) at LOAD time: measured ~1.4 s
+    on the first request without it, ~1 ms after. A payment-path service must
+    never bill that to the first customer transaction."""
     global _scorer_cache
     bundle = _load()
     if _scorer_cache is None or _scorer_cache[0] is not bundle:
-        _scorer_cache = (bundle, build_scorer(bundle))
+        scorer = build_scorer(bundle)
+        scorer.score_one({})  # warmup: all-NaN row, result discarded
+        _scorer_cache = (bundle, scorer)
     return _scorer_cache[1]
 
 

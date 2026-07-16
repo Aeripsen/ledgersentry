@@ -75,6 +75,8 @@ def classify_stream(
       summary      decision counts + latency percentiles for the whole run
     """
     scorer = build_scorer(bundle)
+    scorer.score_one({})  # warmup: pay sklearn's one-time first-predict cost
+    # outside the timed loop, the same way the service does at load time
     n_rows = len(df)
     feature_cols = [
         c for c in scorer.numeric_cols + scorer.categorical_cols if c in df.columns
