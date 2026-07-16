@@ -1,0 +1,50 @@
+{
+  "data_source": "ulb_creditcard",
+  "is_synthetic": false,
+  "p99_budget_ms": 10.0,
+  "environment": {
+    "python": "3.13.13",
+    "sklearn": "1.9.0",
+    "pandas": "3.0.3",
+    "numpy": "2.5.1",
+    "joblib": "1.5.3",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 165 Stepping 2, GenuineIntel",
+    "measured_at": "2026-07-16T17:18:08Z"
+  },
+  "single_row": {
+    "pandas": {
+      "n_rows": 2000,
+      "mean_ms": 4.1293,
+      "p50_ms": 3.979,
+      "p95_ms": 4.9246,
+      "p99_ms": 5.5003,
+      "rows_per_sec": 242.2
+    },
+    "compiled": {
+      "n_rows": 2000,
+      "mean_ms": 1.0155,
+      "p50_ms": 1.0395,
+      "p95_ms": 1.3932,
+      "p99_ms": 1.732,
+      "rows_per_sec": 984.8
+    }
+  },
+  "batch": {
+    "pandas": {
+      "n_rows": 56961,
+      "repeats": 5,
+      "best_wall_s": 0.0941,
+      "rows_per_sec": 605569.3,
+      "per_row_us": 1.65
+    },
+    "compiled": {
+      "n_rows": 56961,
+      "repeats": 5,
+      "best_wall_s": 0.0859,
+      "rows_per_sec": 662976.3,
+      "per_row_us": 1.51
+    }
+  },
+  "budget_verdict": "MEETS"
+}

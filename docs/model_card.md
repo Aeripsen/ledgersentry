@@ -227,9 +227,11 @@ and that trade is the whole point of this project.
    the documented next step.
 5. **No adversarial or drift evaluation.** Out of scope for this baseline; a
    documented next step.
-6. **Latency is measured on the synthetic fixture only.** The streaming replay
-   (README "Live serving") measured per-row latency on the synthetic test split;
-   the real-data replay at volume is still to come.
+6. **Latency numbers are one machine's.** The committed benchmark
+   (`artifacts/benchmark.json`, README "Measured latency") runs on the real ULB
+   artifact and test split, but on one commodity machine, single-thread; the
+   environment is recorded in the file. Rerun `python scripts/bench.py` on your
+   own hardware before quoting the numbers anywhere else.
 7. **Feature set is what the source provides, nothing engineered beyond time.**
    For ULB that is the 28 PCA components + `Amount` + engineered `hour_of_day` /
    `day_of_week`; for the fixture, `amount`, time features, `category`, and one

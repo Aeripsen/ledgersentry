@@ -143,29 +143,44 @@ With no real file in `data/`, the same pipeline runs a deterministic seeded fixt
 numbers are a pipeline proof, not a benchmark claim, and are never mixed with the
 real ones.
 
-## Live serving - measured latency
+## Measured latency and throughput
 
-> Same data note as above: this is the **synthetic fixture's** held-out test split
-> (1,581 rows) replayed one row at a time through the trained artifact - not real
-> Sparkov data (still not downloaded, still Kaggle-gated). It plays the same
-> narrative role (real timestamps, chronologically sorted) but these are not
-> real-transaction-volume numbers. Real output, pasted verbatim, from:
-> `python scripts/stream.py --n 0` on this machine, one run, single-thread, no GPU.
+Fraud scoring is only "real-time" if it fits inside payment authorization, where the
+whole round-trip is budgeted in tens to a few hundred milliseconds and the risk check
+gets a slice. This repo holds itself to an explicit engineering target - **single-row
+scoring p99 under 10 ms on commodity hardware** (our own bar, not an industry-published
+figure) - and measures against it with a committed harness instead of asserting it:
+`python scripts/bench.py`, results in `artifacts/benchmark.json` with the exact
+environment recorded.
 
-```
-[stream] replaying 1581 transactions from the 'synthetic' test split (review_threshold=0.0)
-...
-[rows   ] 1581   fraud=13  legit=1568  review=0
-[latency] per-row preprocess+decide  mean=12.072 ms  p50=11.074 ms  p95=12.986 ms  p99=13.946 ms
-[through] 76 rows/sec over 20.67s wall (single-thread, this machine, data_source=synthetic)
-```
+Measured on the real ULB artifact and its 56,961-row held-out test split (this
+machine, single-thread, no GPU, 2026-07-16):
 
-Per-row latency is dominated by pandas/`ColumnTransformer` overhead on a 1-row frame,
-not the gradient-boosted model itself - `HistGradientBoostingClassifier.predict_proba`
-on one row is fast; building and one-hot-encoding a fresh 1-row DataFrame each time is
-the actual cost. A production version would batch or reuse a warm encoder; this replay
-deliberately does neither, to measure the honest one-row-at-a-time worst case the way
-FlowSentry's `stream.py` does for network flows.
+| Path | mean | p50 | p95 | p99 | throughput |
+|---|---|---|---|---|---|
+| single-row, pandas (before) | 4.13 ms | 3.98 ms | 4.93 ms | 5.50 ms | 242 rows/s |
+| single-row, compiled (after) | **1.02 ms** | 1.04 ms | 1.39 ms | **1.73 ms** | 985 rows/s |
+| batch, pandas | - | - | - | - | 605,569 rows/s |
+| batch, compiled | - | - | - | - | 662,976 rows/s |
+
+Numbers are the committed `artifacts/benchmark.json` run, quoted exactly. Run-to-run
+OS noise is real: across repeat runs on this machine the pandas path's p99 ranged
+5.5-10.1 ms (straddling the budget), the compiled path's 1.4-2.4 ms (never near it).
+
+Profiling showed single-row scoring spending ~two thirds of its time in
+pandas/`ColumnTransformer` machinery on a 1-row frame, not in the model. The fix
+(`scoring.py`) compiles the fitted preprocessor once - one-hot category maps and
+numeric column order - and builds the model's input matrix directly in numpy per
+request. Same model, same numbers: tests pin the compiled transform byte-exact to the
+`ColumnTransformer` output, decisions included, and a latency-regression test fails CI
+if per-row pandas work creeps back in. The before path is kept in the repo
+(`PandasScorer`) as the reference implementation and benchmark baseline. Read the
+batch rows honestly: at volume the `ColumnTransformer` amortizes fine, so the compiled
+path buys latency on the request path, not batch throughput.
+
+The streaming replay (`python scripts/stream.py --n 0`) replays the held-out test
+split one row at a time through the same compiled scorer the service uses and prints
+its own measured percentiles.
 
 ## Quickstart
 

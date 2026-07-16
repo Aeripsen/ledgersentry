@@ -79,17 +79,64 @@ def test_predict_missing_fields_default_cleanly(monkeypatch):
 def test_missing_numeric_defaults_to_nan_not_zero(monkeypatch):
     """Guard the honesty rule: an absent numeric field must reach the model as NaN
     (which HistGradientBoosting handles), never a misleading real 0.0."""
-    import math
+    import numpy as np
 
     monkeypatch.setattr(service, "_bundle", _tiny_bundle())
-    numeric_cols, categorical_cols = service._expected_columns(
-        service._bundle["preprocessor"]
-    )
-    frame, missing = service._row({"amount": 100.0}, numeric_cols, categorical_cols)
-    assert "f_entity_daily_tx_count" in missing
-    assert math.isnan(frame["f_entity_daily_tx_count"].iloc[0])
+    scorer = service._scorer()
+    feats = {"amount": 100.0}
+    assert "f_entity_daily_tx_count" in service._missing_fields(feats, scorer)
+    vec = scorer.transform_one(feats)
+    k = scorer.numeric_cols.index("f_entity_daily_tx_count")
+    assert np.isnan(vec[0, scorer._num_offset + k])
     # a provided field is untouched
-    assert frame["amount"].iloc[0] == 100.0
+    a = scorer.numeric_cols.index("amount")
+    assert vec[0, scorer._num_offset + a] == 100.0
+
+
+def test_predict_batch_matches_single(monkeypatch):
+    """The vectorized batch path must agree with /predict row by row."""
+    monkeypatch.setattr(service, "_bundle", _tiny_bundle())
+    client = TestClient(service.app)
+    transactions = [
+        {"amount": 42.0, "category": "electronics", "hour_of_day": 2, "day_of_week": 1},
+        {"amount": 900.0, "category": "travel", "hour_of_day": 3, "day_of_week": 5},
+        {"amount": 12.0},  # sparse row: missing fields become NaN/'unknown'
+    ]
+    batch = client.post(
+        "/predict/batch",
+        json={"transactions": transactions, "review_threshold": 0.0},
+    )
+    assert batch.status_code == 200
+    body = batch.json()
+    assert body["n"] == 3
+    for tx, row in zip(transactions, body["results"], strict=True):
+        single = client.post(
+            "/predict", json={"features": tx, "review_threshold": 0.0}
+        ).json()
+        assert row["decision"] == single["decision"]
+        assert row["p_fraud"] == single["p_fraud"]
+
+
+def test_predict_batch_empty_and_cap(monkeypatch):
+    monkeypatch.setattr(service, "_bundle", _tiny_bundle())
+    client = TestClient(service.app)
+    empty = client.post("/predict/batch", json={"transactions": []})
+    assert empty.status_code == 200
+    assert empty.json()["n"] == 0
+    over_cap = client.post(
+        "/predict/batch",
+        json={"transactions": [{"amount": 1.0}] * (service.MAX_BATCH + 1)},
+    )
+    assert over_cap.status_code == 422  # pydantic max_length, not a 500
+
+
+def test_predict_non_numeric_value_is_422_not_500(monkeypatch):
+    monkeypatch.setattr(service, "_bundle", _tiny_bundle())
+    client = TestClient(service.app)
+    resp = client.post(
+        "/predict", json={"features": {"amount": "not-a-number"}}
+    )
+    assert resp.status_code == 422
 
 
 def test_predict_review_threshold_plumbing(monkeypatch):
