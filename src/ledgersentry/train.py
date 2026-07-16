@@ -10,26 +10,27 @@ no invented "$ saved" or impact figures. See docs/model_card.md.
 """
 from __future__ import annotations
 
+import argparse
 import json
-from pathlib import Path
 
 import joblib
 from sklearn.metrics import average_precision_score
 
+from .config import get_settings
 from .data import build_preprocessor, engineer_time_features, load, temporal_grouped_split
 from .model import FraudDetector
 
-ARTIFACT_DIR = Path(__file__).resolve().parents[2] / "artifacts"
-REVIEW_THRESHOLDS = [0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99, 1.0]
 
+def main(model_name: str | None = None) -> dict:
+    cfg = get_settings()
+    model_name = model_name or cfg.model
 
-def main() -> dict:
-    df = load()
+    df = load(data_dir=cfg.data_dir)
     source = df.attrs.get("source", "unknown")
     print(f"[data ] source={source} rows={len(df)} fraud_rate={df['is_fraud'].mean():.4%}")
 
     df = engineer_time_features(df)
-    train_df, test_df = temporal_grouped_split(df, test_size=0.2)
+    train_df, test_df = temporal_grouped_split(df, test_size=cfg.test_size)
     print(
         f"[split] train={len(train_df)} test={len(test_df)} "
         f"(grouped by entity_id + time-ordered cohorts, no entity in both)"
@@ -41,15 +42,20 @@ def main() -> dict:
     y_train = train_df["is_fraud"].to_numpy()
     y_test = test_df["is_fraud"].to_numpy()
 
-    print("[fit  ] FraudDetector (HistGradientBoostingClassifier, balanced sample weights) ...")
-    model = FraudDetector()
+    print(f"[fit  ] FraudDetector (model={model_name}, balanced sample weights) ...")
+    model = FraudDetector(
+        random_state=cfg.random_state,
+        max_iter=cfg.max_iter,
+        learning_rate=cfg.learning_rate,
+        model=model_name,
+    )
     model.fit(X_train, y_train)
 
     p_fraud = model.predict_proba_fraud(X_test)
     pr_auc = float(average_precision_score(y_test, p_fraud))
     # PR-AUC of a random/no-skill scorer equals the positive (fraud) rate.
     random_baseline = float(y_test.mean())
-    curve = model.coverage_precision_curve(X_test, y_test, REVIEW_THRESHOLDS)
+    curve = model.coverage_precision_curve(X_test, y_test, cfg.review_thresholds)
 
     # Headline recall a fraud desk asks for first: at full automation (threshold
     # 0.5, nothing sent to review) what fraction of real fraud does the automated
@@ -60,6 +66,7 @@ def main() -> dict:
     metrics = {
         "data_source": source,
         "is_synthetic": source == "synthetic",
+        "model": model_name,
         "n_train": int(len(train_df)),
         "n_test": int(len(test_df)),
         "train_fraud_rate": round(float(y_train.mean()), 4),
@@ -79,19 +86,30 @@ def main() -> dict:
         f"({caught}/{n_test_fraud} test frauds auto-caught)"
     )
 
-    ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
-    joblib.dump({"preprocessor": pre, "model": model}, ARTIFACT_DIR / "ledgersentry.joblib")
+    artifact_dir = cfg.artifact_dir
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    joblib.dump({"preprocessor": pre, "model": model}, artifact_dir / "ledgersentry.joblib")
     payload = json.dumps(metrics, indent=2)
     # metrics.json is always the latest run; metrics_<source>.json is a per-source
     # snapshot so a real-data run and the synthetic CI fixture can sit side by side
     # in git without one silently overwriting the other's numbers.
-    (ARTIFACT_DIR / "metrics.json").write_text(payload)
-    (ARTIFACT_DIR / f"metrics_{source}.json").write_text(payload)
+    (artifact_dir / "metrics.json").write_text(payload)
+    (artifact_dir / f"metrics_{source}.json").write_text(payload)
 
     print(json.dumps(metrics, indent=2))
-    print(f"[save ] {ARTIFACT_DIR / 'ledgersentry.joblib'}")
+    print(f"[save ] {artifact_dir / 'ledgersentry.joblib'}")
     return metrics
 
 
+def cli() -> None:
+    ap = argparse.ArgumentParser(description="Train + evaluate LedgerSentry.")
+    ap.add_argument(
+        "--model", default=None,
+        help="registry model name (default: config / hist_gbdt); see registry.py",
+    )
+    args = ap.parse_args()
+    main(model_name=args.model)
+
+
 if __name__ == "__main__":
-    main()
+    cli()

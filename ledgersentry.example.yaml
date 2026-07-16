@@ -1,0 +1,14 @@
+# Copy to ledgersentry.yaml (repo root) to override defaults, or set the same
+# options as LEDGERSENTRY_* environment variables (env beats yaml). Every value
+# is optional; the built-in defaults are exactly the configuration behind the
+# committed metrics. Full list + precedence: src/ledgersentry/config.py.
+#
+# data_dir: ./data              # where real dataset files are dropped
+# artifact_dir: ./artifacts     # trained model + metrics output
+# test_size: 0.2                # temporal holdout fraction
+# model: hist_gbdt              # or logreg, or anything you register (registry.py)
+# random_state: 42
+# max_iter: 200
+# learning_rate: 0.1
+# review_thresholds: [0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99, 1.0]
+# max_batch: 10000              # /predict/batch request-size cap

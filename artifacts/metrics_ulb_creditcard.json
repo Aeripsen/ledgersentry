@@ -1,6 +1,7 @@
 {
   "data_source": "ulb_creditcard",
   "is_synthetic": false,
+  "model": "hist_gbdt",
   "n_train": 227846,
   "n_test": 56961,
   "train_fraud_rate": 0.0018,

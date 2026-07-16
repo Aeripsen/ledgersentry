@@ -54,7 +54,7 @@ import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder
 
-DATA_DIR = Path(__file__).resolve().parents[2] / "data"
+from .config import get_settings
 
 CANONICAL_COLUMNS = ["transaction_id", "timestamp", "entity_id", "amount", "category", "is_fraud"]
 FEATURE_PREFIX = "f_"
@@ -336,12 +336,13 @@ def make_synthetic(
 # public entry point
 # --------------------------------------------------------------------------- #
 
-def load(data_dir: Path = DATA_DIR) -> pd.DataFrame:
-    """Real data if present in `data_dir`, else the deterministic synthetic
-    fallback. `df.attrs["source"]` records which one was used - always propagate
-    that into any reported metrics (see scripts/train.py) so numbers are never
-    silently presented as real when they're a synthetic fixture."""
-    real = _detect_real(data_dir)
+def load(data_dir: Path | None = None) -> pd.DataFrame:
+    """Real data if present in `data_dir` (default: the configured data dir),
+    else the deterministic synthetic fallback. `df.attrs["source"]` records
+    which one was used - always propagate that into any reported metrics (see
+    scripts/train.py) so numbers are never silently presented as real when
+    they're a synthetic fixture."""
+    real = _detect_real(data_dir if data_dir is not None else get_settings().data_dir)
     if real is not None:
         return real
     return make_synthetic()

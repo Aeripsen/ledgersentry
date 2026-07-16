@@ -21,7 +21,6 @@ compiled path is pinned byte-exact to the reference path by tests/test_scoring.p
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import joblib
 import pandas as pd
@@ -29,11 +28,12 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from . import __version__
+from .config import get_settings
 from .scoring import CompiledScorer, build_scorer
 
-ARTIFACT_DIR = Path(__file__).resolve().parents[2] / "artifacts"
+ARTIFACT_DIR = get_settings().artifact_dir
 ARTIFACT = ARTIFACT_DIR / "ledgersentry.joblib"
-MAX_BATCH = 10_000  # request-size cap: bounds per-request memory and latency
+MAX_BATCH = get_settings().max_batch  # request-size cap: bounds memory and latency
 
 app = FastAPI(
     title="LedgerSentry",

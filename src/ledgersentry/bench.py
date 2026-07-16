@@ -32,16 +32,15 @@ import json
 import platform
 import time
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
 
+from .config import get_settings
 from .scoring import CompiledScorer, PandasScorer, TransactionScorer
 from .stream import load_bundle, load_stream
 
-ARTIFACT_DIR = Path(__file__).resolve().parents[2] / "artifacts"
 SINGLE_ROW_DEFAULT = 2000
 BATCH_REPEATS = 5
 P99_BUDGET_MS = 10.0  # the self-imposed single-row budget the README quotes
@@ -157,14 +156,15 @@ def run(n_single: int = SINGLE_ROW_DEFAULT) -> dict[str, Any]:
     print(f"[budget] compiled single-row p99 {p99:.3f} ms vs {P99_BUDGET_MS:.0f} ms "
           f"budget -> {verdict}")
 
-    ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
+    artifact_dir = get_settings().artifact_dir
+    artifact_dir.mkdir(parents=True, exist_ok=True)
     payload = json.dumps(results, indent=2)
     # benchmark.json is always the latest run; benchmark_<source>.json is a
     # per-source snapshot, the same convention train.py uses for metrics, so a
     # real-data benchmark and a synthetic one never silently overwrite each other.
-    out_path = ARTIFACT_DIR / "benchmark.json"
+    out_path = artifact_dir / "benchmark.json"
     out_path.write_text(payload)
-    (ARTIFACT_DIR / f"benchmark_{source}.json").write_text(payload)
+    (artifact_dir / f"benchmark_{source}.json").write_text(payload)
     print(f"[save  ] {out_path}")
     return results
 

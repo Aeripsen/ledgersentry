@@ -1,6 +1,7 @@
 {
   "data_source": "synthetic",
   "is_synthetic": true,
+  "model": "hist_gbdt",
   "n_train": 6419,
   "n_test": 1581,
   "train_fraud_rate": 0.0101,

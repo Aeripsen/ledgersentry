@@ -29,10 +29,11 @@ import joblib
 import numpy as np
 import pandas as pd
 
+from .config import get_settings
 from .data import engineer_time_features, load, temporal_grouped_split
 from .scoring import build_scorer
 
-ARTIFACT = Path(__file__).resolve().parents[2] / "artifacts" / "ledgersentry.joblib"
+ARTIFACT = get_settings().artifact_dir / "ledgersentry.joblib"
 
 
 def load_bundle(path: Path = ARTIFACT) -> dict:
