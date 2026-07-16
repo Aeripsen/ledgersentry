@@ -5,64 +5,98 @@
   "n_test": 56961,
   "train_fraud_rate": 0.0018,
   "test_fraud_rate": 0.0013,
+  "n_test_fraud": 75,
   "pr_auc": 0.7278,
   "pr_auc_random_baseline": 0.0013,
+  "recall_at_full_coverage": 0.84,
   "coverage_precision_curve": [
     {
       "review_threshold": 0.5,
       "coverage": 1.0,
       "n_sent_to_review": 0,
       "n_flagged_fraud": 216,
-      "precision_on_flagged": 0.2917
+      "precision_on_flagged": 0.2917,
+      "fraud_caught_auto": 63,
+      "fraud_in_review_queue": 0,
+      "fraud_missed": 12,
+      "recall_auto": 0.84
     },
     {
       "review_threshold": 0.6,
       "coverage": 0.9976,
       "n_sent_to_review": 139,
       "n_flagged_fraud": 156,
-      "precision_on_flagged": 0.3846
+      "precision_on_flagged": 0.3846,
+      "fraud_caught_auto": 60,
+      "fraud_in_review_queue": 6,
+      "fraud_missed": 9,
+      "recall_auto": 0.8
     },
     {
       "review_threshold": 0.7,
       "coverage": 0.9945,
       "n_sent_to_review": 312,
       "n_flagged_fraud": 129,
-      "precision_on_flagged": 0.4419
+      "precision_on_flagged": 0.4419,
+      "fraud_caught_auto": 57,
+      "fraud_in_review_queue": 9,
+      "fraud_missed": 9,
+      "recall_auto": 0.76
     },
     {
       "review_threshold": 0.8,
       "coverage": 0.9898,
       "n_sent_to_review": 583,
       "n_flagged_fraud": 105,
-      "precision_on_flagged": 0.5333
+      "precision_on_flagged": 0.5333,
+      "fraud_caught_auto": 56,
+      "fraud_in_review_queue": 10,
+      "fraud_missed": 9,
+      "recall_auto": 0.7467
     },
     {
       "review_threshold": 0.9,
       "coverage": 0.9722,
       "n_sent_to_review": 1582,
       "n_flagged_fraud": 73,
-      "precision_on_flagged": 0.7397
+      "precision_on_flagged": 0.7397,
+      "fraud_caught_auto": 54,
+      "fraud_in_review_queue": 13,
+      "fraud_missed": 8,
+      "recall_auto": 0.72
     },
     {
       "review_threshold": 0.95,
       "coverage": 0.9291,
       "n_sent_to_review": 4039,
       "n_flagged_fraud": 59,
-      "precision_on_flagged": 0.8983
+      "precision_on_flagged": 0.8983,
+      "fraud_caught_auto": 53,
+      "fraud_in_review_queue": 16,
+      "fraud_missed": 6,
+      "recall_auto": 0.7067
     },
     {
       "review_threshold": 0.99,
       "coverage": 0.0003,
       "n_sent_to_review": 56943,
       "n_flagged_fraud": 0,
-      "precision_on_flagged": null
+      "precision_on_flagged": null,
+      "fraud_caught_auto": 0,
+      "fraud_in_review_queue": 75,
+      "fraud_missed": 0,
+      "recall_auto": 0.0
     },
     {
       "review_threshold": 1.0,
       "coverage": 0.0,
       "n_sent_to_review": 56961,
       "n_flagged_fraud": 0,
-      "precision_on_flagged": null
+      "precision_on_flagged": null,
+      "fraud_caught_auto": 0,
+      "fraud_in_review_queue": 75,
+      "fraud_missed": 0,
+      "recall_auto": 0.0
     }
   ]
 }

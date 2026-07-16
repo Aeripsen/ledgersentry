@@ -13,9 +13,10 @@ discipline, same honesty rules, different domain.
   anonymized transactions, 492 fraud, 0.17%) with a strictly temporal holdout - train
   on the first ~40 hours, test on the last ~7.6 hours, nothing from the future leaks
   back. No-skill baseline on that fold is 0.0013, so that is roughly a 550x lift.
-- **The knob is the product:** fully automated, 29% of flagged transactions are truly
-  fraud; send the most uncertain 7.1% of traffic to human review and automated flags
-  become **89.8% precise**. The full measured coverage-vs-precision table is below.
+- **The knob is the product:** fully automated it catches **63 of 75 test frauds
+  (84% recall)** and 29% of its flags are truly fraud; send the most uncertain 7.1% of
+  traffic to human review and the automated flags become **89.8% precise**. The full
+  measured coverage / precision / recall table is below.
 - **The edge is honest evaluation:** leakage-safe grouped + temporal splits, PR-AUC
   instead of accuracy on 99.8%-legit data, and a reject option instead of forced
   guesses - the same core as my SECRYPT 2026 paper on intrusion detection with a
@@ -111,22 +112,28 @@ comparable, and not claimed to be. See `docs/model_card.md` for the full honesty
 notes. Source of truth: `artifacts/metrics_ulb_creditcard.json`
 (`is_synthetic: false`).
 
-**Coverage vs precision on real data (the reject-to-review knob working):**
+**Coverage vs precision AND recall on real data (the reject-to-review knob working).**
+The test fold has **75 frauds**; "caught / queue / missed" shows how each threshold
+splits them into auto-flagged, routed-to-human-review, and auto-cleared-as-legit
+(the only true misses). Recall (auto) = caught / 75.
 
-| Review threshold | Coverage | Sent to review | Flagged fraud | Precision on flagged |
-|---|---|---|---|---|
-| 0.50 | 100.00% | 0 | 216 | 29.17% |
-| 0.70 | 99.45% | 312 | 129 | 44.19% |
-| 0.80 | 98.98% | 583 | 105 | 53.33% |
-| 0.90 | 97.22% | 1,582 | 73 | 73.97% |
-| 0.95 | 92.91% | 4,039 | 59 | 89.83% |
+| Review threshold | Coverage | Sent to review | Flagged fraud | Precision on flagged | Fraud caught / queue / missed | Recall (auto) |
+|---|---|---|---|---|---|---|
+| 0.50 | 100.00% | 0 | 216 | 29.17% | 63 / 0 / 12 | 84.0% |
+| 0.70 | 99.45% | 312 | 129 | 44.19% | 57 / 9 / 9 | 76.0% |
+| 0.80 | 98.98% | 583 | 105 | 53.33% | 56 / 10 / 9 | 74.7% |
+| 0.90 | 97.22% | 1,582 | 73 | 73.97% | 54 / 13 / 8 | 72.0% |
+| 0.95 | 92.91% | 4,039 | 59 | 89.83% | 53 / 16 / 6 | 70.7% |
 
-Reading it: fully automated, 29% of flagged transactions are truly fraud; route the
-most uncertain 7.1% of traffic to review and the automated flags become 89.8%
-precise. That 3x precision lift for a bounded human-review budget is the product.
-(Above 0.95 the uncalibrated confidence cliff sends almost everything to review -
-measured, shown in the model card's full 8-row table, and called out as a limitation
-rather than hidden.)
+Reading it: fully automated the model catches **63 of 75 frauds (84% recall)** and 29%
+of its flags are truly fraud. Route the most uncertain 7.1% of traffic to review
+(threshold 0.95) and the automated flags become **89.8% precise** - and note the misses
+actually *drop* from 12 to 6, because the extra uncertain frauds go to the review queue
+(16 of them) instead of being auto-cleared. So at 0.95, 69 of 75 frauds are surfaced
+(auto-flag + review) and only 6 slip through. That precision lift for a bounded
+human-review budget, with recall stated honestly beside it, is the product. (Above 0.95
+the uncalibrated confidence cliff sends almost everything to review - measured, shown in
+the model card's full 8-row table, and called out as a limitation rather than hidden.)
 
 ### Synthetic fixture (offline CI baseline, labeled synthetic)
 
@@ -211,7 +218,9 @@ docker compose up --build
 loaded artifact (not a hardcoded schema), so it isn't locked to the synthetic fixture's
 columns - swap in a real dataset (see "Data" below), retrain, and the same endpoint
 serves whatever `f_*` features that source produced. Missing numeric fields default to
-0, missing `category` defaults to `"unknown"`.
+NaN (which the gradient-boosted model handles natively - not a misleading fake 0.0),
+missing `category` defaults to `"unknown"`, and the response lists any imputed fields
+under `missing_fields`.
 
 ## Data
 

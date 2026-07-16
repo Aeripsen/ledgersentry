@@ -60,13 +60,36 @@ def test_predict_returns_decision(monkeypatch):
 
 
 def test_predict_missing_fields_default_cleanly(monkeypatch):
-    """Only amount given - missing numeric f_* default to 0, missing category
-    defaults to 'unknown', and the endpoint must not 500 on a sparse request."""
+    """Only amount given - missing numeric f_* default to NaN (not a fake 0),
+    missing category defaults to 'unknown', the endpoint must not 500 on a sparse
+    request, and the response lists what it imputed under 'missing_fields'."""
     monkeypatch.setattr(service, "_bundle", _tiny_bundle())
     client = TestClient(service.app)
     resp = client.post("/predict", json={"features": {"amount": 100.0}})
     assert resp.status_code == 200
-    assert resp.json()["decision"] in {"fraud", "legit", "review"}
+    body = resp.json()
+    assert body["decision"] in {"fraud", "legit", "review"}
+    # hour_of_day/day_of_week (no timestamp), f_entity_daily_tx_count, and category
+    # were all absent and must be reported back, not silently zero-filled.
+    assert set(body["missing_fields"]) >= {
+        "hour_of_day", "day_of_week", "f_entity_daily_tx_count", "category",
+    }
+
+
+def test_missing_numeric_defaults_to_nan_not_zero(monkeypatch):
+    """Guard the honesty rule: an absent numeric field must reach the model as NaN
+    (which HistGradientBoosting handles), never a misleading real 0.0."""
+    import math
+
+    monkeypatch.setattr(service, "_bundle", _tiny_bundle())
+    numeric_cols, categorical_cols = service._expected_columns(
+        service._bundle["preprocessor"]
+    )
+    frame, missing = service._row({"amount": 100.0}, numeric_cols, categorical_cols)
+    assert "f_entity_daily_tx_count" in missing
+    assert math.isnan(frame["f_entity_daily_tx_count"].iloc[0])
+    # a provided field is untouched
+    assert frame["amount"].iloc[0] == 100.0
 
 
 def test_predict_review_threshold_plumbing(monkeypatch):

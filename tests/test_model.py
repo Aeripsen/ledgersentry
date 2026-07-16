@@ -65,10 +65,27 @@ def test_coverage_decreases_as_threshold_rises():
 def test_coverage_precision_curve_row_shape():
     model, X_test, y_test = _fit_on_synthetic()
     curve = model.coverage_precision_curve(X_test, y_test, [0.5, 0.9])
+    total_fraud = int((y_test == 1).sum())
     for row in curve:
         assert 0.0 <= row["coverage"] <= 1.0
         assert row["precision_on_flagged"] is None or 0.0 <= row["precision_on_flagged"] <= 1.0
         assert isinstance(row["n_flagged_fraud"], int)
+        # recall side: the three fraud_* buckets must partition every true fraud
+        assert (
+            row["fraud_caught_auto"] + row["fraud_in_review_queue"] + row["fraud_missed"]
+            == total_fraud
+        )
+        assert 0.0 <= row["recall_auto"] <= 1.0
+
+
+def test_full_coverage_recall_matches_caught_over_total():
+    """At threshold 0.5 nothing is sent to review, so recall_auto is exactly the
+    frauds auto-caught over all test frauds - the headline number the README quotes."""
+    model, X_test, y_test = _fit_on_synthetic()
+    row = model.coverage_precision_curve(X_test, y_test, [0.5])[0]
+    total_fraud = int((y_test == 1).sum())
+    assert row["fraud_in_review_queue"] == 0  # full coverage -> empty review queue
+    assert row["recall_auto"] == round(row["fraud_caught_auto"] / total_fraud, 4)
 
 
 def test_sample_weight_favors_minority_class():

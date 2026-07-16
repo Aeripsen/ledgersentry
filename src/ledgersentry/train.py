@@ -51,6 +51,12 @@ def main() -> dict:
     random_baseline = float(y_test.mean())
     curve = model.coverage_precision_curve(X_test, y_test, REVIEW_THRESHOLDS)
 
+    # Headline recall a fraud desk asks for first: at full automation (threshold
+    # 0.5, nothing sent to review) what fraction of real fraud does the automated
+    # path catch. curve[0] is the 0.5 row (REVIEW_THRESHOLDS[0]).
+    n_test_fraud = int(y_test.sum())
+    recall_full = curve[0]["recall_auto"]
+
     metrics = {
         "data_source": source,
         "is_synthetic": source == "synthetic",
@@ -58,13 +64,20 @@ def main() -> dict:
         "n_test": int(len(test_df)),
         "train_fraud_rate": round(float(y_train.mean()), 4),
         "test_fraud_rate": round(float(y_test.mean()), 4),
+        "n_test_fraud": n_test_fraud,
         "pr_auc": round(pr_auc, 4),
         "pr_auc_random_baseline": round(random_baseline, 4),
+        "recall_at_full_coverage": recall_full,
         "coverage_precision_curve": curve,
     }
 
     label = "SYNTHETIC FIXTURE" if metrics["is_synthetic"] else f"REAL DATA ({source})"
+    caught = curve[0]["fraud_caught_auto"]
     print(f"[eval ] {label}: PR-AUC={pr_auc:.4f} (no-skill baseline {random_baseline:.4f})")
+    print(
+        f"[recall] full-automation recall {recall_full:.4f} "
+        f"({caught}/{n_test_fraud} test frauds auto-caught)"
+    )
 
     ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
     joblib.dump({"preprocessor": pre, "model": model}, ARTIFACT_DIR / "ledgersentry.joblib")

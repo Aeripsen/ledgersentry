@@ -73,12 +73,23 @@ def _derive_time_features(features: dict) -> dict:
     return feats
 
 
-def _row(features: dict, numeric_cols: list[str], categorical_cols: list[str]) -> pd.DataFrame:
+def _row(features: dict, numeric_cols: list[str], categorical_cols: list[str]):
+    """Build the 1-row input frame, and report which expected fields were absent.
+
+    Missing NUMERIC features default to NaN, never a fake constant 0.0:
+    HistGradientBoostingClassifier handles missing values natively (the repo's stated
+    reason for choosing it), and 0.0 is a real, misleading value here - 0 is a
+    legitimate amount or PCA component, not "this field was absent". This matches the
+    honesty rule the FDB loader already enforces in data.py. Missing category defaults
+    to 'unknown' (the one-hot encoder was fit with handle_unknown='ignore').
+
+    Returns (frame, missing_fields) so /predict can surface what it had to impute."""
     feats = _derive_time_features(features)
-    row = {c: feats.get(c, 0) for c in numeric_cols}
+    row = {c: feats.get(c, float("nan")) for c in numeric_cols}
     for c in categorical_cols:
         row[c] = feats.get(c, "unknown")
-    return pd.DataFrame([row])
+    missing_fields = [c for c in (numeric_cols + categorical_cols) if c not in feats]
+    return pd.DataFrame([row]), missing_fields
 
 
 class Transaction(BaseModel):
@@ -87,8 +98,10 @@ class Transaction(BaseModel):
         description=(
             "Transaction fields: amount, category, entity_id, timestamp (or "
             "precomputed hour_of_day/day_of_week), plus any f_* numeric extras "
-            "the loaded model expects. Missing numeric fields default to 0, "
-            "missing category defaults to 'unknown'."
+            "the loaded model expects. Missing numeric fields default to NaN "
+            "(handled natively by the gradient-boosted model), missing category "
+            "defaults to 'unknown'; the response lists any imputed fields under "
+            "'missing_fields'."
         ),
         examples=[
             {
@@ -125,12 +138,14 @@ def predict(req: Transaction):
     except FileNotFoundError as e:
         raise HTTPException(status_code=503, detail=str(e)) from e
     numeric_cols, categorical_cols = _expected_columns(bundle["preprocessor"])
-    X = bundle["preprocessor"].transform(_row(req.features, numeric_cols, categorical_cols))
+    frame, missing_fields = _row(req.features, numeric_cols, categorical_cols)
+    X = bundle["preprocessor"].transform(frame)
     decision, p_fraud, confidence = bundle["model"].decide(X, review_threshold=req.review_threshold)
     return {
         "decision": str(decision[0]),
         "p_fraud": round(float(p_fraud[0]), 4),
         "confidence": round(float(confidence[0]), 4),
+        "missing_fields": missing_fields,
     }
 
 

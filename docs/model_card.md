@@ -115,24 +115,32 @@ real card data sit around PR-AUC 0.86-0.88, but those are typically on random
 holdout, which is the harder, more production-honest setting. The numbers are not
 directly comparable and this page does not claim they are.
 
-**Coverage vs precision on real data (the reject-to-review knob working):**
+**Coverage vs precision AND recall on real data (the reject-to-review knob working).**
+The test fold has **75 frauds**. "Caught / queue / missed" splits those 75 into
+auto-flagged, routed-to-human-review, and auto-cleared-as-legit (the only true misses);
+the three sum to 75 at every row. Recall (auto) = caught / 75.
 
-| Review threshold | Coverage | Sent to review | Flagged fraud | Precision on flagged |
-|---|---|---|---|---|
-| 0.50 | 100.00% | 0 | 216 | 29.17% |
-| 0.60 | 99.76% | 139 | 156 | 38.46% |
-| 0.70 | 99.45% | 312 | 129 | 44.19% |
-| 0.80 | 98.98% | 583 | 105 | 53.33% |
-| 0.90 | 97.22% | 1,582 | 73 | 73.97% |
-| 0.95 | 92.91% | 4,039 | 59 | 89.83% |
-| 0.99 | 0.03% | 56,943 | 0 | undefined (nothing flagged) |
-| 1.00 | 0.00% | 56,961 | 0 | undefined (nothing flagged) |
+| Review threshold | Coverage | Sent to review | Flagged fraud | Precision on flagged | Fraud caught / queue / missed | Recall (auto) |
+|---|---|---|---|---|---|---|
+| 0.50 | 100.00% | 0 | 216 | 29.17% | 63 / 0 / 12 | 84.00% |
+| 0.60 | 99.76% | 139 | 156 | 38.46% | 60 / 6 / 9 | 80.00% |
+| 0.70 | 99.45% | 312 | 129 | 44.19% | 57 / 9 / 9 | 76.00% |
+| 0.80 | 98.98% | 583 | 105 | 53.33% | 56 / 10 / 9 | 74.67% |
+| 0.90 | 97.22% | 1,582 | 73 | 73.97% | 54 / 13 / 8 | 72.00% |
+| 0.95 | 92.91% | 4,039 | 59 | 89.83% | 53 / 16 / 6 | 70.67% |
+| 0.99 | 0.03% | 56,943 | 0 | undefined (nothing flagged) | 0 / 75 / 0 | 0.00% |
+| 1.00 | 0.00% | 56,961 | 0 | undefined (nothing flagged) | 0 / 75 / 0 | 0.00% |
 
 Reading it: on real data the knob genuinely earns its keep. Fully automated
-(threshold 0.50), the model flags 216 transactions and 29% of them are truly fraud.
-Send the most uncertain 7.1% of traffic to human review (threshold 0.95) and the
-automated fraud flags become 89.8% precise - a 3x precision lift for reviewing
-4,039 of 56,961 transactions. The cliff at 0.99 is honest and expected: the model's
+(threshold 0.50), the model catches **63 of the 75 test frauds (84% recall)**, flags
+216 transactions, and 29% of those flags are truly fraud. Send the most uncertain 7.1%
+of traffic to human review (threshold 0.95) and the automated fraud flags become 89.8%
+precise - a 3x precision lift for reviewing 4,039 of 56,961 transactions. Recall on the
+automated path falls to 70.7% at that setting, but the misses drop from 12 to 6: the
+extra uncertain frauds are surfaced in the review queue (16 of them) rather than
+auto-cleared, so 69 of 75 frauds are still caught by the system as a whole. That is the
+honest way to read a reject knob - precision, recall, and review-queue load together,
+not one number. The cliff at 0.99 is honest and expected: the model's
 uncalibrated confidence almost never exceeds 0.99 on this data, so that threshold
 sends essentially everything to review (see Limitations, "uncalibrated
 confidence"). Between 0.50 and 0.95 the curve is smooth and monotonic - unlike the
@@ -159,25 +167,29 @@ the 1,581 test rows the model decides on its own (not sent to review). Precision
 of the rows it flags as fraud within that covered subset, what fraction are truly
 fraud.
 
-| Review threshold | Coverage | Sent to review | Flagged fraud | Precision on flagged |
-|---|---|---|---|---|
-| 0.50 | 100.00% | 0 | 13 | 76.92% |
-| 0.60 | 99.94% | 1 | 13 | 76.92% |
-| 0.70 | 99.87% | 2 | 12 | 83.33% |
-| 0.80 | 99.81% | 3 | 11 | 81.82% |
-| 0.90 | 99.81% | 3 | 11 | 81.82% |
-| 0.95 | 99.68% | 5 | 10 | 90.00% |
-| 0.99 | 99.30% | 11 | 9 | 88.89% |
-| 1.00 | 0.00% | 1,581 | 0 | undefined (nothing flagged) |
+The fixture's test fold has **15 frauds**; "caught / queue / missed" splits them the
+same way as the real table above, and recall (auto) = caught / 15.
+
+| Review threshold | Coverage | Sent to review | Flagged fraud | Precision on flagged | Fraud caught / queue / missed | Recall (auto) |
+|---|---|---|---|---|---|---|
+| 0.50 | 100.00% | 0 | 13 | 76.92% | 10 / 0 / 5 | 66.67% |
+| 0.60 | 99.94% | 1 | 13 | 76.92% | 10 / 0 / 5 | 66.67% |
+| 0.70 | 99.87% | 2 | 12 | 83.33% | 10 / 0 / 5 | 66.67% |
+| 0.80 | 99.81% | 3 | 11 | 81.82% | 9 / 1 / 5 | 60.00% |
+| 0.90 | 99.81% | 3 | 11 | 81.82% | 9 / 1 / 5 | 60.00% |
+| 0.95 | 99.68% | 5 | 10 | 90.00% | 9 / 1 / 5 | 60.00% |
+| 0.99 | 99.30% | 11 | 9 | 88.89% | 8 / 3 / 4 | 53.33% |
+| 1.00 | 0.00% | 1,581 | 0 | undefined (nothing flagged) | 0 / 15 / 0 | 0.00% |
 
 Source: `artifacts/metrics_synthetic.json`. Reading it: at the loosest setting the model
-auto-decides every transaction and is right on 76.9% of the ones it flags as fraud;
-tightening the knob trades a handful of auto-decisions for review (at most 11 of 1,581
-at threshold 0.99) and lifts flagged-fraud precision to 88-90%. The curve is not
-monotonic between 0.70 and 0.90 (0.8333 dips to 0.8182) because at n=11-13 flagged
-transactions, one label flip moves precision by ~9 percentage points - the honest
-noise floor of a 1,581-row test fold, not a modeling claim. The real-data section
-above shows what the same knob looks like with actual volume behind it.
+auto-decides every transaction, catches 10 of 15 frauds (66.7% recall), and is right on
+76.9% of the ones it flags as fraud; tightening the knob trades a handful of
+auto-decisions for review (at most 11 of 1,581 at threshold 0.99) and lifts flagged-fraud
+precision to 88-90%. The curve is not monotonic between 0.70 and 0.90 (0.8333 dips to
+0.8182) because at n=11-13 flagged transactions, one label flip moves precision by ~9
+percentage points - the honest noise floor of a 1,581-row test fold, not a modeling
+claim. The real-data section above shows what the same knob looks like with actual
+volume behind it.
 
 ## Why these numbers, not higher ones (and why that's reported anyway)
 

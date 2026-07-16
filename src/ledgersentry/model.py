@@ -80,17 +80,31 @@ class FraudDetector(BaseEstimator):
         return decision, p_fraud, confidence
 
     def coverage_precision_curve(self, X, y, thresholds) -> list[dict]:
-        """Sweep the review threshold. For each: coverage = fraction of rows the
-        model decides on its own (not sent to review), and precision_on_flagged =
-        of the rows it flags as fraud within that covered subset, what fraction
-        are truly fraud. This is the tunable knob: raise the threshold, more
-        uncertain transactions go to a human, and the automated fraud calls that
-        remain get more precise. `precision_on_flagged` is None when a threshold
-        flags zero transactions as fraud (precision is undefined, not zero)."""
+        """Sweep the review threshold. For each threshold we report BOTH sides a
+        fraud desk asks about - precision (are the auto-flags right?) and recall
+        (what fraction of real fraud do we actually catch?):
+
+          coverage              fraction of rows the model decides on its own (not
+                                sent to review).
+          precision_on_flagged  of the rows it auto-flags as fraud, the fraction
+                                that are truly fraud. None when nothing is flagged
+                                (precision is undefined, not zero).
+          fraud_caught_auto     true frauds the model auto-flags (covered & fraud).
+          fraud_in_review_queue true frauds routed to a human (below the threshold,
+                                so surfaced for review, not silently cleared).
+          fraud_missed          true frauds auto-cleared as legit (covered & legit) -
+                                the only frauds that actually slip through.
+          recall_auto           fraud_caught_auto / all test frauds: the fraction of
+                                fraud the automated path catches on its own.
+
+        The three fraud_* counts partition every true fraud (caught + queued +
+        missed = total), so recall and the review-queue load are both explicit."""
         y = np.asarray(y).astype(int)
         p_fraud = self.predict_proba_fraud(X)
         confidence = np.maximum(p_fraud, 1 - p_fraud)
         predicted_fraud = p_fraud >= 0.5
+        is_fraud = y == 1
+        total_fraud = int(is_fraud.sum())
 
         rows = []
         for t in thresholds:
@@ -98,6 +112,10 @@ class FraudDetector(BaseEstimator):
             flagged = covered & predicted_fraud
             n_flagged = int(flagged.sum())
             precision = float((y[flagged] == 1).mean()) if n_flagged else None
+            fraud_caught_auto = int((is_fraud & flagged).sum())
+            fraud_in_review_queue = int((is_fraud & ~covered).sum())
+            fraud_missed = int((is_fraud & covered & ~predicted_fraud).sum())
+            recall_auto = fraud_caught_auto / total_fraud if total_fraud else None
             rows.append(
                 {
                     "review_threshold": round(float(t), 4),
@@ -105,6 +123,10 @@ class FraudDetector(BaseEstimator):
                     "n_sent_to_review": int((~covered).sum()),
                     "n_flagged_fraud": n_flagged,
                     "precision_on_flagged": round(precision, 4) if precision is not None else None,
+                    "fraud_caught_auto": fraud_caught_auto,
+                    "fraud_in_review_queue": fraud_in_review_queue,
+                    "fraud_missed": fraud_missed,
+                    "recall_auto": round(recall_auto, 4) if recall_auto is not None else None,
                 }
             )
         return rows
