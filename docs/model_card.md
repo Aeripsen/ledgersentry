@@ -514,17 +514,50 @@ and that trade is the whole point of this project.
    `day_of_week`; for the fixture, `amount`, time features, `category`, and one
    velocity feature. No entity-level aggregate features are built yet (ULB has no
    entity to aggregate on; Sparkov/IEEE-CIS runs can add them).
-8. **The symmetric knob's two cuts are still coupled, and the decoupled curve is
-   evaluation-only.** One threshold setting both "flag if `p >= t`" and "clear if
-   `p <= 1-t`" is the root cause of both curves' degenerate high ends. The fix is
-   built, measured, and committed (`decoupled_curve_calibrated`, ADR 008), but two
-   honest limits remain: it is published in **calibrated** units only, so the
-   headline raw curve still carries the coupling; and `FraudDetector.decide` /
-   `/predict` still take a single `review_threshold`, so the decoupled operating
-   points are reportable but not yet **servable**. Closing that means a serving
-   API that accepts a `(flag_at, clear_at)` pair and a `/predict` path that
-   applies the committed Platt map, which is limitation 4's seam and the same
-   piece of work.
+   And on ULB the two engineered time features are close to useless, measured:
+   the set spans 48 hours, so after a temporal split **`day_of_week` holds {1, 2}
+   in train and {2} alone in test** - a single constant value, which makes any
+   tree branch on it dead code at scoring time. `hour_of_day` covers 24 distinct
+   values in train and only 8 (16-23) in test. Neither is leakage; it is the
+   temporal split being genuinely hard, exactly as intended, and part of why
+   0.7278 sits below shuffled-split numbers. But it is dead weight left unpruned,
+   and it is named here rather than left for a reader to find.
+8. **`hour_of_day` is not literally the hour of day on ULB.** `origin="2013-01-01"`
+   (`data.py`) is arbitrary: ULB's `Time` column is seconds since its own first
+   transaction and the true wall-clock start is unpublished. So the feature is
+   hours since an unknown reference, mod 24. A constant offset only relabels a
+   tree's split points, so the daily cycle's shape survives and the model is
+   unaffected, but the name claims more than the data supports.
+9. **No explainability surface at all.** Nothing here answers "why was this
+   transaction flagged?" - no SHAP, no permutation importance, no per-decision
+   reason codes. `HistGradientBoostingClassifier` does not even expose
+   `feature_importances_`, so there is not a cheap global answer sitting there
+   either. `/predict` returns a decision, a probability, a confidence, and which
+   fields were imputed; it does not return a reason. For fraud specifically this
+   is a domain gap rather than a generic ML one: reason codes are frequently a
+   regulatory requirement in credit and fraud decisioning, and "the model said so"
+   is not an answer for a customer or a regulator. On ULB it is partly academic,
+   since the features are anonymized PCA components and "V14 was low" means
+   nothing to a human, but that is an accident of the dataset rather than a
+   defense of the design, and it would bite immediately on Sparkov or IEEE-CIS
+   where features have real names.
+10. **The model choice is asserted, not shown.** `logreg` is registered
+    (`registry.py`) and CI-tested, and no logreg metrics are committed, so "gradient
+    boosting was the right call here" rests on no measurement in a repo whose whole
+    claim is that claims get measured. It is one command
+    (`python scripts/train.py --model logreg`) and the artifact naming already
+    supports it.
+11. **The symmetric knob's two cuts are still coupled, and the decoupled curve is
+    evaluation-only.** One threshold setting both "flag if `p >= t`" and "clear if
+    `p <= 1-t`" is the root cause of both curves' degenerate high ends. The fix is
+    built, measured, and committed (`decoupled_curve_calibrated`, ADR 008), but two
+    honest limits remain: it is published in **calibrated** units only, so the
+    headline raw curve still carries the coupling; and `FraudDetector.decide` /
+    `/predict` still take a single `review_threshold`, so the decoupled operating
+    points are reportable but not yet **servable**. Closing that means a serving
+    API that accepts a `(flag_at, clear_at)` pair and a `/predict` path that
+    applies the committed Platt map, which is limitation 4's seam and the same
+    piece of work.
 ## Attribution
 
 The reject-to-review knob is the same architecture as FlowSentry's two-stage reject
