@@ -52,6 +52,12 @@ class Settings(BaseSettings):
     # fit the calibrator on - data the calibration model never trained on
     calibration_size: float = 0.2
 
+    # bootstrap: resamples behind the committed 95% intervals on the headline.
+    # 1000 is the convention and is plenty for a 95% interval; the Monte Carlo
+    # error on the 2.5/97.5 percentiles is small next to the sampling error the
+    # interval is measuring, which on 75 positives is what dominates.
+    bootstrap_resamples: int = 1000
+
     # serving
     max_batch: int = 10_000
 

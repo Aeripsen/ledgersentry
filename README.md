@@ -9,10 +9,13 @@ discipline, same honesty rules, different domain.
 
 **The 90-second version:**
 
-- **Real result:** PR-AUC **0.7278** on the ULB credit-card fraud set (284,807 real
-  anonymized transactions, 492 fraud, 0.17%) with a strictly temporal holdout - train
-  on the first ~40 hours, test on the last ~7.6 hours, nothing from the future leaks
-  back. No-skill baseline on that fold is 0.0013, so that is roughly a 550x lift.
+- **Real result:** PR-AUC **0.7278, 95% CI [0.6214, 0.8232]** on the ULB
+  credit-card fraud set (284,807 real anonymized transactions, 492 fraud, 0.17%)
+  with a strictly temporal holdout - train on the first ~40 hours, test on the last
+  ~7.6 hours, nothing from the future leaks back. No-skill baseline on that fold is
+  0.0013, so that is roughly a 550x lift. **The interval is published because the
+  fold has 75 frauds and 75 positives do not earn four decimals** - it is measured
+  (1000-resample bootstrap, committed), not hedged with a disclaimer.
 - **The knob is the product:** fully automated it catches **63 of 75 test frauds
   (84% recall)** and 29% of its flags are truly fraud; send the most uncertain 7.1% of
   traffic to human review and the automated flags become **89.8% precise**. The full
@@ -98,7 +101,7 @@ training reference"]
 Full picture with all three seams and the module map: [`docs/architecture.md`](docs/architecture.md).
 The load-bearing decisions each have a short ADR in [`docs/adr/`](docs/adr): why this split
 (001), why PR-AUC (002), why a reject option (003), what was deliberately NOT built (004),
-the compiled scorer (005), and calibration (006).
+the compiled scorer (005), calibration (006), and the headline's confidence intervals (007).
 
 ## Results on real data (ULB credit-card fraud, measured 2026-07-15)
 
@@ -108,12 +111,24 @@ the grouped split degrades (documented in `data.py`) to a **pure temporal split*
 227,846 train rows (417 fraud) / 56,961 test rows (75 fraud, 0.132%) - the model is
 evaluated only on the final ~7.6 hours of transactions it has never seen.
 
-**PR-AUC on the real imbalanced holdout: 0.7278** (no-skill baseline on this fold:
-0.0013, roughly a 550x lift). Published XGBoost-class numbers on real card data run
-~0.86-0.88, but on random (non-temporal) splits of different datasets - not directly
-comparable, and not claimed to be. See `docs/model_card.md` for the full honesty
-notes. Source of truth: `artifacts/metrics_ulb_creditcard.json`
-(`is_synthetic: false`).
+**PR-AUC on the real imbalanced holdout: 0.7278, 95% CI [0.6214, 0.8232]**
+(no-skill baseline on this fold: 0.0013, roughly a 550x lift). Published
+XGBoost-class numbers on real card data run ~0.86-0.88, but on random
+(non-temporal) splits of different datasets - not directly comparable, and not
+claimed to be. See `docs/model_card.md` for the full honesty notes. Source of
+truth: `artifacts/metrics_ulb_creditcard.json` (`is_synthetic: false`).
+
+**Uncertainty, published beside the number instead of disclaimed.** The fold holds
+75 frauds, so the headline gets an interval: PR-AUC **[0.6214, 0.8232]** and recall
+**[0.75, 0.9167]**, from a seeded 1000-resample percentile bootstrap
+(`python scripts/bootstrap.py` -> `artifacts/bootstrap_ulb_creditcard.json`). The
+recall interval is cross-checked against a closed-form Wilson interval computed
+independently, **[0.7408, 0.9060]**, and they agree to about a point at each end.
+What that buys: the conclusion "far better than no-skill" is safe (the interval's
+floor is still ~480x the baseline), and any argument resting on the decimals is
+not. One extra caught fraud moves recall 1.33 points. The interval covers sampling
+noise only, not fold-choice variance - rolling-origin evaluation is the fix for
+that and is still an open gap below.
 
 **Coverage vs precision AND recall on real data (the reject-to-review knob working).**
 The test fold has **75 frauds**; "caught / queue / missed" shows how each threshold
@@ -198,7 +213,7 @@ pip install -e .                 # optional - scripts/train.py works without it
 
 python scripts/train.py          # no data file present -> synthetic fixture (offline)
                                   # writes artifacts/ledgersentry.joblib + metrics.json
-pytest                           # run the test suite (80 tests)
+pytest                           # run the test suite (91 tests)
 ruff check .                     # lint
 mypy                             # type-check src/
 
@@ -211,6 +226,7 @@ python scripts/verify_repro.py   # FAILS unless the regenerated metrics are byte
 
 python scripts/calibrate.py      # the calibration pipeline -> calibration_<source>.json
 python scripts/bench.py          # the latency/throughput benchmark -> benchmark.json
+python scripts/bootstrap.py      # 95% CIs on the headline -> bootstrap_<source>.json
 ```
 
 Config: defaults are exactly the committed run; override with `LEDGERSENTRY_*` env vars
@@ -278,22 +294,27 @@ src/ledgersentry/
                  (reference + benchmark baseline), pinned equal by tests
   train.py       load -> split -> fit -> evaluate -> artifacts (+ drift reference)
   calibration.py Platt/isotonic calibration pipeline, separate from train (ADR 006)
+  bootstrap.py   95% CIs on the headline (percentile bootstrap + a Wilson
+                 cross-check), its own pipeline for the same reason (ADR 007)
   drift.py       per-feature PSI vs the training reference frozen in the artifact
   bench.py       latency/throughput harness -> artifacts/benchmark.json
   service.py     FastAPI: /predict, /predict/batch, /drift, /health, /ready, /curve
   stream.py      timestamp-ordered replay of the held-out test split
 dashboard/app.py Streamlit: review-threshold slider, live coverage/precision, feed
-scripts/         thin CLI entry points (train, stream, calibrate, bench, verify_repro)
-tests/           80 tests: determinism, split leakage, reject knob, all four loaders
+scripts/         thin CLI entry points (train, stream, calibrate, bootstrap, bench,
+                 verify_repro)
+tests/           91 tests: determinism, split leakage, reject knob, all four loaders
                  (true-schema fixtures), compiled-vs-reference scoring parity, latency
-                 regression guard, calibration monotonicity, drift, API behavior
+                 regression guard, calibration monotonicity, bootstrap determinism +
+                 a hand-computed Wilson interval, drift, API behavior
 docs/
   model_card.md    full measured results (real + synthetic, clearly separated) + limits
   architecture.md  both pipelines, the three seams, the module map (mermaid)
   threat_model.md  trust boundaries, the artifact-is-code rule, what deployment owns
   adr/             the six load-bearing decisions, rejected alternatives named
 artifacts/       committed, per-source: metrics_*.json, calibration_*.json,
-                 benchmark_*.json (+ *.json = latest run); ledgersentry.joblib gitignored
+                 bootstrap_*.json, benchmark_*.json (+ *.json = latest run);
+                 ledgersentry.joblib gitignored
 Makefile         install / test / lint / train / reproduce / bench / serve / dashboard
 Dockerfile / docker-compose.yml   one image, two services (api:8000, dashboard:8501)
 ```
@@ -342,13 +363,28 @@ Dockerfile / docker-compose.yml   one image, two services (api:8000, dashboard:8
       about what it cannot see - `src/ledgersentry/drift.py`)
 - [x] Threat model: trust boundaries, the artifact-is-code rule, what is
       deliberately left to deployment - `docs/threat_model.md`
+- [x] 95% confidence intervals on the headline: seeded percentile bootstrap plus
+      an independent Wilson cross-check on recall, published beside the point
+      estimate rather than in a footnote. PR-AUC [0.6214, 0.8232], recall
+      [0.75, 0.9167] - `docs/adr/007-bootstrap-confidence-intervals.md`
 
 **Open (honest gaps)**
 - [ ] Sparkov full run (the streaming story) and IEEE-CIS full run (the headline
       benchmark) - both Kaggle-gated downloads
 - [ ] Docker image build-test (Docker unavailable on the build machine)
-- [ ] Rolling-origin (multi-fold temporal) evaluation for variance estimates -
-      the committed numbers are one fold, and say so
+- [ ] Rolling-origin (multi-fold temporal) evaluation - the committed bootstrap
+      captures sampling noise only, so fold-choice variance is still unmeasured
+      and the committed numbers are one fold
+- [ ] Decouple the reject knob's two cuts: one threshold currently forces
+      `flag at p >= t` AND `clear at p <= 1-t`, symmetric about 0.5, so a desk
+      cannot ask for `flag >= 0.9` with `clear <= 0.02`. That symmetry is
+      inherited from a multi-class setting and is the root cause of both curves'
+      degenerate high ends (`docs/model_card.md`, "What calibration does NOT fix")
+- [ ] Explainability: no SHAP, no permutation importance, no per-decision reason
+      codes anywhere - a domain gap for fraud, where reason codes are frequently
+      a regulatory requirement
+- [ ] Commit the `logreg` baseline's numbers: it is registered and tested, so the
+      model choice is currently asserted rather than shown
 
 ## Attribution
 

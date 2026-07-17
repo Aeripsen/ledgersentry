@@ -107,13 +107,50 @@ present; source of truth `artifacts/metrics_ulb_creditcard.json`, tagged
 pure temporal for this source (see Data above): the model trains on the first ~40
 hours of transactions and is evaluated on the final ~7.6 hours it has never seen.
 
-**PR-AUC (average precision) on the real imbalanced holdout: 0.7278.**
+**PR-AUC (average precision) on the real imbalanced holdout: 0.7278, 95% CI
+[0.6214, 0.8232].**
 Random/no-skill baseline on this test fold: **0.0013** - the model's PR-AUC is
 roughly 550x the no-skill baseline. For context, published XGBoost-class results on
 real card data sit around PR-AUC 0.86-0.88, but those are typically on random
 (non-temporal) splits of different datasets; this 0.7278 is on a strictly temporal
 holdout, which is the harder, more production-honest setting. The numbers are not
 directly comparable and this page does not claim they are.
+
+**Read the interval before the point estimate.** That CI is **0.20 wide**
+(`artifacts/bootstrap_ulb_creditcard.json`, 1000-resample percentile bootstrap,
+seeded). This fold has 75 frauds, and 75 positives do not support four decimal
+places. What the interval does and does not license:
+
+- **Safe:** this model is far better than no-skill. 0.7278 against a 0.0013
+  baseline is not a coin flip, and the interval's floor of 0.6214 is still ~480x
+  the baseline. The ordering conclusions in this document hold.
+- **Not safe:** any argument that leans on the decimals. The calibration section's
+  0.7544 sits comfortably inside this interval, so 0.7278 vs 0.7544 is **not a
+  demonstrated difference** and this page does not treat it as one. Same for
+  adjacent rows of the knob table.
+- **Blunt version:** one additional caught fraud moves recall by **1.33 points**
+  (`one_extra_fraud_moves_recall_pts`). If a single label flip is larger than the
+  gap being argued about, the gap is noise.
+
+**Headline recall at full coverage: 0.84 (63 of 75), 95% CI [0.75, 0.9167].**
+Cross-checked against a closed-form **Wilson** score interval on the same
+proportion, computed independently of the resampling: **[0.7408, 0.9060]**. The
+two methods agree to about a point at each end, which is the evidence that the
+bootstrap is sane. Wilson rather than Wald deliberately: at n=75 and p=0.84 the
+normal approximation has poor coverage and can hand back limits above 1.0, while
+Wilson inverts the score test, stays in range, and is asymmetric, which is the
+correct shape here.
+
+**What these intervals do NOT cover, stated plainly.** They capture sampling
+noise only: how much the number would move if those 7.6 hours had held a slightly
+different draw of transactions. They say nothing about **fold-choice variance** -
+pick a different temporal cut and the answer can move further than these bounds
+suggest. Rolling-origin evaluation across multiple folds is what measures that,
+and it is an open gap on the roadmap, not something a bootstrap can substitute
+for. They also resample rows **independently**, which assumes exchangeability;
+fraud is bursty and campaign-driven, so real positives are time-correlated and
+these widths are best read as a **floor** on the uncertainty rather than the whole
+of it. Both caveats are committed in the artifact's own `limitations` field.
 
 **The two metrics we refuse to headline, measured anyway (`demoted_metrics`).**
 ADR 002 argues that accuracy and ROC-AUC mislead at this base rate. Arguing it and
@@ -390,11 +427,18 @@ and that trade is the whole point of this project.
    the entity-grouped guarantee cannot apply there; the split is purely temporal for
    that source. The grouped+temporal guarantee is CI-tested and will bind on
    Sparkov/IEEE-CIS/FDB, which do have entity keys.
-3. **Small test fold on the synthetic fixture.** 1,581 rows / 15 fraud means the
-   fixture's coverage-precision curve has real sampling noise at the tightest
-   thresholds. The real ULB fold is larger (56,961 rows / 75 fraud) but 75 positives
-   still leaves visible noise in per-threshold precision; do not over-read small
-   differences between adjacent rows.
+3. **One fold, and not many positives.** This is the biggest limitation on the
+   page, and it is now quantified rather than hedged: the real ULB fold is 56,961
+   rows but only **75 frauds**, and the 95% CI on the headline PR-AUC is
+   **[0.6214, 0.8232]** - 0.20 wide (`artifacts/bootstrap_ulb_creditcard.json`).
+   One extra caught fraud moves recall 1.33 points. So do not over-read small
+   differences between adjacent rows of any table here, including the 89.83%
+   precision this page prints: those digits are noise, and they are printed only
+   because they are what the artifact says. The synthetic fixture is worse again
+   (1,581 rows / 15 fraud, PR-AUC CI [0.5889, 0.9361]), which is one more reason
+   it is a pipeline proof and not a result. And a bootstrap on a single fold
+   captures sampling noise only, never fold-choice variance: rolling-origin
+   evaluation across multiple temporal folds is the real fix and is an open gap.
 4. **The headline model's own confidence is uncalibrated.** The raw table above
    is in uncalibrated units (hence the 0.99 cliff). Calibration is built,
    measured, and shipped as a separate pipeline (see "Calibration" above) rather

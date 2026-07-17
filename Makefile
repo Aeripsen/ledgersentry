@@ -3,7 +3,7 @@
 
 PY ?= python
 
-.PHONY: install test lint train reproduce bench serve dashboard
+.PHONY: install test lint train reproduce bench bootstrap serve dashboard
 
 install:
 	$(PY) -m pip install -r requirements.txt
@@ -26,6 +26,11 @@ reproduce:
 
 bench:
 	$(PY) scripts/bench.py
+
+# 95% confidence intervals on the headline, so the four decimals it prints get
+# read with the uncertainty they actually carry.
+bootstrap:
+	$(PY) scripts/bootstrap.py
 
 serve:
 	$(PY) -m uvicorn ledgersentry.service:app --app-dir src

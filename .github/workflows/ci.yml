@@ -38,3 +38,6 @@ jobs:
 
       - name: Benchmark on synthetic fallback (smoke test)
         run: python scripts/bench.py --n-single 200
+
+      - name: Bootstrap CIs on synthetic fallback (smoke test)
+        run: python scripts/bootstrap.py
