@@ -101,7 +101,9 @@ advice, and neither does any other part of this repo.
 
 **Measured 2026-07-15** by `python scripts/train.py` with `data/creditcard.csv`
 present; source of truth `artifacts/metrics_ulb_creditcard.json`, tagged
-`is_synthetic: false`.
+`is_synthetic: false`. The `demoted_metrics` block was added on 2026-07-16 and the
+same run reproduced every earlier number in the file byte for byte, which is what
+`python scripts/verify_repro.py` checks on demand.
 
 **Split:** 227,846 train rows (417 fraud) / 56,961 test rows (75 fraud, 0.132%),
 pure temporal for this source (see Data above): the model trains on the first ~40

@@ -13,9 +13,10 @@ knob has two cuts, `p >= t` to flag and `p <= 1-t` to clear, and calibration
 helps one at the other's expense. Squashing the scale toward the base rate
 lifts the clear lane (raw coverage at t=0.99 is 0.0003; calibrated it is
 0.9964) and starves the flag lane, because the highest calibrated score on the
-fold is 0.856496 (`score_range_test.platt`) so nothing can be flagged at all
-above t=0.85. Calibration MOVED this curve's degenerate end from 0.99 to 0.9,
-it did not remove it. Both curves are committed in full either way.
+fold is 0.856496 (`score_range_test.platt.max`) so nothing can be flagged at any
+threshold above it. Calibration MOVED this curve's degenerate end from 0.99 to
+0.9, it did not remove it. The fix for the coupling itself is the decoupled
+curve beside it (ADR 008). Both curves are committed in full either way.
 
 The design constraint that shapes everything here: a calibrator must be fit on
 data its model was NOT trained on, or it just certifies the model's own

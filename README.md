@@ -312,7 +312,7 @@ docs/
   model_card.md    full measured results (real + synthetic, clearly separated) + limits
   architecture.md  both pipelines, the three seams, the module map (mermaid)
   threat_model.md  trust boundaries, the artifact-is-code rule, what deployment owns
-  adr/             the six load-bearing decisions, rejected alternatives named
+  adr/             the eight load-bearing decisions, rejected alternatives named
 artifacts/       committed, per-source: metrics_*.json, calibration_*.json,
                  bootstrap_*.json, benchmark_*.json (+ *.json = latest run);
                  ledgersentry.joblib gitignored
