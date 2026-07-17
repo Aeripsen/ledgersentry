@@ -10,6 +10,13 @@
   "pr_auc": 0.7884,
   "pr_auc_random_baseline": 0.0095,
   "recall_at_full_coverage": 0.6667,
+  "demoted_metrics": {
+    "why": "ADR 002 rejected these two as headlines at a 0.13% base rate and they are reported here as evidence for that decision, measured on the same predictions as the PR-AUC above. Never quote them as the headline. accuracy is worse than accuracy_always_predict_legit, which catches zero fraud: that is the argument, not a defect.",
+    "roc_auc": 0.9944,
+    "roc_auc_no_skill_baseline": 0.5,
+    "accuracy": 0.9949,
+    "accuracy_always_predict_legit": 0.9905
+  },
   "coverage_precision_curve": [
     {
       "review_threshold": 0.5,

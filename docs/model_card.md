@@ -115,6 +115,38 @@ real card data sit around PR-AUC 0.86-0.88, but those are typically on random
 holdout, which is the harder, more production-honest setting. The numbers are not
 directly comparable and this page does not claim they are.
 
+**The two metrics we refuse to headline, measured anyway (`demoted_metrics`).**
+ADR 002 argues that accuracy and ROC-AUC mislead at this base rate. Arguing it and
+never computing it would be the same asserting-instead-of-measuring this repo
+exists to avoid, so both are computed on the **same predictions** as the 0.7278 and
+committed with the caveat attached:
+
+| | value | no-skill baseline |
+|---|---|---|
+| PR-AUC (headline) | **0.7278** | 0.0013 (this fold's fraud rate) |
+| ROC-AUC (demoted evidence) | **0.9740** | 0.5, at any imbalance |
+| accuracy at threshold 0.5 (demoted evidence) | **0.9971** | - |
+| accuracy of always predicting "legit" | **0.9987** | catches 0 of 75 frauds |
+
+Read those two rows carefully, because they are the argument, not a confession:
+
+- **ROC-AUC 0.9740 and PR-AUC 0.7278 are the same predictions.** One reads
+  "excellent", the other "decent", and both are correctly computed. `FPR = FP /
+  (FP + TN)` carries 56,886 easy negatives in its denominator, so the 153 false
+  positives this model produces at threshold 0.5 move it by about a quarter of one
+  percent, while precision (`TP / (TP + FP)`, no `TN` anywhere) drops to 29.17%
+  and the fraud desk feels every one of them. ROC-AUC's no-skill baseline is 0.5
+  however imbalanced the data gets; PR-AUC's is 0.0013 and moves with the fold.
+  That is why 0.9740 flatters and 0.7278 does not.
+- **This model's accuracy (0.9971) is WORSE than doing nothing (0.9987).** The
+  constant answer "legit" beats it while catching zero of the 75 frauds. That is
+  not a defect in the model; it is proof that accuracy measures the imbalance
+  rather than the model, and it is a more convincing demonstration than any
+  argument because it is our own number failing.
+
+Neither is a headline, here or anywhere else in this repo. Both are pinned in
+`scripts/verify_repro.py` all the same: demoted does not mean unpinned.
+
 **Coverage vs precision AND recall on real data (the reject-to-review knob working).**
 The test fold has **75 frauds**. "Caught / queue / missed" splits those 75 into
 auto-flagged, routed-to-human-review, and auto-cleared-as-legit (the only true misses);

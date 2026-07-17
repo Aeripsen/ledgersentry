@@ -40,11 +40,19 @@ personalized financial advice, anywhere in this repo.
 The ULB set is the most-used fraud dataset there is, and most results on it are broken
 the same three ways:
 
-1. **Accuracy on 99.8%-legit data.** Predicting "legit" every time scores 99.83%
-   accuracy and catches zero fraud - so every "99.9% accurate" fraud notebook is
-   reporting the base rate back as an achievement. The honest headline at this
-   imbalance is **PR-AUC against its own no-skill baseline** (0.0013 here), plus the
-   operating table. [ADR 002](docs/adr/002-pr-auc-not-accuracy.md).
+1. **Accuracy on 99.9%-legit data.** On this repo's own test fold, predicting
+   "legit" every single time scores **99.87%** accuracy and catches zero of the 75
+   frauds. This repo's actual model scores **99.71%**, which is *worse than doing
+   nothing* - measured, committed, and published rather than hidden, because our own
+   model failing the metric is the best possible proof that accuracy measures the
+   imbalance and not the model. Every "99.9% accurate" fraud notebook is reporting
+   the base rate back as an achievement. The honest headline at this imbalance is
+   **PR-AUC against its own no-skill baseline** (0.0013 here), plus the operating
+   table. And ROC-AUC misleads more subtly: on these identical predictions it reads
+   **0.9740** against PR-AUC's 0.7278, because its no-skill baseline is 0.5 at any
+   imbalance and 56,886 easy negatives swamp its false-positive rate. All three
+   numbers are committed under `demoted_metrics` and pinned by `verify_repro.py` -
+   demoted, never headline. [ADR 002](docs/adr/002-pr-auc-not-accuracy.md).
 2. **Shuffled splits.** A random split trains on Tuesday's fraud to predict Monday's,
    and grades the model on cards it already memorized. Fraud is adversarial and
    non-stationary; the only split that predicts deployment is a temporal one, entities

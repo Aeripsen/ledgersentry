@@ -14,7 +14,7 @@ import argparse
 import json
 
 import joblib
-from sklearn.metrics import average_precision_score
+from sklearn.metrics import average_precision_score, roc_auc_score
 
 from .config import get_settings
 from .data import (
@@ -64,6 +64,14 @@ def main(model_name: str | None = None) -> dict:
     random_baseline = float(y_test.mean())
     curve = model.coverage_precision_curve(X_test, y_test, cfg.review_thresholds)
 
+    # The two metrics ADR 002 rejected, computed on these exact predictions so the
+    # ADR's argument is demonstrated instead of asserted. They are EVIDENCE, never
+    # the headline - see the "demoted_metrics.why" string written into the artifact.
+    roc_auc = float(roc_auc_score(y_test, p_fraud))
+    accuracy = float(((p_fraud >= 0.5).astype(int) == y_test).mean())
+    # the do-nothing baseline: predict "legit" for every row, catch zero fraud
+    accuracy_always_legit = float((y_test == 0).mean())
+
     # Headline recall a fraud desk asks for first: at full automation (threshold
     # 0.5, nothing sent to review) what fraction of real fraud does the automated
     # path catch. curve[0] is the 0.5 row (REVIEW_THRESHOLDS[0]).
@@ -82,6 +90,26 @@ def main(model_name: str | None = None) -> dict:
         "pr_auc": round(pr_auc, 4),
         "pr_auc_random_baseline": round(random_baseline, 4),
         "recall_at_full_coverage": recall_full,
+        # Deliberately nested under a self-describing key rather than sitting
+        # flat beside pr_auc: these numbers exist to be quoted WITH their caveat,
+        # and a flat "roc_auc" would eventually be lifted out as a headline by
+        # someone skimming. The caveat travels with the number.
+        "demoted_metrics": {
+            "why": (
+                "ADR 002 rejected these two as headlines at a 0.13% base rate and "
+                "they are reported here as evidence for that decision, measured on "
+                "the same predictions as the PR-AUC above. Never quote them as the "
+                "headline. accuracy is worse than accuracy_always_predict_legit, "
+                "which catches zero fraud: that is the argument, not a defect."
+            ),
+            "roc_auc": round(roc_auc, 4),
+            # ROC-AUC's no-skill baseline is 0.5 at ANY imbalance, which is exactly
+            # why it flatters here; PR-AUC's moves with the fold (pr_auc_random_
+            # baseline above). The pair is the whole point.
+            "roc_auc_no_skill_baseline": 0.5,
+            "accuracy": round(accuracy, 4),
+            "accuracy_always_predict_legit": round(accuracy_always_legit, 4),
+        },
         "coverage_precision_curve": curve,
     }
 
@@ -91,6 +119,12 @@ def main(model_name: str | None = None) -> dict:
     print(
         f"[recall] full-automation recall {recall_full:.4f} "
         f"({caught}/{n_test_fraud} test frauds auto-caught)"
+    )
+    # printed so the ADR 002 argument is visible in the run itself, not just the file
+    print(
+        f"[demoted] ROC-AUC={roc_auc:.4f} on these same predictions (no-skill 0.5 at any "
+        f"imbalance); accuracy={accuracy:.4f} vs {accuracy_always_legit:.4f} for "
+        f"always-predict-legit, which catches 0 fraud. Evidence for ADR 002, never the headline."
     )
 
     # drift reference: the TRAIN split's per-feature distribution, frozen into

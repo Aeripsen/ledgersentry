@@ -9,8 +9,11 @@ Two checks, strictest first:
   1. Byte-identical: the regenerated artifacts/metrics_ulb_creditcard.json must
      match the committed copy (via `git show HEAD:...`). This is the real
      reproducibility claim - same data, same pinned deps, same file, byte for byte.
-  2. Headline values: PR-AUC, recall at full coverage, and fold sizes must match
-     the published numbers (a fallback check that still works outside a git clone).
+  2. Published values: PR-AUC, recall at full coverage, fold sizes, and ADR 002's
+     demoted evidence (ROC-AUC, the accuracy pair) must match the published
+     numbers (a fallback check that still works outside a git clone). Demoted
+     does not mean unpinned: if this repo prints a number anywhere, that number
+     reproduces.
 """
 from __future__ import annotations
 
@@ -22,6 +25,10 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 METRICS = REPO / "artifacts" / "metrics_ulb_creditcard.json"
 
+_MISSING = object()
+
+# Every number this repo publishes anywhere must reproduce, not just the headline.
+# Dotted keys index into nested blocks.
 EXPECTED = {
     "data_source": "ulb_creditcard",
     "is_synthetic": False,
@@ -31,7 +38,23 @@ EXPECTED = {
     "pr_auc": 0.7278,
     "pr_auc_random_baseline": 0.0013,
     "recall_at_full_coverage": 0.84,
+    # ADR 002's evidence: demoted on purpose, pinned all the same. The accuracy
+    # pair is the argument - the model is WORSE than always-predict-legit, which
+    # catches zero fraud.
+    "demoted_metrics.roc_auc": 0.974,
+    "demoted_metrics.accuracy": 0.9971,
+    "demoted_metrics.accuracy_always_predict_legit": 0.9987,
 }
+
+
+def _dig(payload: dict, path: str) -> object:
+    """Look up a dotted key path, returning _MISSING rather than raising."""
+    node: object = payload
+    for part in path.split("."):
+        if not isinstance(node, dict) or part not in node:
+            return _MISSING
+        node = node[part]
+    return node
 
 
 def main() -> int:
@@ -56,10 +79,11 @@ def main() -> int:
 
     # 2. headline values
     got = json.loads(regenerated)
-    bad = {k: (got.get(k), v) for k, v in EXPECTED.items() if got.get(k) != v}
+    bad = {k: (_dig(got, k), v) for k, v in EXPECTED.items() if _dig(got, k) != v}
     if bad:
         for k, (actual, expected) in bad.items():
-            print(f"FAIL: {k} = {actual!r}, expected {expected!r}")
+            shown = "<missing>" if actual is _MISSING else repr(actual)
+            print(f"FAIL: {k} = {shown}, expected {expected!r}")
         return 1
     print(f"PASS: PR-AUC {got['pr_auc']} / recall {got['recall_at_full_coverage']} "
           f"on {got['n_test']} held-out rows ({got['n_test_fraud']} fraud) all match")
