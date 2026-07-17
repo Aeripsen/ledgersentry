@@ -401,8 +401,56 @@ properties of the score distribution, not arithmetic bugs: `curve_from_scores` i
 hand-verified against a six-row table in `tests/test_calibration.py`, and the raw
 and calibrated curves are the same function over different inputs. The fix is not
 a better threshold list, it is decoupling the two cuts so `flag_at` and `clear_at`
-can be set independently, which the current API cannot express. Listed as an open
-gap in the README rather than quietly dropped from the sweep.
+can be set independently. That is built and measured below.
+
+## The knob with its cuts decoupled (`decoupled_curve_calibrated`)
+
+The section above says one number should not be setting two cuts. This is the fix,
+in calibrated units, committed beside the symmetric curve rather than replacing it
+([ADR 008](adr/008-decoupled-reject-knob.md)). Each operating point is an explicit
+`(flag_at, clear_at)` pair, and the band between them goes to review:
+
+| Flag at | Clear at | Coverage | Sent to review | Flagged fraud | Precision on flagged | Fraud caught / queue / missed | Recall (auto) |
+|---|---|---|---|---|---|---|---|
+| 0.50 | 0.001 | 97.31% | 1,535 | 58 | 87.93% | 51 / 15 / 9 | 68.00% |
+| 0.50 | 0.01 | 99.74% | 146 | 58 | 87.93% | 51 / 9 / 15 | 68.00% |
+| 0.80 | 0.001 | 97.30% | 1,538 | 55 | 87.27% | 48 / 18 / 9 | 64.00% |
+| 0.80 | 0.01 | 99.74% | 149 | 55 | 87.27% | 48 / 12 / 15 | 64.00% |
+| 0.85 | 0.01 | 99.73% | 154 | 50 | **94.00%** | 47 / 13 / 15 | 62.67% |
+| 0.90 | 0.02 | 99.76% | 136 | **0** | undefined (nothing flagged) | 0 / 60 / 15 | 0.00% |
+
+**What the coupling was costing, in one comparison.** Put the symmetric curve's two
+best rows next to a decoupled one:
+
+| operating point | flags | precision | caught / queue / missed |
+|---|---|---|---|
+| symmetric t=0.50, which means (0.50, 0.50) | 58 | 87.93% | 51 / 0 / **24** |
+| symmetric t=0.99, which means (0.99, 0.01) | **0** | undefined | 0 / 60 / 15 |
+| **decoupled (0.50, 0.01)** | **58** | **87.93%** | 51 / 9 / **15** |
+
+The symmetric knob forces a choice: keep 58 flags and auto-clear 24 frauds, or cut
+the misses to 15 and lose every flag. The decoupled knob takes both halves at once,
+for 146 reviews out of 56,961 rows (0.26% of volume). The reason is visible in the
+table: **`fraud_missed` is a function of `clear_at` alone** - every row that clears
+at 0.01 misses exactly 15, whatever the flag bar is doing. So tying the two cuts
+together was spending real frauds to buy nothing, and no threshold list could have
+recovered it. Decoupling also reaches precision the sweep could not: `(0.85, 0.01)`
+flags 50 at **94.00%**, above every row of the symmetric calibrated curve.
+
+**And what it does not buy, because decoupling is not magic.** `(0.90, 0.02)` is the
+canonical fraud-desk ask, the operating point the symmetric API could not even
+express. It is now expressible, and it still flags **nothing** - because this
+model's highest calibrated score on the fold is 0.856496 and no threshold above
+that can select anything. The row is kept in the committed sweep rather than
+dropped, because "the API can now say it and the model still cannot do it" is the
+honest result: that is a model ceiling, not an interface defect. Decoupling removes
+the forced link between the cuts. It does not invent scores the model never
+produced.
+
+The symmetric curve is untouched and still shipped: every number in the table above
+it is byte-identical, and `decoupled_curve_from_scores` is a strict generalization
+pinned to it by test - for any `t > 0.5`, `(t, 1-t)` reproduces `curve_from_scores(t)`
+row for row (`tests/test_model.py`).
 
 ## Why these numbers, not higher ones (and why that's reported anyway)
 
@@ -466,14 +514,17 @@ and that trade is the whole point of this project.
    `day_of_week`; for the fixture, `amount`, time features, `category`, and one
    velocity feature. No entity-level aggregate features are built yet (ULB has no
    entity to aggregate on; Sparkov/IEEE-CIS runs can add them).
-8. **The knob's two cuts are coupled, and that is the wrong shape here.** One
-   threshold sets both "flag if `p >= t`" and "clear if `p <= 1-t`", forced
-   symmetric about 0.5 - inherited from FlowSentry's multi-class top-1
-   confidence, where symmetry made sense. At a 0.13% base rate a desk wants to
-   flag at `p >= 0.9` and clear at `p <= 0.02` independently, and this API
-   cannot express that operating point. It is the root cause of both curves'
-   degenerate high ends (see "What calibration does NOT fix"), not a separate
-   defect.
+8. **The symmetric knob's two cuts are still coupled, and the decoupled curve is
+   evaluation-only.** One threshold setting both "flag if `p >= t`" and "clear if
+   `p <= 1-t`" is the root cause of both curves' degenerate high ends. The fix is
+   built, measured, and committed (`decoupled_curve_calibrated`, ADR 008), but two
+   honest limits remain: it is published in **calibrated** units only, so the
+   headline raw curve still carries the coupling; and `FraudDetector.decide` /
+   `/predict` still take a single `review_threshold`, so the decoupled operating
+   points are reportable but not yet **servable**. Closing that means a serving
+   API that accepts a `(flag_at, clear_at)` pair and a `/predict` path that
+   applies the committed Platt map, which is limitation 4's seam and the same
+   piece of work.
 ## Attribution
 
 The reject-to-review knob is the same architecture as FlowSentry's two-stage reject

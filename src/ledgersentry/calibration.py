@@ -58,7 +58,7 @@ from sklearn.metrics import average_precision_score, brier_score_loss
 
 from .config import get_settings
 from .data import build_preprocessor, engineer_time_features, load, temporal_grouped_split
-from .model import FraudDetector, curve_from_scores
+from .model import FraudDetector, curve_from_scores, decoupled_curve_from_scores
 
 # Logit clip bound. Deliberately near float64 resolution: any wider (say 1e-6)
 # and distinct raw scores beyond the clip collapse into ties, which is exactly
@@ -241,6 +241,14 @@ def main() -> dict:
         # the reject knob in CALIBRATED probability units - the point of it all
         "coverage_precision_curve_calibrated": curve_from_scores(
             p_chosen, y_test, cfg.review_thresholds
+        ),
+        # the same knob with its two cuts DECOUPLED (ADR 008). The curve above
+        # forces clear_at = 1 - flag_at, which is why its flag lane dies at 0.9;
+        # here flag_at and clear_at are independent, so a desk can hold a strict
+        # flag bar and a generous clear bar at once. Added beside the symmetric
+        # curve, never replacing it: every committed number above is unchanged.
+        "decoupled_curve_calibrated": decoupled_curve_from_scores(
+            p_chosen, y_test, cfg.decoupled_operating_points
         ),
     }
 

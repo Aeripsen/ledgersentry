@@ -48,6 +48,22 @@ class Settings(BaseSettings):
     # evaluation: the review thresholds train.py sweeps for the committed curve
     review_thresholds: list[float] = [0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99, 1.0]
 
+    # The decoupled knob's operating points, as explicit (flag_at, clear_at)
+    # pairs. In CALIBRATED probability units, which is the only scale where
+    # "flag at 0.9" means "flag at 90% likely fraud" - so these are swept by
+    # calibration.py, never by train.py's raw-score curve (ADR 006, ADR 008).
+    # The last pair is the canonical fraud-desk ask the symmetric knob cannot
+    # express at all; it is kept even though this model's ceiling means it
+    # flags nothing on this fold, because that is the honest result.
+    decoupled_operating_points: list[tuple[float, float]] = [
+        (0.5, 0.001),
+        (0.5, 0.01),
+        (0.8, 0.001),
+        (0.8, 0.01),
+        (0.85, 0.01),
+        (0.9, 0.02),
+    ]
+
     # calibration: fraction of the TRAIN window held out (temporally last) to
     # fit the calibrator on - data the calibration model never trained on
     calibration_size: float = 0.2

@@ -101,7 +101,8 @@ training reference"]
 Full picture with all three seams and the module map: [`docs/architecture.md`](docs/architecture.md).
 The load-bearing decisions each have a short ADR in [`docs/adr/`](docs/adr): why this split
 (001), why PR-AUC (002), why a reject option (003), what was deliberately NOT built (004),
-the compiled scorer (005), calibration (006), and the headline's confidence intervals (007).
+the compiled scorer (005), calibration (006), the headline's confidence intervals (007),
+and decoupling the reject knob's two cuts (008).
 
 ## Results on real data (ULB credit-card fraud, measured 2026-07-15)
 
@@ -367,6 +368,11 @@ Dockerfile / docker-compose.yml   one image, two services (api:8000, dashboard:8
       an independent Wilson cross-check on recall, published beside the point
       estimate rather than in a footnote. PR-AUC [0.6214, 0.8232], recall
       [0.75, 0.9167] - `docs/adr/007-bootstrap-confidence-intervals.md`
+- [x] Reject knob with its two cuts decoupled: explicit `(flag_at, clear_at)`
+      operating points beside the symmetric sweep, which one threshold could not
+      express. Measured payoff on ULB: same 58 flags at the same 87.93%
+      precision as symmetric t=0.5, with auto-cleared frauds cut from 24 to 15 -
+      `docs/adr/008-decoupled-reject-knob.md`
 
 **Open (honest gaps)**
 - [ ] Sparkov full run (the streaming story) and IEEE-CIS full run (the headline
@@ -375,11 +381,10 @@ Dockerfile / docker-compose.yml   one image, two services (api:8000, dashboard:8
 - [ ] Rolling-origin (multi-fold temporal) evaluation - the committed bootstrap
       captures sampling noise only, so fold-choice variance is still unmeasured
       and the committed numbers are one fold
-- [ ] Decouple the reject knob's two cuts: one threshold currently forces
-      `flag at p >= t` AND `clear at p <= 1-t`, symmetric about 0.5, so a desk
-      cannot ask for `flag >= 0.9` with `clear <= 0.02`. That symmetry is
-      inherited from a multi-class setting and is the root cause of both curves'
-      degenerate high ends (`docs/model_card.md`, "What calibration does NOT fix")
+- [ ] Serve the decoupled knob: the `(flag_at, clear_at)` curve is measured and
+      committed (below), but `/predict` still takes a single `review_threshold`,
+      so those operating points are reportable and not yet servable. Same seam as
+      shipping the Platt map inside the artifact
 - [ ] Explainability: no SHAP, no permutation importance, no per-decision reason
       codes anywhere - a domain gap for fraud, where reason codes are frequently
       a regulatory requirement

@@ -168,6 +168,86 @@ def curve_from_scores(
     return rows
 
 
+def decoupled_curve_from_scores(
+    p_fraud: ArrayLike, y: ArrayLike, operating_points: Sequence[tuple[float, float]]
+) -> list[dict[str, Any]]:
+    """The reject knob with its two cuts SEPARATED - the shape binary fraud
+    scoring actually wants.
+
+    `curve_from_scores` above sweeps one threshold `t`, and for any t > 0.5 that
+    single number silently sets two cuts at once:
+
+        flag  if p >= t          clear if p <= 1-t
+
+    forced symmetric about 0.5. That symmetry is inherited from FlowSentry, where
+    the knob was a top-1 confidence over many classes and symmetry was the natural
+    shape. At a 0.13% base rate it is the wrong shape: asking to flag at 0.99
+    also demands clearing at 0.01, and a desk that wants `flag >= 0.9` with
+    `clear <= 0.02` simply cannot say so. It is the root cause of both committed
+    curves' degenerate high ends (docs/model_card.md).
+
+    Here each operating point is an explicit `(flag_at, clear_at)` pair:
+
+        p >= flag_at              -> auto-flag fraud
+        clear_at < p < flag_at    -> review
+        p <= clear_at             -> auto-clear legit
+
+    This is a strict generalization, not a replacement: for any t > 0.5,
+    `(t, 1-t)` reproduces `curve_from_scores(t)` row for row, which
+    tests/test_model.py pins. The committed symmetric curves are untouched.
+
+    Fields match curve_from_scores so the two tables read the same way, and the
+    three fraud_* counts partition every true fraud here too (caught + queued +
+    missed = total), because flagged / review / cleared partition every row.
+
+    Honest limit, because decoupling is not magic: it removes the FORCED link
+    between the cuts, it does not invent scores the model never produces. If
+    flag_at sits above the model's observed ceiling the flag lane is still empty
+    (see score_range_test in the calibration artifact). What it buys is that you
+    no longer have to wreck the clear lane to ask for a strict flag lane.
+    """
+    y = np.asarray(y).astype(int)
+    p_fraud = np.asarray(p_fraud, dtype=float)
+    is_fraud = y == 1
+    total_fraud = int(is_fraud.sum())
+
+    rows: list[dict[str, Any]] = []
+    for flag_at, clear_at in operating_points:
+        # The lanes must not overlap: a row that is both auto-flagged and
+        # auto-cleared is not an operating point, it is a contradiction. Loud
+        # error rather than a silent precedence rule nobody would remember.
+        if not flag_at > clear_at:
+            raise ValueError(
+                f"flag_at must be strictly greater than clear_at, got "
+                f"flag_at={flag_at}, clear_at={clear_at}: the auto-flag and "
+                f"auto-clear lanes would overlap"
+            )
+        flagged = p_fraud >= flag_at
+        cleared = p_fraud <= clear_at
+        covered = flagged | cleared
+        n_flagged = int(flagged.sum())
+        precision = float((y[flagged] == 1).mean()) if n_flagged else None
+        fraud_caught_auto = int((is_fraud & flagged).sum())
+        fraud_in_review_queue = int((is_fraud & ~covered).sum())
+        fraud_missed = int((is_fraud & cleared).sum())
+        recall_auto = fraud_caught_auto / total_fraud if total_fraud else None
+        rows.append(
+            {
+                "flag_at": round(float(flag_at), 6),
+                "clear_at": round(float(clear_at), 6),
+                "coverage": round(float(covered.mean()), 4),
+                "n_sent_to_review": int((~covered).sum()),
+                "n_flagged_fraud": n_flagged,
+                "precision_on_flagged": round(precision, 4) if precision is not None else None,
+                "fraud_caught_auto": fraud_caught_auto,
+                "fraud_in_review_queue": fraud_in_review_queue,
+                "fraud_missed": fraud_missed,
+                "recall_auto": round(recall_auto, 4) if recall_auto is not None else None,
+            }
+        )
+    return rows
+
+
 def expected_cost_curve(
     curve: list[dict[str, Any]],
     cost_missed_fraud: float,
