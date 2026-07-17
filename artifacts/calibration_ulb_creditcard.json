@@ -29,6 +29,25 @@
     "isotonic": 0.6728,
     "platt": 0.7544
   },
+  "score_range_test": {
+    "raw": {
+      "min": 0.007708,
+      "max": 0.98599
+    },
+    "isotonic": {
+      "min": 0.0,
+      "max": 0.972973
+    },
+    "platt": {
+      "min": 3.6e-05,
+      "max": 0.856496
+    }
+  },
+  "platt_map": {
+    "form": "p_cal = sigmoid(a * logit(p_raw) + b)",
+    "a": 1.318156,
+    "b": -3.820769
+  },
   "reliability_raw": {
     "strategy": "quantile",
     "n_bins": 10,

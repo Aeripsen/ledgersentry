@@ -235,14 +235,105 @@ full numbers are committed either way.
 
 **What calibration buys the reject knob.** With honest probabilities, thresholds
 mean what they say: "flag if P(fraud) >= 0.5" now yields 58 flags at 87.9%
-precision (versus the raw table's 216 flags at 29.2% - same ranking, different
-units), and a fraud desk can price an operating point instead of eyeballing a
-curve. Using `model.expected_cost_curve` on the headline knob table with
+precision, versus the raw table's 216 flags at 29.2%. Read that honestly, because
+it is the easiest number on this page to misread: the ranking is identical and the
+test PR-AUC is unchanged at 0.7544, so this is **not a better model**. It is the
+same curve relabeled, and the 0.5 cut simply lands somewhere else on it. The price
+is sitting in the same row: recall on the automated path drops from **84.0% to
+68.0%**, because 24 frauds now fall below the calibrated 0.5 line where 12 did
+before. Trading recall for precision by moving along a fixed curve is what
+happened. Anyone quoting the precision lift as an improvement has not read the
+recall column. What calibration actually bought is **units**: you cannot multiply a
+score by a dollar amount, but you can multiply a probability, which is what makes
+the expected-cost math below mean anything.
+Using `model.expected_cost_curve` on the headline knob table with
 **illustrative** costs - $200 per missed fraud, $5 per false flag, $2 per human
 review; these are made-up round numbers to show the mechanics, not industry
 figures - the expected cost bottoms out at threshold 0.6 ($2,558 on this fold vs
 $3,165 fully automated). Different cost assumptions move that optimum, which is
 exactly why the function takes costs as required arguments and ships none.
+
+**The reject knob in calibrated units (`coverage_precision_curve_calibrated`).**
+Same knob, same `curve_from_scores` code, same test fold, calibrated scores
+instead of raw. The 75 frauds partition the same way.
+
+| Review threshold | Coverage | Sent to review | Flagged fraud | Precision on flagged | Fraud caught / queue / missed | Recall (auto) |
+|---|---|---|---|---|---|---|
+| 0.50 | 100.00% | 0 | 58 | 87.93% | 51 / 0 / 24 | 68.00% |
+| 0.60 | 99.99% | 7 | 57 | 87.72% | 50 / 2 / 23 | 66.67% |
+| 0.70 | 99.98% | 13 | 55 | 87.27% | 48 / 6 / 21 | 64.00% |
+| 0.80 | 99.98% | 14 | 55 | 87.27% | 48 / 6 / 21 | 64.00% |
+| 0.90 | 99.86% | 77 | 0 | undefined (nothing flagged) | 0 / 55 / 20 | 0.00% |
+| 0.95 | 99.83% | 99 | 0 | undefined (nothing flagged) | 0 / 58 / 17 | 0.00% |
+| 0.99 | 99.64% | 204 | 0 | undefined (nothing flagged) | 0 / 60 / 15 | 0.00% |
+| 1.00 | 0.00% | 56,961 | 0 | undefined (nothing flagged) | 0 / 75 / 0 | 0.00% |
+
+## What calibration does NOT fix: the knob's degenerate high end
+
+The honest headline of this section: **calibration moved this curve's dead zone,
+it did not remove it.** Both curves have one, in different places, for different
+reasons, and both are committed in full.
+
+**The knob is one parameter driving two cuts.** `curve_from_scores`
+(`model.py`) computes `confidence = max(p, 1-p)` and reviews anything below the
+threshold. Do the algebra for any `t > 0.5` and it decomposes into:
+
+```
+p >= t        -> auto-flag fraud
+1-t < p < t   -> review
+p <= 1-t      -> auto-clear legit
+```
+
+So one knob sets **both** cuts and forces them symmetric about 0.5: asking to flag
+at 0.99 silently also demands clearing at 0.01. That symmetry is inherited from
+FlowSentry, where the knob was a top-1 confidence across many classes and symmetry
+was the natural shape. For binary scoring at a 0.13% base rate it is the wrong
+shape, and it is the root of both dead zones below.
+
+**The raw curve dies at 0.99, and it is the CLEAR lane that starves.** Coverage
+falls 92.91% -> 0.03% between t=0.95 and t=0.99. Not because flagging breaks
+(it is already empty: no raw score reaches 0.99) but because auto-clear then
+demands `p <= 0.01`, and almost nothing is that low. The scores are packed in a
+narrow band, so the clear cut sweeps through the bulk of the fold in one step.
+
+**The calibrated curve dies at 0.9, and it is the FLAG lane that starves.**
+Calibration fixes the clear lane exactly as intended: coverage at t=0.99 goes from
+0.03% raw to **99.64%** calibrated, because the calibrated floor is 0.000036
+(`score_range_test.platt.min`) so `p <= 0.01` now clears almost the whole fold.
+But squashing the scale toward the base rate pulls the ceiling down with it. The
+highest calibrated score on this fold is **0.856496**
+(`score_range_test.platt.max`), so `p >= 0.9` selects nothing and the flag lane is
+structurally empty at every threshold above 0.856496. It is not that Platt caps
+out:
+the fitted map is `p_cal = sigmoid(1.318156 * logit(p_raw) - 3.820769)`
+(`platt_map`), which approaches 1 as `p_raw` approaches 1. The model's single most
+fraudulent-looking transaction just scores 0.98599 raw
+(`score_range_test.raw.max`) where it would need about 0.9897 to clear 0.9
+calibrated. It misses by roughly four thousandths.
+
+**The usable range, stated plainly.** On calibrated scores the knob works from
+**t=0.5 to t=0.8** on the swept grid, and its structural ceiling is 0.856496 -
+above that, nothing can ever be flagged on this fold. On raw scores the usable
+range is t=0.5 to t=0.95 (see the headline table above). Neither range is a
+threshold we chose; both are properties of where the model's scores actually land.
+
+**`recall_auto: 0.0` at calibrated t=0.9 is a degenerate metric, not a broken
+system.** Read the whole row before concluding failure: it also says
+`n_sent_to_review` **77** and `fraud_in_review_queue` **55**. So 77 transactions
+go to a human and 55 of them are fraud. That is a review queue running at **71%
+fraud density on 0.14% of volume, surfacing 55 of the fold's 75 frauds**. As an
+operating point that is excellent. It reads as zero only because `recall_auto`
+counts the automated lane by definition, and at that threshold there is no
+automated lane. The number is doing what it says; it is just not the number to
+read there.
+
+**Why this is reported rather than tuned away.** The dead zones are real
+properties of the score distribution, not arithmetic bugs: `curve_from_scores` is
+hand-verified against a six-row table in `tests/test_calibration.py`, and the raw
+and calibrated curves are the same function over different inputs. The fix is not
+a better threshold list, it is decoupling the two cuts so `flag_at` and `clear_at`
+can be set independently, which the current API cannot express. Listed as an open
+gap in the README rather than quietly dropped from the sweep.
 
 ## Why these numbers, not higher ones (and why that's reported anyway)
 
@@ -278,7 +369,10 @@ and that trade is the whole point of this project.
    than folded into the headline model, because fitting it honestly costs
    training data. The /predict endpoint serves the headline (uncalibrated)
    model; a fraud desk that wants probability-unit thresholds should apply the
-   committed Platt map from the calibration artifact.
+   committed Platt map from the calibration artifact. Calibration does **not**
+   make the knob work everywhere: it moves the dead zone from the clear lane at
+   t=0.99 to the flag lane at t=0.9, measured and written up under "What
+   calibration does NOT fix".
 5. **Drift is monitored on marginals only, and never adversarially evaluated.**
    The shipped PSI surface (`drift.py`, `POST /drift`) compares each feature's
    distribution in a scored window against the training reference frozen in the
@@ -296,7 +390,14 @@ and that trade is the whole point of this project.
    `day_of_week`; for the fixture, `amount`, time features, `category`, and one
    velocity feature. No entity-level aggregate features are built yet (ULB has no
    entity to aggregate on; Sparkov/IEEE-CIS runs can add them).
-
+8. **The knob's two cuts are coupled, and that is the wrong shape here.** One
+   threshold sets both "flag if `p >= t`" and "clear if `p <= 1-t`", forced
+   symmetric about 0.5 - inherited from FlowSentry's multi-class top-1
+   confidence, where symmetry made sense. At a 0.13% base rate a desk wants to
+   flag at `p >= 0.9` and clear at `p <= 0.02` independently, and this API
+   cannot express that operating point. It is the root cause of both curves'
+   degenerate high ends (see "What calibration does NOT fix"), not a separate
+   defect.
 ## Attribution
 
 The reject-to-review knob is the same architecture as FlowSentry's two-stage reject

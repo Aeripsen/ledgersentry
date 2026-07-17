@@ -8,6 +8,15 @@ to review - the knob's units are meaningless above 0.95. A calibrated
 probability is what lets a fraud desk set the threshold by expected cost
 (model.expected_cost_curve) instead of by reading a per-dataset curve.
 
+What it does NOT fix, stated here because the committed numbers show it: the
+knob has two cuts, `p >= t` to flag and `p <= 1-t` to clear, and calibration
+helps one at the other's expense. Squashing the scale toward the base rate
+lifts the clear lane (raw coverage at t=0.99 is 0.0003; calibrated it is
+0.9964) and starves the flag lane, because the highest calibrated score on the
+fold is 0.856496 (`score_range_test.platt`) so nothing can be flagged at all
+above t=0.85. Calibration MOVED this curve's degenerate end from 0.99 to 0.9,
+it did not remove it. Both curves are committed in full either way.
+
 The design constraint that shapes everything here: a calibrator must be fit on
 data its model was NOT trained on, or it just certifies the model's own
 overconfidence. Carving that data out of the train window necessarily costs
@@ -77,6 +86,14 @@ class PlattCalibrator:
     def transform(self, p_raw: np.ndarray) -> np.ndarray:
         return self._lr.predict_proba(_logit(np.asarray(p_raw))[:, None])[:, 1]
 
+    @property
+    def coefficients(self) -> tuple[float, float]:
+        """(a, b) of the fitted map `p_cal = sigmoid(a * logit(p_raw) + b)`.
+        Serialized into the artifact so the map itself is auditable, not just
+        its outputs: with a and b you can invert it and check by hand what raw
+        score any calibrated threshold demands."""
+        return float(self._lr.coef_[0][0]), float(self._lr.intercept_[0])
+
 
 class IsotonicCalibrator:
     """Non-parametric monotone map. More flexible than Platt, but needs enough
@@ -91,6 +108,13 @@ class IsotonicCalibrator:
 
     def transform(self, p_raw: np.ndarray) -> np.ndarray:
         return self._iso.transform(np.asarray(p_raw))
+
+
+def _score_range(p: np.ndarray) -> dict:
+    """Observed floor/ceiling of a score vector. Small, but load-bearing: the
+    reject knob's usable range is bounded by these two numbers, not by the
+    threshold list we happen to sweep."""
+    return {"min": round(float(np.min(p)), 6), "max": round(float(np.max(p)), 6)}
 
 
 def _reliability(y: np.ndarray, p: np.ndarray) -> dict:
@@ -146,9 +170,10 @@ def main() -> dict:
     # than the headline one, so report its own PR-AUC beside the headline
     pr_auc_calibration_model = float(average_precision_score(y_test, p_test))
 
+    platt = PlattCalibrator().fit(p_cal, y_cal)
     calibrators: dict[str, IsotonicCalibrator | PlattCalibrator] = {
         "isotonic": IsotonicCalibrator().fit(p_cal, y_cal),
-        "platt": PlattCalibrator().fit(p_cal, y_cal),
+        "platt": platt,
     }
     brier_cal_slice = {
         name: float(brier_score_loss(y_cal, c.transform(p_cal)))
@@ -165,11 +190,21 @@ def main() -> dict:
 
     brier_test = {"raw": float(brier_score_loss(y_test, p_test))}
     pr_auc_test = {"raw": pr_auc_calibration_model}
+    # The observed score FLOOR and CEILING on the test fold, per scale. These are
+    # what actually decide where the reject knob dies, so they are committed
+    # rather than left to a re-run: the knob's two cuts are `p >= t` (flag) and
+    # `p <= 1-t` (clear), so any t above the ceiling can flag nothing, and any
+    # 1-t below the floor can clear nothing. The raw ceiling is why the raw
+    # curve's clear lane starves at t=0.99, and the calibrated ceiling is why
+    # its flag lane starves at t=0.9. See docs/model_card.md, "What calibration
+    # does NOT fix".
+    score_range_test = {"raw": _score_range(p_test)}
     for name, c in calibrators.items():
         p = c.transform(p_test)
         brier_test[name] = float(brier_score_loss(y_test, p))
         # a monotone map cannot improve ranking; reported to PROVE it did not hurt
         pr_auc_test[name] = float(average_precision_score(y_test, p))
+        score_range_test[name] = _score_range(p)
 
     p_chosen = calibrators[chosen].transform(p_test)
     report = {
@@ -195,6 +230,12 @@ def main() -> dict:
         "brier_cal_slice": {k: round(v, 6) for k, v in brier_cal_slice.items()},
         "brier_test": {k: round(v, 6) for k, v in brier_test.items()},
         "pr_auc_test": {k: round(v, 4) for k, v in pr_auc_test.items()},
+        "score_range_test": score_range_test,
+        "platt_map": {
+            "form": "p_cal = sigmoid(a * logit(p_raw) + b)",
+            "a": round(platt.coefficients[0], 6),
+            "b": round(platt.coefficients[1], 6),
+        },
         "reliability_raw": _reliability(y_test, p_test),
         "reliability_calibrated": _reliability(y_test, p_chosen),
         # the reject knob in CALIBRATED probability units - the point of it all
