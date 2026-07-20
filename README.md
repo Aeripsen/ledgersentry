@@ -214,7 +214,7 @@ pip install -e .                 # optional - scripts/train.py works without it
 
 python scripts/train.py          # no data file present -> synthetic fixture (offline)
                                   # writes artifacts/ledgersentry.joblib + metrics.json
-pytest                           # run the test suite (91 tests)
+pytest                           # run the test suite (96 tests)
 ruff check .                     # lint
 mypy                             # type-check src/
 
@@ -304,7 +304,7 @@ src/ledgersentry/
 dashboard/app.py Streamlit: review-threshold slider, live coverage/precision, feed
 scripts/         thin CLI entry points (train, stream, calibrate, bootstrap, bench,
                  verify_repro)
-tests/           91 tests: determinism, split leakage, reject knob, all four loaders
+tests/           96 tests: determinism, split leakage, reject knob, all four loaders
                  (true-schema fixtures), compiled-vs-reference scoring parity, latency
                  regression guard, calibration monotonicity, bootstrap determinism +
                  a hand-computed Wilson interval, drift, API behavior
