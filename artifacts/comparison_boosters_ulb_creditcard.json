@@ -1,0 +1,92 @@
+{
+  "data_source": "ulb_creditcard",
+  "is_synthetic": false,
+  "measured_at": "2026-07-21T15:35:06Z",
+  "environment": {
+    "python": "3.13.13",
+    "sklearn": "1.9.0",
+    "lightgbm": "4.7.0",
+    "pandas": "3.0.3",
+    "numpy": "2.5.1"
+  },
+  "split": {
+    "n_train": 227846,
+    "n_test": 56961,
+    "n_test_fraud": 75,
+    "n_inner_train": 182277,
+    "n_inner_val": 45569,
+    "n_inner_val_fraud": 52,
+    "note": "Identical to train.py's and compare.py's split, so every number here is comparable row for row with the committed metrics_<source>.json and comparison_<source>.json."
+  },
+  "feature_set": "base",
+  "feature_set_note": "Base features only: velocity was measured on this fold and hurt (comparison_<source>.json), so the booster question is asked on the feature set the headline uses.",
+  "selection_rule": "highest val_pr_auc on the inner validation slice; the test fold is reported for every config and chooses nothing.",
+  "incumbent": "gbdt_default",
+  "selected_by_validation": "lgbm_slow",
+  "results": [
+    {
+      "config": "gbdt_default",
+      "model": "hist_gbdt",
+      "max_iter": 200,
+      "learning_rate": 0.1,
+      "val_pr_auc": 0.7578,
+      "test_pr_auc": 0.7278,
+      "fit_seconds": 2.0
+    },
+    {
+      "config": "lgbm_default",
+      "model": "lgbm",
+      "max_iter": 200,
+      "learning_rate": 0.1,
+      "val_pr_auc": 0.7647,
+      "test_pr_auc": 0.7913,
+      "fit_seconds": 4.2
+    },
+    {
+      "config": "lgbm_slow",
+      "model": "lgbm",
+      "max_iter": 400,
+      "learning_rate": 0.05,
+      "val_pr_auc": 0.7745,
+      "test_pr_auc": 0.8081,
+      "fit_seconds": 7.8
+    }
+  ],
+  "paired_deltas_vs_incumbent": {
+    "lgbm_default": {
+      "delta_pr_auc": 0.0635,
+      "ci_lower": -0.0003,
+      "ci_upper": 0.124,
+      "share_of_resamples_challenger_wins": 0.974,
+      "interval_excludes_zero": false
+    },
+    "lgbm_slow": {
+      "delta_pr_auc": 0.0804,
+      "ci_lower": 0.0239,
+      "ci_upper": 0.1379,
+      "share_of_resamples_challenger_wins": 0.998,
+      "interval_excludes_zero": true
+    }
+  },
+  "incumbent_bootstrap": {
+    "pr_auc": {
+      "point_estimate": 0.7278,
+      "ci_lower": 0.6214,
+      "ci_upper": 0.8232,
+      "ci_width": 0.2018,
+      "std_error": 0.0511
+    },
+    "recall_at_full_coverage": {
+      "point_estimate": 0.84,
+      "ci_lower": 0.75,
+      "ci_upper": 0.9167,
+      "ci_width": 0.1667,
+      "std_error": 0.0431
+    },
+    "n_degenerate_resamples": 0
+  },
+  "how_to_read_this": [
+    "Read the paired deltas, not the difference of two rounded PR-AUCs: on this fold's positives a gap of a couple of points is inside the fold's own noise unless the paired interval says otherwise.",
+    "interval_excludes_zero false means the honest conclusion is 'no measured difference between the libraries here', not 'LightGBM is worse'. A null between two competent boosters on one fold is the expected result, and this repo commits its nulls."
+  ]
+}
