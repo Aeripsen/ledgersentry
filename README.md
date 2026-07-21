@@ -215,7 +215,7 @@ pip install -e .                 # optional - scripts/train.py works without it
 
 python scripts/train.py          # no data file present -> synthetic fixture (offline)
                                   # writes artifacts/ledgersentry.joblib + metrics.json
-pytest                           # run the test suite (96 tests)
+pytest                           # run the test suite (117 tests)
 ruff check .                     # lint
 mypy                             # type-check src/
 
