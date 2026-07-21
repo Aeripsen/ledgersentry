@@ -321,14 +321,23 @@ recall column. What calibration actually bought is **units**: you cannot multipl
 score by a dollar amount, but you can multiply a probability, which is what makes
 the expected-cost math below mean anything.
 `model.expected_cost_curve` turns the headline knob table into an expected dollar
-cost per threshold given a cost triple - for example **illustrative** costs of $200
-per missed fraud, $5 per false flag, $2 per human review (made-up round numbers to
-show the mechanics, not industry figures), where a review threshold above fully
-automated can lower expected cost by moving misses into the review queue. No
-expected-cost artifact is committed, so this page quotes no specific optimum or dollar
-figure; run `model.expected_cost_curve` with your own costs to compute it. Different
-cost assumptions move the optimum, which is exactly why the function takes costs as
-required arguments and ships none.
+cost per threshold given a cost triple. It is now run and committed:
+`artifacts/expected_cost_curve_ulb_creditcard.json` (`python scripts/cost.py`)
+prices the calibrated knob over a 25-point threshold grid under three
+**illustrative** cost triples. All three are made-up round numbers to show the
+mechanics, not industry figures, and the point of pricing more than one is to show
+the optimum threshold moving with the assumptions rather than implying one true
+answer.
+
+Under the balanced triple ($200 per missed fraud, $5 per false flag, $2 per human
+review) expected cost on the test fold is lowest at review threshold 0.98, $3,272
+against $4,835 for full automation, because at that threshold uncertain frauds move
+into the review queue (charged $2 each) instead of being auto-cleared and eaten at
+$200. When review is made expensive ($100 / $5 / $20) the optimum drops to 0.68,
+much closer to full automation. These dollar figures are the only cost numbers this
+repo states, they come from that committed artifact, and every one of them is a
+measured count on the fold times a cost you supply. Change the costs and rerun;
+`expected_cost_curve` takes them as required arguments and ships none.
 
 **The reject knob in calibrated units (`coverage_precision_curve_calibrated`).**
 Same knob, same `curve_from_scores` code, same test fold, calibrated scores
@@ -517,12 +526,26 @@ and that trade is the whole point of this project.
    artifact and test split, but on one commodity machine, single-thread; the
    environment is recorded in the file. Rerun `python scripts/bench.py` on your
    own hardware before quoting the numbers anywhere else.
-7. **Feature set is what the source provides, nothing engineered beyond time.**
-   For ULB that is the 28 PCA components + `Amount` + engineered `hour_of_day` /
-   `day_of_week`; for the fixture, `amount`, time features, `category`, and one
-   velocity feature. No entity-level aggregate features are built yet (ULB has no
-   entity to aggregate on; Sparkov/IEEE-CIS runs can add them).
-   And on ULB the two engineered time features are close to useless, measured:
+7. **Velocity features exist now, and did not help on ULB - measured, kept.**
+   `velocity.py` builds the standard rolling count/sum/mean-of-amount family over
+   1min/5min/1h/24h windows plus the gap since the previous transaction, at stream
+   level and per entity. `scripts/compare.py` ran the base feature set against
+   base+velocity across four boosting configs on the same temporal holdout,
+   selecting on an inner validation slice that never sees the test fold
+   (`artifacts/comparison_ulb_creditcard.json`). Validation chose the incumbent:
+   base features, default `hist_gbdt`. Velocity on the default config **hurt** the
+   headline, a paired bootstrap delta of -0.0119 PR-AUC, 95% CI [-0.0251, -0.0001],
+   winning 2% of resamples. One velocity variant (`gbdt_shallow`) posts the best
+   test number at 0.7614, but its paired interval [-0.0146, 0.0857] covers zero, so
+   it is a post-hoc pick and not a real improvement; it is kept in the artifact and
+   labeled as such rather than promoted. The reason is structural: ULB publishes no
+   card id, so every row is its own entity, the per-entity velocity family (the one
+   the fraud literature means) degenerates to all-zeros and is dropped, and the
+   stream-level counts that remain are largely redundant with the V1..V28 PCA
+   components. The honest read is that this family needs Sparkov or IEEE-CIS, which
+   have real entities, to show its worth; on ULB it is a negative result and the
+   headline stays base-features-only.
+   Separately, on ULB the two engineered time features are close to useless, measured:
    the set spans 48 hours, so after a temporal split **`day_of_week` holds {1, 2}
    in train and {2} alone in test** - a single constant value, which makes any
    tree branch on it dead code at scoring time. `hour_of_day` covers 24 distinct

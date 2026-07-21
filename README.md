@@ -102,7 +102,8 @@ Full picture with all three seams and the module map: [`docs/architecture.md`](d
 The load-bearing decisions each have a short ADR in [`docs/adr/`](docs/adr): why this split
 (001), why PR-AUC (002), why a reject option (003), what was deliberately NOT built (004),
 the compiled scorer (005), calibration (006), the headline's confidence intervals (007),
-and decoupling the reject knob's two cuts (008).
+decoupling the reject knob's two cuts (008), and comparing feature sets and boosting
+configs without cheating the holdout (009).
 
 ## Results on real data (ULB credit-card fraud, measured 2026-07-15)
 
@@ -228,6 +229,10 @@ python scripts/verify_repro.py   # FAILS unless the regenerated metrics are byte
 python scripts/calibrate.py      # the calibration pipeline -> calibration_<source>.json
 python scripts/bench.py          # the latency/throughput benchmark -> benchmark.json
 python scripts/bootstrap.py      # 95% CIs on the headline -> bootstrap_<source>.json
+python scripts/compare.py        # feature-set x boosting-config comparison, selected
+                                  # on an inner validation slice -> comparison_<source>.json
+python scripts/cost.py           # expected cost per review threshold, illustrative
+                                  # cost triples -> expected_cost_curve_<source>.json
 ```
 
 Config: defaults are exactly the committed run; override with `LEDGERSENTRY_*` env vars
@@ -288,9 +293,15 @@ so a loader regression turns CI red without shipping any real data.
 src/ledgersentry/
   config.py      pydantic-settings: env > yaml > defaults (defaults = the committed run)
   data.py        canonical schema, LOADERS spec table, synthetic fixture, the split
-  registry.py    model registry: hist_gbdt (default) + logreg baseline; one register()
-                 call to add a classifier
+  registry.py    model registry: hist_gbdt (default) + shallow/deep variants +
+                 logreg baseline; one register() call to add a classifier
   model.py       FraudDetector + reject knob + curve / expected-cost math
+  velocity.py    rolling velocity/aggregate features (count/sum/mean over time
+                 windows, stream-level + per-entity); opt-in, not in the headline
+  compare.py     feature-set x boosting-config comparison on the same holdout,
+                 selected on an inner validation slice (ADR 009)
+  cost.py        expected cost per review threshold on the calibrated knob,
+                 priced under illustrative cost triples
   scoring.py     TransactionScorer protocol: CompiledScorer (serving) + PandasScorer
                  (reference + benchmark baseline), pinned equal by tests
   train.py       load -> split -> fit -> evaluate -> artifacts (+ drift reference)
@@ -302,17 +313,18 @@ src/ledgersentry/
   service.py     FastAPI: /predict, /predict/batch, /drift, /health, /ready, /curve
   stream.py      timestamp-ordered replay of the held-out test split
 dashboard/app.py Streamlit: review-threshold slider, live coverage/precision, feed
-scripts/         thin CLI entry points (train, stream, calibrate, bootstrap, bench,
-                 verify_repro)
-tests/           96 tests: determinism, split leakage, reject knob, all four loaders
+scripts/         thin CLI entry points (train, stream, calibrate, bootstrap,
+                 compare, cost, bench, verify_repro)
+tests/           determinism, split leakage, reject knob, all four loaders
                  (true-schema fixtures), compiled-vs-reference scoring parity, latency
                  regression guard, calibration monotonicity, bootstrap determinism +
-                 a hand-computed Wilson interval, drift, API behavior
+                 a hand-computed Wilson interval, velocity causality, paired-delta
+                 comparison, expected-cost accounting, drift, API behavior
 docs/
   model_card.md    full measured results (real + synthetic, clearly separated) + limits
   architecture.md  both pipelines, the three seams, the module map (mermaid)
   threat_model.md  trust boundaries, the artifact-is-code rule, what deployment owns
-  adr/             the eight load-bearing decisions, rejected alternatives named
+  adr/             the nine load-bearing decisions, rejected alternatives named
 artifacts/       committed, per-source: metrics_*.json, calibration_*.json,
                  bootstrap_*.json, benchmark_*.json (+ *.json = latest run);
                  ledgersentry.joblib gitignored
@@ -373,6 +385,21 @@ Dockerfile / docker-compose.yml   one image, two services (api:8000, dashboard:8
       express. Measured payoff on ULB: same 58 flags at the same 87.93%
       precision as symmetric t=0.5, with auto-cleared frauds cut from 24 to 15 -
       `docs/adr/008-decoupled-reject-knob.md`
+- [x] Velocity / aggregate features (`velocity.py`): rolling count/sum/mean of
+      amount over 1min/5min/1h/24h plus the inter-transaction gap, stream-level
+      and per-entity. Compared against the base set across four boosting configs
+      on the same holdout, selected on an inner validation slice
+      (`python scripts/compare.py` -> `artifacts/comparison_ulb_creditcard.json`).
+      Result on ULB is negative and kept: velocity **hurt** the default config
+      (paired delta -0.0119 PR-AUC, 95% CI [-0.0251, -0.0001]), because ULB has no
+      card id so the per-entity family degenerates and the V1..V28 components
+      already carry the stream-level signal. The headline stays base-features-only.
+- [x] Expected cost curve committed (`python scripts/cost.py` ->
+      `artifacts/expected_cost_curve_ulb_creditcard.json`): expected dollar cost
+      per review threshold on the calibrated knob, priced under three illustrative
+      cost triples so the optimum's dependence on the assumptions is visible.
+      Turns the previously-deleted, unsourced cost figures into a reproducible
+      artifact. Costs stay required arguments with no defaults.
 
 **Open (honest gaps)**
 - [ ] Sparkov full run (the streaming story) and IEEE-CIS full run (the headline
