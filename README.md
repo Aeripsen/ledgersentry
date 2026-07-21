@@ -164,6 +164,39 @@ With no real file in `data/`, the same pipeline runs a deterministic seeded fixt
 numbers are a pipeline proof, not a benchmark claim, and are never mixed with the
 real ones.
 
+### Continuing work: booster head-to-head and SHAP attribution (measured 2026-07-21)
+
+Two additions since the headline run, both committed as artifacts and neither
+retrofitted into the headline, which stays exactly as shipped.
+
+**LightGBM beats the incumbent on this fold, and the headline is not being
+quietly swapped.** `python scripts/compare_boosters.py` runs LightGBM through
+the exact `compare.py` machinery (same temporal holdout, selection on the inner
+validation slice only, paired bootstrap on the delta) against the shipped
+`hist_gbdt` config (`artifacts/comparison_boosters_ulb_creditcard.json`).
+Validation picks `lgbm_slow` (400 rounds, lr 0.05): test PR-AUC **0.8081** vs
+the incumbent's 0.7278, paired delta **+0.0804, 95% CI [0.0239, 0.1379]**,
+winning 99.8% of resamples - an interval that excludes zero, unlike the velocity
+null above. At the incumbent's exact budget (200 rounds, lr 0.1, matched 31-leaf
+capacity), `lgbm_default` posts +0.0635 but its interval [-0.0003, 0.1240] still
+grazes zero. The identity check passed: the rebuilt incumbent lands on the
+committed CI [0.6214, 0.8232] exactly. The headline stays 0.7278 on purpose:
+promoting LightGBM means a compiled optional wheel in the serving path and a
+retrain of every committed artifact, and that migration should be its own
+change, made with this artifact as the evidence - not a side effect of measuring.
+
+**The model's fraud signal, attributed.** `python scripts/shap_report.py` runs
+exact TreeExplainer attribution on the shipped `ledgersentry.joblib` over all
+56,961 test rows (`artifacts/shap_ulb_creditcard.json` + a summary beeswarm PNG),
+additivity checked against the model's own margin (max error < 1e-14, committed).
+Globally `f_V14` leads (mean |SHAP| 0.1381); on the 75 fraud rows the evidence
+concentrates hard in four PCA components - **V14 (+3.10 log-odds on average),
+V12, V4, V10** - which matches what the literature reports for tree models on
+ULB. Honest limits: the units are log-odds, not probability points, and on ULB
+the top features are anonymized components, so this is proof of method and of
+what the model keys on, not reason codes a human could act on. Per-decision
+reason codes at `/predict` remain an open gap below.
+
 ## Measured latency and throughput
 
 Fraud scoring is only "real-time" if it fits inside payment authorization, where the
@@ -215,7 +248,7 @@ pip install -e .                 # optional - scripts/train.py works without it
 
 python scripts/train.py          # no data file present -> synthetic fixture (offline)
                                   # writes artifacts/ledgersentry.joblib + metrics.json
-pytest                           # run the test suite (117 tests)
+pytest                           # run the test suite (127 tests)
 ruff check .                     # lint
 mypy                             # type-check src/
 
@@ -233,6 +266,14 @@ python scripts/compare.py        # feature-set x boosting-config comparison, sel
                                   # on an inner validation slice -> comparison_<source>.json
 python scripts/cost.py           # expected cost per review threshold, illustrative
                                   # cost triples -> expected_cost_curve_<source>.json
+
+# optional analysis extras (lightgbm + shap; see requirements-analysis.txt for
+# why shap installs --no-deps):
+make install-analysis
+python scripts/compare_boosters.py  # lightgbm vs the incumbent, paired bootstrap
+                                     # -> comparison_boosters_<source>.json
+python scripts/shap_report.py       # SHAP attribution on the shipped artifact
+                                     # -> shap_<source>.json + shap_summary_<source>.png
 ```
 
 Config: defaults are exactly the committed run; override with `LEDGERSENTRY_*` env vars
@@ -294,12 +335,17 @@ src/ledgersentry/
   config.py      pydantic-settings: env > yaml > defaults (defaults = the committed run)
   data.py        canonical schema, LOADERS spec table, synthetic fixture, the split
   registry.py    model registry: hist_gbdt (default) + shallow/deep variants +
-                 logreg baseline; one register() call to add a classifier
+                 logreg baseline + optional lgbm; one register() call to add
+                 a classifier
   model.py       FraudDetector + reject knob + curve / expected-cost math
   velocity.py    rolling velocity/aggregate features (count/sum/mean over time
                  windows, stream-level + per-entity); opt-in, not in the headline
   compare.py     feature-set x boosting-config comparison on the same holdout,
                  selected on an inner validation slice (ADR 009)
+  compare_boosters.py  LightGBM vs the incumbent through the same machinery;
+                 needs the optional install (requirements-analysis.txt)
+  shap_report.py exact TreeExplainer attribution on the shipped artifact;
+                 optional install, explains, never trains
   cost.py        expected cost per review threshold on the calibrated knob,
                  priced under illustrative cost triples
   scoring.py     TransactionScorer protocol: CompiledScorer (serving) + PandasScorer
@@ -314,7 +360,8 @@ src/ledgersentry/
   stream.py      timestamp-ordered replay of the held-out test split
 dashboard/app.py Streamlit: review-threshold slider, live coverage/precision, feed
 scripts/         thin CLI entry points (train, stream, calibrate, bootstrap,
-                 compare, cost, bench, verify_repro)
+                 compare, compare_boosters, shap_report, cost, bench,
+                 verify_repro)
 tests/           determinism, split leakage, reject knob, all four loaders
                  (true-schema fixtures), compiled-vs-reference scoring parity, latency
                  regression guard, calibration monotonicity, bootstrap determinism +
@@ -326,7 +373,8 @@ docs/
   threat_model.md  trust boundaries, the artifact-is-code rule, what deployment owns
   adr/             the nine load-bearing decisions, rejected alternatives named
 artifacts/       committed, per-source: metrics_*.json, calibration_*.json,
-                 bootstrap_*.json, benchmark_*.json (+ *.json = latest run);
+                 bootstrap_*.json, benchmark_*.json, comparison_*.json,
+                 shap_*.json (+ *.json = latest run);
                  ledgersentry.joblib gitignored
 Makefile         install / test / lint / train / reproduce / bench / serve / dashboard
 Dockerfile / docker-compose.yml   one image, two services (api:8000, dashboard:8501)
@@ -400,6 +448,16 @@ Dockerfile / docker-compose.yml   one image, two services (api:8000, dashboard:8
       cost triples so the optimum's dependence on the assumptions is visible.
       Turns the previously-deleted, unsourced cost figures into a reproducible
       artifact. Costs stay required arguments with no defaults.
+- [x] Booster head-to-head: LightGBM through the same comparison machinery
+      (`scripts/compare_boosters.py` ->
+      `artifacts/comparison_boosters_ulb_creditcard.json`). Validation-selected
+      `lgbm_slow` beats the incumbent, paired delta +0.0804 PR-AUC, 95% CI
+      [0.0239, 0.1379]; the headline model is deliberately NOT swapped - see
+      "Continuing work" above for why
+- [x] Global SHAP attribution on the shipped artifact
+      (`scripts/shap_report.py` -> `artifacts/shap_ulb_creditcard.json` + PNG):
+      exact TreeExplainer over the full test fold, additivity pinned, global and
+      fraud-rows-only top-15 rankings committed
 
 **Open (honest gaps)**
 - [ ] Sparkov full run (the streaming story) and IEEE-CIS full run (the headline
@@ -412,9 +470,14 @@ Dockerfile / docker-compose.yml   one image, two services (api:8000, dashboard:8
       committed (below), but `/predict` still takes a single `review_threshold`,
       so those operating points are reportable and not yet servable. Same seam as
       shipping the Platt map inside the artifact
-- [ ] Explainability: no SHAP, no permutation importance, no per-decision reason
-      codes anywhere - a domain gap for fraud, where reason codes are frequently
-      a regulatory requirement
+- [ ] Per-decision explainability at serving time: global SHAP attribution is
+      committed (above), but `/predict` still returns no reason codes, and for
+      fraud that is the part regulators actually ask for. Needs per-row SHAP on
+      the request path and a latency re-measure against the 10 ms budget
+- [ ] Act on the booster result: `lgbm_slow` beat the shipped config with an
+      interval excluding zero, so either the headline migrates to LightGBM (a
+      full retrain + re-commit of every artifact and a serving-dependency
+      decision) or the gap gets a written justification for staying
 - [ ] Commit the `logreg` baseline's numbers: it is registered and tested, so the
       model choice is currently asserted rather than shown
 

@@ -40,7 +40,13 @@ fixture can never silently overwrite each other.
   (already a dependency), so it installs cleanly everywhere - including CI - with no
   compiled-wheel risk, and it natively handles missing values in numeric features,
   which already matters for the real run (ULB's V1..V28 PCA columns) and will matter
-  more for IEEE-CIS's sparse C/D/V columns. xgboost is a documented drop-in alternative.
+  more for IEEE-CIS's sparse C/D/V columns. That was an installability argument, not
+  a performance one, and it now has a measured price: LightGBM was run head-to-head
+  through the same comparison machinery and beat this config on the real fold
+  (paired delta +0.0804 PR-AUC, 95% CI [0.0239, 0.1379] for the validation-selected
+  `lgbm_slow`; `artifacts/comparison_boosters_ulb_creditcard.json`). See "Continuing
+  work" below for the numbers and for why the headline model is nevertheless not
+  being swapped in the same change that measured it.
 - **Imbalance handling:** balanced **sample weights** (`n_samples / (n_classes *
   count_per_class)`, the same formula as scikit-learn's `class_weight="balanced"`),
   computed from the TRAIN split's own class counts and passed to `.fit(sample_weight=)`.
@@ -483,6 +489,55 @@ a stricter temporal holdout of a different dataset and is not claimed to be
 comparable. A defensible measured 0.73 under honest evaluation beats a fake 0.99,
 and that trade is the whole point of this project.
 
+## Continuing work (measured 2026-07-21)
+
+Two additions after the headline run. Both are committed artifacts from the same
+temporal fold; neither changes any number above.
+
+**Booster head-to-head: LightGBM wins on this fold, headline unchanged.**
+`scripts/compare_boosters.py` reuses `compare.py`'s split, inner-validation
+selection, and paired bootstrap (ADR 009) to run LightGBM against the shipped
+config (`artifacts/comparison_boosters_ulb_creditcard.json`). The rebuilt
+incumbent reproduces the committed CI [0.6214, 0.8232] exactly, which is the
+check that the comparison is about the shipped model. Results:
+
+| Config | Boosting budget | Val PR-AUC | Test PR-AUC | Paired delta vs incumbent (95% CI) |
+|---|---|---|---|---|
+| `gbdt_default` (incumbent) | 200 rounds, lr 0.1 | 0.7578 | 0.7278 | - |
+| `lgbm_default` | 200 rounds, lr 0.1 | 0.7647 | 0.7913 | +0.0635 [-0.0003, 0.1240] |
+| `lgbm_slow` | 400 rounds, lr 0.05 | 0.7745 | **0.8081** | **+0.0804 [0.0239, 0.1379]** |
+
+Validation (never the test fold) selects `lgbm_slow`, and its paired interval
+excludes zero - the first challenger in this repo to clear that bar (the velocity
+family, limitation 7, did not). At the incumbent's exact budget and matched
+31-leaf capacity the interval still grazes zero, so the budget-matched claim is
+"parity to better", not "better". The headline stays `hist_gbdt` 0.7278 for now
+on process grounds: swapping the shipped model means a compiled optional wheel
+becomes a serving dependency and every committed artifact (metrics, calibration,
+benchmark, bootstrap) must be regenerated and re-verified, and that migration
+should be reviewed as its own change with this artifact as its evidence. Doing
+it as a side effect of the measurement would be exactly the quiet swap this
+repo's registry refuses to allow. Tracked in the README roadmap.
+
+**Global SHAP attribution on the shipped artifact.** `scripts/shap_report.py`
+computes exact TreeExplainer attributions for `artifacts/ledgersentry.joblib`
+(the artifact itself, never a refit; the script refuses to run if the data on
+disk is not the source the artifact was trained on) over all 56,961 test rows:
+`artifacts/shap_ulb_creditcard.json` plus a summary beeswarm
+(`shap_summary_ulb_creditcard.png`). Additivity is pinned in the artifact: max
+reconstruction error against the model's own margin is under 1e-14. Globally
+`f_V14` leads at mean |SHAP| 0.1381; restricted to the 75 fraud rows the
+model's evidence concentrates in **V14 (mean +3.10 log-odds), V12 (+0.90),
+V4 (+0.88), V10 (+0.87)** - consistent with what published tree-model analyses
+of ULB report. Two connective observations the artifact supports: `hour_of_day`
+ranks third globally but its contribution on this fold is almost entirely
+one-sided (signed mean +0.0626 against |mean| 0.0641), which is limitation 7's
+degenerate-time-feature warning showing up independently in the attributions;
+and the units are raw log-odds, so none of these numbers are probability
+points. On ULB the top features are anonymized PCA components, so this is
+proof of method and of what the model keys on - not reason codes a human could
+act on (limitation 9).
+
 ## Limitations (honest)
 
 1. **One real dataset so far.** The real-data results above are ULB only. Sparkov,
@@ -559,19 +614,19 @@ and that trade is the whole point of this project.
    hours since an unknown reference, mod 24. A constant offset only relabels a
    tree's split points, so the daily cycle's shape survives and the model is
    unaffected, but the name claims more than the data supports.
-9. **No explainability surface at all.** Nothing here answers "why was this
-   transaction flagged?" - no SHAP, no permutation importance, no per-decision
-   reason codes. `HistGradientBoostingClassifier` does not even expose
-   `feature_importances_`, so there is not a cheap global answer sitting there
-   either. `/predict` returns a decision, a probability, a confidence, and which
-   fields were imputed; it does not return a reason. For fraud specifically this
-   is a domain gap rather than a generic ML one: reason codes are frequently a
-   regulatory requirement in credit and fraud decisioning, and "the model said so"
-   is not an answer for a customer or a regulator. On ULB it is partly academic,
-   since the features are anonymized PCA components and "V14 was low" means
-   nothing to a human, but that is an accident of the dataset rather than a
-   defense of the design, and it would bite immediately on Sparkov or IEEE-CIS
-   where features have real names.
+9. **Explainability is global-only, and not served.** The global picture now
+   exists: committed SHAP attributions for the shipped artifact, exact and
+   additivity-pinned, with global and fraud-rows-only rankings
+   (`artifacts/shap_ulb_creditcard.json`, "Continuing work" above). What still
+   does not exist is the part fraud decisioning actually regulates:
+   per-decision reason codes. `/predict` returns a decision, a probability, a
+   confidence, and which fields were imputed; it does not return a reason, and
+   "the model said so" is not an answer for a customer or a regulator. Serving
+   per-row SHAP means running the explainer on the request path and
+   re-measuring against the 10 ms latency budget - unbuilt and unmeasured. And
+   on ULB even perfect reason codes would say things like "V14 was low", which
+   means nothing to a human; that limit is the dataset's, but it holds here
+   until a named-feature source (Sparkov, IEEE-CIS) gets a full run.
 10. **The model choice is asserted, not shown.** `logreg` is registered
     (`registry.py`) and CI-tested, and no logreg metrics are committed, so "gradient
     boosting was the right call here" rests on no measurement in a repo whose whole
