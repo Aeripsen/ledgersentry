@@ -48,7 +48,7 @@ def test_reregistering_a_name_is_a_hard_error():
     "model_name", ["hist_gbdt", "hist_gbdt_shallow", "hist_gbdt_deep", "logreg"]
 )
 def test_models_swap_through_one_interface(model_name):
-    """Same pipeline, same reject knob, different classifier - both must learn
+    """Same pipeline, same reject knob, different classifier - each must learn
     real signal (beat the no-skill baseline) and honor the abstain contract."""
     X_train, y_train, X_test, y_test = _split_synthetic()
     det = FraudDetector(max_iter=50, model=model_name).fit(X_train, y_train)

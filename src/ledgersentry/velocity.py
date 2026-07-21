@@ -30,7 +30,7 @@ Serving note, because this is not free: these features need the recent stream to
 compute, and the service in this repo is stateless. Turning them on for real
 means a feature store holding trailing counts per key. That cost is why they are
 opt-in rather than the default, and why the measured payoff (see
-`artifacts/velocity_ulb_creditcard.json`) is worth knowing before paying it.
+`artifacts/comparison_ulb_creditcard.json`) is worth knowing before paying it.
 """
 from __future__ import annotations
 
