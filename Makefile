@@ -3,7 +3,7 @@
 
 PY ?= python
 
-.PHONY: install test lint train reproduce bench bootstrap serve dashboard
+.PHONY: install test lint train reproduce bench bootstrap compare cost serve dashboard
 
 install:
 	$(PY) -m pip install -r requirements.txt
@@ -31,6 +31,17 @@ bench:
 # read with the uncertainty they actually carry.
 bootstrap:
 	$(PY) scripts/bootstrap.py
+
+# Feature-set x boosting-config comparison on the same temporal holdout,
+# selected on an inner validation slice. Reports every variant.
+compare:
+	$(PY) scripts/compare.py
+
+# Expected cost per review threshold on calibrated scores, priced under
+# several illustrative cost triples so the optimum's dependence on the
+# assumptions is visible.
+cost:
+	$(PY) scripts/cost.py
 
 serve:
 	$(PY) -m uvicorn ledgersentry.service:app --app-dir src

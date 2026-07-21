@@ -1,0 +1,459 @@
+{
+  "data_source": "ulb_creditcard",
+  "is_synthetic": false,
+  "measured_at": "2026-07-21T08:03:28Z",
+  "environment": {
+    "python": "3.13.13",
+    "sklearn": "1.9.0",
+    "pandas": "3.0.3",
+    "numpy": "2.4.6"
+  },
+  "score_units": "platt-calibrated P(fraud), same fold and calibrator as calibration.py",
+  "n_test": 56961,
+  "n_test_fraud": 75,
+  "threshold_grid": [
+    0.5,
+    0.52,
+    0.54,
+    0.56,
+    0.58,
+    0.6,
+    0.62,
+    0.64,
+    0.66,
+    0.68,
+    0.7,
+    0.72,
+    0.74,
+    0.76,
+    0.78,
+    0.8,
+    0.82,
+    0.84,
+    0.86,
+    0.88,
+    0.9,
+    0.92,
+    0.94,
+    0.96,
+    0.98
+  ],
+  "costs_are": "ILLUSTRATIVE. Made-up round numbers to show the mechanics, not industry figures. expected_cost_curve takes costs as required arguments and ships none; change these and rerun. Every expected_cost is a measured count on this fold multiplied by a supplied cost.",
+  "counts_are_from": "curve_from_scores on the calibrated test fold: n_flagged_fraud, fraud_caught_auto, fraud_missed, n_sent_to_review per threshold. false_flags = n_flagged_fraud - fraud_caught_auto. Frauds routed to the review queue are NOT charged as missed; that is the knob's whole argument (model.expected_cost_curve).",
+  "scenarios": [
+    {
+      "name": "high_fraud_loss",
+      "note": "a missed fraud is expensive relative to review; favors surfacing more",
+      "cost_missed_fraud": 500.0,
+      "cost_false_flag": 5.0,
+      "cost_review": 2.0,
+      "min_cost_threshold": 0.98,
+      "min_expected_cost": 7772.0,
+      "full_automation_cost": 12035.0,
+      "savings_vs_full_automation": 4263.0,
+      "curve": [
+        {
+          "review_threshold": 0.5,
+          "n_false_flags": 7,
+          "expected_cost": 12035.0
+        },
+        {
+          "review_threshold": 0.52,
+          "n_false_flags": 7,
+          "expected_cost": 11543.0
+        },
+        {
+          "review_threshold": 0.54,
+          "n_false_flags": 7,
+          "expected_cost": 11543.0
+        },
+        {
+          "review_threshold": 0.56,
+          "n_false_flags": 7,
+          "expected_cost": 11545.0
+        },
+        {
+          "review_threshold": 0.58,
+          "n_false_flags": 7,
+          "expected_cost": 11549.0
+        },
+        {
+          "review_threshold": 0.6,
+          "n_false_flags": 7,
+          "expected_cost": 11549.0
+        },
+        {
+          "review_threshold": 0.62,
+          "n_false_flags": 7,
+          "expected_cost": 11551.0
+        },
+        {
+          "review_threshold": 0.64,
+          "n_false_flags": 7,
+          "expected_cost": 11053.0
+        },
+        {
+          "review_threshold": 0.66,
+          "n_false_flags": 7,
+          "expected_cost": 11055.0
+        },
+        {
+          "review_threshold": 0.68,
+          "n_false_flags": 7,
+          "expected_cost": 10559.0
+        },
+        {
+          "review_threshold": 0.7,
+          "n_false_flags": 7,
+          "expected_cost": 10561.0
+        },
+        {
+          "review_threshold": 0.72,
+          "n_false_flags": 7,
+          "expected_cost": 10561.0
+        },
+        {
+          "review_threshold": 0.74,
+          "n_false_flags": 7,
+          "expected_cost": 10561.0
+        },
+        {
+          "review_threshold": 0.76,
+          "n_false_flags": 7,
+          "expected_cost": 10561.0
+        },
+        {
+          "review_threshold": 0.78,
+          "n_false_flags": 7,
+          "expected_cost": 10563.0
+        },
+        {
+          "review_threshold": 0.8,
+          "n_false_flags": 7,
+          "expected_cost": 10563.0
+        },
+        {
+          "review_threshold": 0.82,
+          "n_false_flags": 7,
+          "expected_cost": 10565.0
+        },
+        {
+          "review_threshold": 0.84,
+          "n_false_flags": 3,
+          "expected_cost": 10557.0
+        },
+        {
+          "review_threshold": 0.86,
+          "n_false_flags": 0,
+          "expected_cost": 10648.0
+        },
+        {
+          "review_threshold": 0.88,
+          "n_false_flags": 0,
+          "expected_cost": 10652.0
+        },
+        {
+          "review_threshold": 0.9,
+          "n_false_flags": 0,
+          "expected_cost": 10154.0
+        },
+        {
+          "review_threshold": 0.92,
+          "n_false_flags": 0,
+          "expected_cost": 10160.0
+        },
+        {
+          "review_threshold": 0.94,
+          "n_false_flags": 0,
+          "expected_cost": 9176.0
+        },
+        {
+          "review_threshold": 0.96,
+          "n_false_flags": 0,
+          "expected_cost": 8212.0
+        },
+        {
+          "review_threshold": 0.98,
+          "n_false_flags": 0,
+          "expected_cost": 7772.0
+        }
+      ]
+    },
+    {
+      "name": "balanced",
+      "note": "the model card's old illustrative triple",
+      "cost_missed_fraud": 200.0,
+      "cost_false_flag": 5.0,
+      "cost_review": 2.0,
+      "min_cost_threshold": 0.98,
+      "min_expected_cost": 3272.0,
+      "full_automation_cost": 4835.0,
+      "savings_vs_full_automation": 1563.0,
+      "curve": [
+        {
+          "review_threshold": 0.5,
+          "n_false_flags": 7,
+          "expected_cost": 4835.0
+        },
+        {
+          "review_threshold": 0.52,
+          "n_false_flags": 7,
+          "expected_cost": 4643.0
+        },
+        {
+          "review_threshold": 0.54,
+          "n_false_flags": 7,
+          "expected_cost": 4643.0
+        },
+        {
+          "review_threshold": 0.56,
+          "n_false_flags": 7,
+          "expected_cost": 4645.0
+        },
+        {
+          "review_threshold": 0.58,
+          "n_false_flags": 7,
+          "expected_cost": 4649.0
+        },
+        {
+          "review_threshold": 0.6,
+          "n_false_flags": 7,
+          "expected_cost": 4649.0
+        },
+        {
+          "review_threshold": 0.62,
+          "n_false_flags": 7,
+          "expected_cost": 4651.0
+        },
+        {
+          "review_threshold": 0.64,
+          "n_false_flags": 7,
+          "expected_cost": 4453.0
+        },
+        {
+          "review_threshold": 0.66,
+          "n_false_flags": 7,
+          "expected_cost": 4455.0
+        },
+        {
+          "review_threshold": 0.68,
+          "n_false_flags": 7,
+          "expected_cost": 4259.0
+        },
+        {
+          "review_threshold": 0.7,
+          "n_false_flags": 7,
+          "expected_cost": 4261.0
+        },
+        {
+          "review_threshold": 0.72,
+          "n_false_flags": 7,
+          "expected_cost": 4261.0
+        },
+        {
+          "review_threshold": 0.74,
+          "n_false_flags": 7,
+          "expected_cost": 4261.0
+        },
+        {
+          "review_threshold": 0.76,
+          "n_false_flags": 7,
+          "expected_cost": 4261.0
+        },
+        {
+          "review_threshold": 0.78,
+          "n_false_flags": 7,
+          "expected_cost": 4263.0
+        },
+        {
+          "review_threshold": 0.8,
+          "n_false_flags": 7,
+          "expected_cost": 4263.0
+        },
+        {
+          "review_threshold": 0.82,
+          "n_false_flags": 7,
+          "expected_cost": 4265.0
+        },
+        {
+          "review_threshold": 0.84,
+          "n_false_flags": 3,
+          "expected_cost": 4257.0
+        },
+        {
+          "review_threshold": 0.86,
+          "n_false_flags": 0,
+          "expected_cost": 4348.0
+        },
+        {
+          "review_threshold": 0.88,
+          "n_false_flags": 0,
+          "expected_cost": 4352.0
+        },
+        {
+          "review_threshold": 0.9,
+          "n_false_flags": 0,
+          "expected_cost": 4154.0
+        },
+        {
+          "review_threshold": 0.92,
+          "n_false_flags": 0,
+          "expected_cost": 4160.0
+        },
+        {
+          "review_threshold": 0.94,
+          "n_false_flags": 0,
+          "expected_cost": 3776.0
+        },
+        {
+          "review_threshold": 0.96,
+          "n_false_flags": 0,
+          "expected_cost": 3412.0
+        },
+        {
+          "review_threshold": 0.98,
+          "n_false_flags": 0,
+          "expected_cost": 3272.0
+        }
+      ]
+    },
+    {
+      "name": "expensive_review",
+      "note": "human review costs almost as much as eating a small fraud; favors automation",
+      "cost_missed_fraud": 100.0,
+      "cost_false_flag": 5.0,
+      "cost_review": 20.0,
+      "min_cost_threshold": 0.68,
+      "min_expected_cost": 2375.0,
+      "full_automation_cost": 2435.0,
+      "savings_vs_full_automation": 60.0,
+      "curve": [
+        {
+          "review_threshold": 0.5,
+          "n_false_flags": 7,
+          "expected_cost": 2435.0
+        },
+        {
+          "review_threshold": 0.52,
+          "n_false_flags": 7,
+          "expected_cost": 2415.0
+        },
+        {
+          "review_threshold": 0.54,
+          "n_false_flags": 7,
+          "expected_cost": 2415.0
+        },
+        {
+          "review_threshold": 0.56,
+          "n_false_flags": 7,
+          "expected_cost": 2435.0
+        },
+        {
+          "review_threshold": 0.58,
+          "n_false_flags": 7,
+          "expected_cost": 2475.0
+        },
+        {
+          "review_threshold": 0.6,
+          "n_false_flags": 7,
+          "expected_cost": 2475.0
+        },
+        {
+          "review_threshold": 0.62,
+          "n_false_flags": 7,
+          "expected_cost": 2495.0
+        },
+        {
+          "review_threshold": 0.64,
+          "n_false_flags": 7,
+          "expected_cost": 2415.0
+        },
+        {
+          "review_threshold": 0.66,
+          "n_false_flags": 7,
+          "expected_cost": 2435.0
+        },
+        {
+          "review_threshold": 0.68,
+          "n_false_flags": 7,
+          "expected_cost": 2375.0
+        },
+        {
+          "review_threshold": 0.7,
+          "n_false_flags": 7,
+          "expected_cost": 2395.0
+        },
+        {
+          "review_threshold": 0.72,
+          "n_false_flags": 7,
+          "expected_cost": 2395.0
+        },
+        {
+          "review_threshold": 0.74,
+          "n_false_flags": 7,
+          "expected_cost": 2395.0
+        },
+        {
+          "review_threshold": 0.76,
+          "n_false_flags": 7,
+          "expected_cost": 2395.0
+        },
+        {
+          "review_threshold": 0.78,
+          "n_false_flags": 7,
+          "expected_cost": 2415.0
+        },
+        {
+          "review_threshold": 0.8,
+          "n_false_flags": 7,
+          "expected_cost": 2415.0
+        },
+        {
+          "review_threshold": 0.82,
+          "n_false_flags": 7,
+          "expected_cost": 2435.0
+        },
+        {
+          "review_threshold": 0.84,
+          "n_false_flags": 3,
+          "expected_cost": 2535.0
+        },
+        {
+          "review_threshold": 0.86,
+          "n_false_flags": 0,
+          "expected_cost": 3580.0
+        },
+        {
+          "review_threshold": 0.88,
+          "n_false_flags": 0,
+          "expected_cost": 3620.0
+        },
+        {
+          "review_threshold": 0.9,
+          "n_false_flags": 0,
+          "expected_cost": 3540.0
+        },
+        {
+          "review_threshold": 0.92,
+          "n_false_flags": 0,
+          "expected_cost": 3600.0
+        },
+        {
+          "review_threshold": 0.94,
+          "n_false_flags": 0,
+          "expected_cost": 3560.0
+        },
+        {
+          "review_threshold": 0.96,
+          "n_false_flags": 0,
+          "expected_cost": 3720.0
+        },
+        {
+          "review_threshold": 0.98,
+          "n_false_flags": 0,
+          "expected_cost": 4220.0
+        }
+      ]
+    }
+  ]
+}
