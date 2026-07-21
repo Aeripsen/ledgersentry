@@ -1,0 +1,216 @@
+{
+  "data_source": "ulb_creditcard",
+  "is_synthetic": false,
+  "measured_at": "2026-07-21T15:34:33Z",
+  "environment": {
+    "python": "3.13.13",
+    "sklearn": "1.9.0",
+    "shap": "0.52.0",
+    "pandas": "3.0.3",
+    "numpy": "2.5.1"
+  },
+  "explained_model": {
+    "artifact": "ledgersentry.joblib",
+    "model": "hist_gbdt",
+    "random_state": 42,
+    "max_iter": 200,
+    "learning_rate": 0.1
+  },
+  "explained_rows": {
+    "n_rows": 56961,
+    "n_fraud": 75,
+    "note": "Every row of the same temporal test fold behind the committed metrics; no sampling, so the report is deterministic."
+  },
+  "units": "Raw log-odds margin of HistGradientBoostingClassifier. mean_abs_shap 1.0 means the feature typically moves the fraud log-odds by about 1. Not probability points; the sigmoid's slope depends on the rest of the score, so no fixed per-feature translation exists.",
+  "expected_value_log_odds": -3.7824,
+  "additivity_max_abs_error": 9.769962616701378e-15,
+  "top_15_by_mean_abs_shap": [
+    {
+      "rank": 1,
+      "feature": "f_V14",
+      "mean_abs_shap": 0.1381,
+      "mean_shap_signed": 0.0295
+    },
+    {
+      "rank": 2,
+      "feature": "f_V4",
+      "mean_abs_shap": 0.0988,
+      "mean_shap_signed": -0.0309
+    },
+    {
+      "rank": 3,
+      "feature": "hour_of_day",
+      "mean_abs_shap": 0.0641,
+      "mean_shap_signed": 0.0626
+    },
+    {
+      "rank": 4,
+      "feature": "f_V12",
+      "mean_abs_shap": 0.0572,
+      "mean_shap_signed": -0.0157
+    },
+    {
+      "rank": 5,
+      "feature": "f_V8",
+      "mean_abs_shap": 0.0434,
+      "mean_shap_signed": 0.0075
+    },
+    {
+      "rank": 6,
+      "feature": "amount",
+      "mean_abs_shap": 0.0393,
+      "mean_shap_signed": -0.0021
+    },
+    {
+      "rank": 7,
+      "feature": "f_V10",
+      "mean_abs_shap": 0.0372,
+      "mean_shap_signed": -0.0002
+    },
+    {
+      "rank": 8,
+      "feature": "f_V20",
+      "mean_abs_shap": 0.0355,
+      "mean_shap_signed": -0.0128
+    },
+    {
+      "rank": 9,
+      "feature": "f_V7",
+      "mean_abs_shap": 0.0346,
+      "mean_shap_signed": 0.0077
+    },
+    {
+      "rank": 10,
+      "feature": "f_V19",
+      "mean_abs_shap": 0.0319,
+      "mean_shap_signed": -0.0057
+    },
+    {
+      "rank": 11,
+      "feature": "f_V28",
+      "mean_abs_shap": 0.0303,
+      "mean_shap_signed": -0.0107
+    },
+    {
+      "rank": 12,
+      "feature": "f_V13",
+      "mean_abs_shap": 0.0257,
+      "mean_shap_signed": 0.0016
+    },
+    {
+      "rank": 13,
+      "feature": "f_V15",
+      "mean_abs_shap": 0.0252,
+      "mean_shap_signed": -0.0028
+    },
+    {
+      "rank": 14,
+      "feature": "f_V3",
+      "mean_abs_shap": 0.0205,
+      "mean_shap_signed": 0.0126
+    },
+    {
+      "rank": 15,
+      "feature": "f_V18",
+      "mean_abs_shap": 0.0204,
+      "mean_shap_signed": 0.0071
+    }
+  ],
+  "top_15_by_mean_abs_shap_fraud_rows_only": [
+    {
+      "rank": 1,
+      "feature": "f_V14",
+      "mean_abs_shap": 3.1103,
+      "mean_shap_signed": 3.1018
+    },
+    {
+      "rank": 2,
+      "feature": "f_V12",
+      "mean_abs_shap": 0.9322,
+      "mean_shap_signed": 0.8952
+    },
+    {
+      "rank": 3,
+      "feature": "f_V4",
+      "mean_abs_shap": 0.8925,
+      "mean_shap_signed": 0.8761
+    },
+    {
+      "rank": 4,
+      "feature": "f_V10",
+      "mean_abs_shap": 0.8868,
+      "mean_shap_signed": 0.8677
+    },
+    {
+      "rank": 5,
+      "feature": "f_V17",
+      "mean_abs_shap": 0.1677,
+      "mean_shap_signed": 0.1494
+    },
+    {
+      "rank": 6,
+      "feature": "f_V11",
+      "mean_abs_shap": 0.1024,
+      "mean_shap_signed": 0.0914
+    },
+    {
+      "rank": 7,
+      "feature": "f_V8",
+      "mean_abs_shap": 0.0999,
+      "mean_shap_signed": -0.016
+    },
+    {
+      "rank": 8,
+      "feature": "f_V1",
+      "mean_abs_shap": 0.0765,
+      "mean_shap_signed": -0.0004
+    },
+    {
+      "rank": 9,
+      "feature": "amount",
+      "mean_abs_shap": 0.0757,
+      "mean_shap_signed": 0.0505
+    },
+    {
+      "rank": 10,
+      "feature": "f_V7",
+      "mean_abs_shap": 0.0552,
+      "mean_shap_signed": 0.0545
+    },
+    {
+      "rank": 11,
+      "feature": "f_V3",
+      "mean_abs_shap": 0.044,
+      "mean_shap_signed": 0.044
+    },
+    {
+      "rank": 12,
+      "feature": "f_V20",
+      "mean_abs_shap": 0.0401,
+      "mean_shap_signed": 0.0063
+    },
+    {
+      "rank": 13,
+      "feature": "f_V18",
+      "mean_abs_shap": 0.0392,
+      "mean_shap_signed": 0.0306
+    },
+    {
+      "rank": 14,
+      "feature": "hour_of_day",
+      "mean_abs_shap": 0.0326,
+      "mean_shap_signed": 0.0326
+    },
+    {
+      "rank": 15,
+      "feature": "f_V23",
+      "mean_abs_shap": 0.0296,
+      "mean_shap_signed": 0.005
+    }
+  ],
+  "how_to_read_this": [
+    "mean_shap_signed near zero under a large mean_abs_shap means the feature pushes different rows in different directions; it is not a weak feature.",
+    "On ULB the V columns are PCA-anonymized, so this ranking says which components the model uses, not anything a human can act on. That is the dataset's limit, not the method's; on a source with named features the same script produces reason-code raw material.",
+    "Attributions describe the shipped model's behavior on this fold. They are not causal claims about fraud."
+  ]
+}
