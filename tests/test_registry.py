@@ -22,8 +22,10 @@ def _split_synthetic(seed=11):
     return X_train, train_df["is_fraud"].to_numpy(), X_test, test_df["is_fraud"].to_numpy()
 
 
-def test_both_shipped_models_available():
-    assert {"hist_gbdt", "logreg"} <= set(registry.available())
+def test_all_shipped_models_available():
+    assert {
+        "hist_gbdt", "hist_gbdt_shallow", "hist_gbdt_deep", "logreg"
+    } <= set(registry.available())
 
 
 def test_unknown_model_is_a_clear_error():
@@ -42,7 +44,9 @@ def test_reregistering_a_name_is_a_hard_error():
             return None
 
 
-@pytest.mark.parametrize("model_name", ["hist_gbdt", "logreg"])
+@pytest.mark.parametrize(
+    "model_name", ["hist_gbdt", "hist_gbdt_shallow", "hist_gbdt_deep", "logreg"]
+)
 def test_models_swap_through_one_interface(model_name):
     """Same pipeline, same reject knob, different classifier - both must learn
     real signal (beat the no-skill baseline) and honor the abstain contract."""

@@ -2,12 +2,16 @@
 Model registry: adding a classifier is one register() call, not an edit to
 FraudDetector's dispatch.
 
-Two implementations ship today, both CI-tested through the full pipeline:
+Four implementations ship today, all CI-tested through the full pipeline:
 
   hist_gbdt  HistGradientBoostingClassifier - the default and the model behind
              every committed number. Chosen because it ships inside scikit-learn
              (no compiled-wheel risk in CI) and handles missing values natively,
              which the serving path relies on (missing fields become NaN).
+  hist_gbdt_shallow / hist_gbdt_deep
+             the same estimator with regularization dialed down and up, so the
+             default is a measured choice instead of an assumed one. Their
+             numbers on the real fold are in artifacts/comparison_*.json.
   logreg     scaled logistic regression - the honest linear baseline. Any
              gradient-boosted result should be read against it: if boosting
              cannot beat a linear model, the features are the problem. Wrapped
@@ -78,6 +82,37 @@ def available() -> list[str]:
 def _hist_gbdt(random_state: int, max_iter: int, learning_rate: float) -> Any:
     return HistGradientBoostingClassifier(
         random_state=random_state, max_iter=max_iter, learning_rate=learning_rate
+    )
+
+
+@register("hist_gbdt_shallow")
+def _hist_gbdt_shallow(random_state: int, max_iter: int, learning_rate: float) -> Any:
+    # Heavily regularized boosting: the train split has 417 frauds, so the
+    # default 31-leaf trees have enough capacity to carve out individual
+    # positives. Fewer leaves, a bigger leaf floor and an L2 penalty are the
+    # standard answer. Registered so scripts/compare.py can measure whether
+    # that argument survives contact with the holdout.
+    return HistGradientBoostingClassifier(
+        random_state=random_state,
+        max_iter=max_iter,
+        learning_rate=learning_rate,
+        max_leaf_nodes=8,
+        min_samples_leaf=50,
+        l2_regularization=1.0,
+    )
+
+
+@register("hist_gbdt_deep")
+def _hist_gbdt_deep(random_state: int, max_iter: int, learning_rate: float) -> Any:
+    # The other direction from shallow, so the comparison has a range and not
+    # just one alternative next to the default.
+    return HistGradientBoostingClassifier(
+        random_state=random_state,
+        max_iter=max_iter,
+        learning_rate=learning_rate,
+        max_leaf_nodes=63,
+        min_samples_leaf=10,
+        l2_regularization=0.0,
     )
 
 
