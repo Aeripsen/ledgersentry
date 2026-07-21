@@ -1,0 +1,164 @@
+{
+  "data_source": "ulb_creditcard",
+  "is_synthetic": false,
+  "measured_at": "2026-07-21T08:00:20Z",
+  "environment": {
+    "python": "3.13.13",
+    "sklearn": "1.9.0",
+    "pandas": "3.0.3",
+    "numpy": "2.4.6"
+  },
+  "split": {
+    "n_train": 227846,
+    "n_test": 56961,
+    "n_test_fraud": 75,
+    "n_inner_train": 182277,
+    "n_inner_val": 45569,
+    "n_inner_val_fraud": 52,
+    "note": "Identical to train.py's split (same function, same test_size, same frame order), so test_pr_auc here is comparable row for row with the committed metrics_<source>.json."
+  },
+  "n_velocity_columns": 17,
+  "velocity_columns_dropped_no_variation": [],
+  "selection_rule": "highest val_pr_auc on the inner validation slice, which is carved out of the train window and is later in time than the inner train slice. The test fold is reported for every variant and chooses nothing.",
+  "incumbent": "base|gbdt_default",
+  "selected_by_validation": "base|gbdt_default",
+  "best_on_test_not_selected": "base+velocity|gbdt_shallow",
+  "results": [
+    {
+      "feature_set": "base",
+      "config": "gbdt_default",
+      "model": "hist_gbdt",
+      "max_iter": 200,
+      "learning_rate": 0.1,
+      "val_pr_auc": 0.7578,
+      "test_pr_auc": 0.7278,
+      "test_recall_at_full_coverage": 0.84,
+      "test_fraud_caught": 63,
+      "fit_seconds": 1.8
+    },
+    {
+      "feature_set": "base",
+      "config": "gbdt_slow",
+      "model": "hist_gbdt",
+      "max_iter": 400,
+      "learning_rate": 0.05,
+      "val_pr_auc": 0.757,
+      "test_pr_auc": 0.7224,
+      "test_recall_at_full_coverage": 0.84,
+      "test_fraud_caught": 63,
+      "fit_seconds": 2.1
+    },
+    {
+      "feature_set": "base",
+      "config": "gbdt_shallow",
+      "model": "hist_gbdt_shallow",
+      "max_iter": 400,
+      "learning_rate": 0.05,
+      "val_pr_auc": 0.734,
+      "test_pr_auc": 0.7475,
+      "test_recall_at_full_coverage": 0.8533,
+      "test_fraud_caught": 64,
+      "fit_seconds": 2.3
+    },
+    {
+      "feature_set": "base",
+      "config": "gbdt_deep",
+      "model": "hist_gbdt_deep",
+      "max_iter": 200,
+      "learning_rate": 0.1,
+      "val_pr_auc": 0.7293,
+      "test_pr_auc": 0.7139,
+      "test_recall_at_full_coverage": 0.7467,
+      "test_fraud_caught": 56,
+      "fit_seconds": 1.8
+    },
+    {
+      "feature_set": "base+velocity",
+      "config": "gbdt_default",
+      "model": "hist_gbdt",
+      "max_iter": 200,
+      "learning_rate": 0.1,
+      "val_pr_auc": 0.7565,
+      "test_pr_auc": 0.7159,
+      "test_recall_at_full_coverage": 0.8,
+      "test_fraud_caught": 60,
+      "fit_seconds": 2.0
+    },
+    {
+      "feature_set": "base+velocity",
+      "config": "gbdt_slow",
+      "model": "hist_gbdt",
+      "max_iter": 400,
+      "learning_rate": 0.05,
+      "val_pr_auc": 0.7492,
+      "test_pr_auc": 0.7111,
+      "test_recall_at_full_coverage": 0.8,
+      "test_fraud_caught": 60,
+      "fit_seconds": 2.8
+    },
+    {
+      "feature_set": "base+velocity",
+      "config": "gbdt_shallow",
+      "model": "hist_gbdt_shallow",
+      "max_iter": 400,
+      "learning_rate": 0.05,
+      "val_pr_auc": 0.745,
+      "test_pr_auc": 0.7614,
+      "test_recall_at_full_coverage": 0.8667,
+      "test_fraud_caught": 65,
+      "fit_seconds": 3.2
+    },
+    {
+      "feature_set": "base+velocity",
+      "config": "gbdt_deep",
+      "model": "hist_gbdt_deep",
+      "max_iter": 200,
+      "learning_rate": 0.1,
+      "val_pr_auc": 0.7298,
+      "test_pr_auc": 0.7182,
+      "test_recall_at_full_coverage": 0.7333,
+      "test_fraud_caught": 55,
+      "fit_seconds": 2.2
+    }
+  ],
+  "paired_deltas_vs_incumbent": {
+    "best_velocity": {
+      "variant": "base+velocity|gbdt_default",
+      "delta_pr_auc": -0.0119,
+      "ci_lower": -0.0251,
+      "ci_upper": -0.0001,
+      "share_of_resamples_challenger_wins": 0.025,
+      "interval_excludes_zero": true
+    },
+    "post_hoc_best_on_test": {
+      "variant": "base+velocity|gbdt_shallow",
+      "delta_pr_auc": 0.0337,
+      "ci_lower": -0.0146,
+      "ci_upper": 0.0857,
+      "share_of_resamples_challenger_wins": 0.905,
+      "interval_excludes_zero": false
+    }
+  },
+  "incumbent_bootstrap": {
+    "pr_auc": {
+      "point_estimate": 0.7278,
+      "ci_lower": 0.6214,
+      "ci_upper": 0.8232,
+      "ci_width": 0.2018,
+      "std_error": 0.0511
+    },
+    "recall_at_full_coverage": {
+      "point_estimate": 0.84,
+      "ci_lower": 0.75,
+      "ci_upper": 0.9167,
+      "ci_width": 0.1667,
+      "std_error": 0.0431
+    },
+    "n_degenerate_resamples": 0
+  },
+  "how_to_read_this": [
+    "test_pr_auc is reported for every variant including the ones validation rejected. Only selected_by_validation was chosen, and it was chosen without looking at any test_pr_auc in this file.",
+    "best_on_test_not_selected is the variant with the best test number. It is here on purpose. If it were promoted to the headline, the holdout would have been used eight times to pick one model and the 0.7278 would stop meaning what it says.",
+    "Read the paired deltas, not the difference of two rounded PR-AUCs. On 75 positives a gap of a couple of points is inside the fold's own noise unless the paired interval says otherwise."
+  ]
+}

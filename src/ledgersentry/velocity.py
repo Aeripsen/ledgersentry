@@ -113,3 +113,15 @@ def add_velocity_features(
 def velocity_columns(df: pd.DataFrame) -> list[str]:
     return sorted(c for c in df.columns if c.startswith(f"{FEATURE_PREFIX}vel_")
                   or c.startswith(f"{FEATURE_PREFIX}ent_"))
+
+
+def degenerate_columns(df: pd.DataFrame, columns: list[str]) -> list[str]:
+    """Columns with fewer than two distinct values, which carry no signal.
+
+    Short windows on sparse entities produce these honestly: if no card in the
+    training window has two transactions inside 60 seconds, f_ent_count_1min is
+    zero everywhere. Beyond being useless, a single-valued column crashes
+    HistGradientBoostingClassifier's binner outright (sklearn 1.9), so they get
+    dropped. Always decide this on TRAINING rows only: whether a column varies
+    is a property of the data, and reading it off the test fold is a peek."""
+    return [c for c in columns if df[c].nunique(dropna=True) < 2]
