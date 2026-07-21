@@ -3,10 +3,17 @@
 
 PY ?= python
 
-.PHONY: install test lint train reproduce bench bootstrap compare cost serve dashboard
+.PHONY: install install-analysis test lint train reproduce bench bootstrap compare compare-boosters shap cost serve dashboard
 
 install:
 	$(PY) -m pip install -r requirements.txt
+
+# Optional extras for the booster head-to-head and the SHAP report. shap goes
+# in --no-deps because its numba dependency caps numpy below this repo's pin;
+# the why lives in requirements-analysis.txt.
+install-analysis:
+	$(PY) -m pip install -r requirements-analysis.txt
+	$(PY) -m pip install --no-deps shap==0.52.0
 
 test:
 	$(PY) -m pytest -q
@@ -36,6 +43,16 @@ bootstrap:
 # selected on an inner validation slice. Reports every variant.
 compare:
 	$(PY) scripts/compare.py
+
+# LightGBM vs the incumbent hist_gbdt on the same holdout, paired bootstrap on
+# the delta. Needs `make install-analysis` first.
+compare-boosters:
+	$(PY) scripts/compare_boosters.py
+
+# SHAP attribution on the shipped artifact -> shap_<source>.json + summary PNG.
+# Needs `make install-analysis` first.
+shap:
+	$(PY) scripts/shap_report.py
 
 # Expected cost per review threshold on calibrated scores, priced under
 # several illustrative cost triples so the optimum's dependence on the

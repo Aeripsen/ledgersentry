@@ -24,7 +24,7 @@ def _split_synthetic(seed=11):
 
 def test_all_shipped_models_available():
     assert {
-        "hist_gbdt", "hist_gbdt_shallow", "hist_gbdt_deep", "logreg"
+        "hist_gbdt", "hist_gbdt_shallow", "hist_gbdt_deep", "logreg", "lgbm"
     } <= set(registry.available())
 
 
@@ -57,6 +57,30 @@ def test_models_swap_through_one_interface(model_name):
     assert average_precision_score(y_test, p) > y_test.mean()
     decision, _, _ = det.decide(X_test, review_threshold=0.999)
     assert set(np.unique(decision)) <= {"fraud", "legit", "review"}
+
+
+def test_lgbm_swaps_through_the_same_interface():
+    """Same contract as the parametrized swap test above, but separate because
+    lightgbm is an optional install: the base environment must still collect
+    and pass the suite, so this one skips instead of failing when it is absent."""
+    pytest.importorskip("lightgbm")
+    X_train, y_train, X_test, y_test = _split_synthetic()
+    det = FraudDetector(max_iter=50, model="lgbm").fit(X_train, y_train)
+    p = det.predict_proba_fraud(X_test)
+    assert ((p >= 0) & (p <= 1)).all()
+    assert average_precision_score(y_test, p) > y_test.mean()
+    decision, _, _ = det.decide(X_test, review_threshold=0.999)
+    assert set(np.unique(decision)) <= {"fraud", "legit", "review"}
+
+
+def test_lgbm_is_deterministic_across_fits():
+    """The factory pins deterministic + force_row_wise exactly so committed
+    comparison numbers reproduce; two fits on the same data must agree."""
+    pytest.importorskip("lightgbm")
+    X_train, y_train, X_test, _ = _split_synthetic()
+    p1 = FraudDetector(max_iter=50, model="lgbm").fit(X_train, y_train).predict_proba_fraud(X_test)
+    p2 = FraudDetector(max_iter=50, model="lgbm").fit(X_train, y_train).predict_proba_fraud(X_test)
+    assert (p1 == p2).all()
 
 
 def test_logreg_survives_nan_inputs():

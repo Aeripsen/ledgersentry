@@ -19,9 +19,22 @@ Four implementations ship today, all CI-tested through the full pipeline:
              produces (a documented baseline compromise; hist_gbdt needs no
              imputation and that is one reason it is the default).
 
-xgboost/lightgbm are deliberately NOT vendored as optional dependencies: a
-registry entry for a package the repo neither installs nor tests would be dead
-code. Dropping one in is three lines in your own code:
+One optional entry ships beside them:
+
+  lgbm       LightGBM's LGBMClassifier, registered so scripts/compare_boosters.py
+             can measure the "would a dedicated boosting library beat the
+             sklearn default?" question instead of leaving it asserted. The
+             import is deferred into the factory: the registry, the core
+             pipeline, and CI all work without lightgbm installed, and asking
+             for "lgbm" without it is a clear error naming the fix
+             (requirements-analysis.txt). The cost of registering it is that
+             the registry now names a model the base install cannot create;
+             the docstring on the factory and the error message carry that.
+
+xgboost stays unvendored - one measured challenger from the same model family
+answers the question, and a second compiled dependency would buy a second
+number, not a second insight. Dropping it in is still three lines in your own
+code:
 
     from ledgersentry.registry import register
     @register("xgboost")
@@ -113,6 +126,36 @@ def _hist_gbdt_deep(random_state: int, max_iter: int, learning_rate: float) -> A
         max_leaf_nodes=63,
         min_samples_leaf=10,
         l2_regularization=0.0,
+    )
+
+
+@register("lgbm")
+def _lgbm(random_state: int, max_iter: int, learning_rate: float) -> Any:
+    # Optional dependency, imported at creation time on purpose: the registry
+    # must stay importable (and CI green) on the base install, and the price is
+    # that a bad environment surfaces here, at create(), not at import. The
+    # error names the fix so that trade stays cheap.
+    try:
+        from lightgbm import LGBMClassifier
+    except ImportError as exc:
+        raise ImportError(
+            "model 'lgbm' needs the optional lightgbm package: "
+            "pip install -r requirements-analysis.txt (or: make install-analysis)"
+        ) from exc
+    # num_leaves=31 is LightGBM's own default and equals hist_gbdt's
+    # max_leaf_nodes default, so the head-to-head in compare_boosters.py is
+    # library vs library at matched capacity, not a hidden tuning advantage.
+    # deterministic + force_row_wise pin the histogram construction order;
+    # without them LightGBM may pick a layout per run and the committed
+    # comparison numbers would not reproduce.
+    return LGBMClassifier(
+        n_estimators=max_iter,
+        learning_rate=learning_rate,
+        random_state=random_state,
+        num_leaves=31,
+        deterministic=True,
+        force_row_wise=True,
+        verbosity=-1,
     )
 
 

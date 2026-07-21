@@ -1,0 +1,28 @@
+# Optional analysis stack: LightGBM head-to-head (scripts/compare_boosters.py)
+# and the SHAP attribution report (scripts/shap_report.py). Kept out of
+# requirements.txt so the base install and CI stay lean and wheel-risk-free -
+# the core pipeline never needs any of this.
+#
+# Pinned exactly, same reason as requirements.txt: these produced the committed
+# comparison_boosters_* and shap_* artifacts.
+#
+# shap is NOT in this file, deliberately. Its wheel declares a hard dependency
+# on numba, and every numba release as of this pin caps numpy < 2.5, while this
+# repo pins numpy==2.5.1 (requirements.txt) because `make reproduce` checks the
+# committed metrics byte for byte and a numpy downgrade would break that
+# guarantee. TreeExplainer - the only shap code path used here - runs in shap's
+# own compiled C extension and never executes a numba-jitted function, so shap
+# is installed without its declared deps and scripts/shap_report.py stubs the
+# numba import surface (see the docstring there for the full argument):
+#
+#     pip install -r requirements-analysis.txt
+#     pip install --no-deps shap==0.52.0
+#
+# (or both steps at once: make install-analysis)
+lightgbm==4.7.0
+matplotlib==3.11.1
+# shap's real runtime deps that the base install does not already provide
+# (numpy/pandas/scikit-learn/scipy/packaging come with requirements.txt):
+slicer==0.0.8
+cloudpickle==3.1.2
+tqdm==4.69.0
