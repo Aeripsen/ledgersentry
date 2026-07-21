@@ -240,7 +240,7 @@ def main() -> dict:
     best_on_test = max(results, key=lambda r: r["test_pr_auc"])
 
     p_incumbent = test_scores["base|gbdt_default"]
-    deltas = {}
+    deltas: dict[str, dict] = {}
     for label, row in (
         ("selected", selected),
         ("best_velocity", best_velocity),

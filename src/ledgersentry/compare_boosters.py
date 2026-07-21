@@ -112,16 +112,16 @@ def main() -> dict:
     # Every challenger gets a paired interval against the incumbent, winners
     # and losers alike - the same "a comparison that only publishes its winner
     # is an advertisement" rule compare.py holds itself to.
-    p_incumbent = test_scores[incumbent["config"]]
-    deltas = {}
-    for row in results[1:]:
-        deltas[row["config"]] = paired_delta_bootstrap(
-            y_test, p_incumbent, test_scores[row["config"]],
+    p_incumbent = test_scores[CONFIGS[0].name]
+    deltas: dict[str, dict] = {}
+    for c in CONFIGS[1:]:
+        deltas[c.name] = paired_delta_bootstrap(
+            y_test, p_incumbent, test_scores[c.name],
             cfg.bootstrap_resamples, cfg.random_state,
         )
-        d = deltas[row["config"]]
+        d = deltas[c.name]
         print(
-            f"[delta] {row['config']} vs incumbent: {d['delta_pr_auc']:+.4f} PR-AUC, "
+            f"[delta] {c.name} vs incumbent: {d['delta_pr_auc']:+.4f} PR-AUC, "
             f"95% CI [{d['ci_lower']}, {d['ci_upper']}], "
             f"wins {d['share_of_resamples_challenger_wins']:.0%} of resamples"
         )

@@ -40,7 +40,7 @@ import pandas as pd
 import sklearn
 
 from .calibration import PlattCalibrator
-from .config import get_settings
+from .config import Settings, get_settings
 from .data import build_preprocessor, engineer_time_features, load, temporal_grouped_split
 from .model import FraudDetector, curve_from_scores, expected_cost_curve
 
@@ -78,7 +78,7 @@ COST_SCENARIOS: tuple[dict, ...] = (
 )
 
 
-def calibrated_test_scores(cfg) -> tuple[np.ndarray, np.ndarray]:
+def calibrated_test_scores(cfg: Settings) -> tuple[np.ndarray, np.ndarray]:
     """(y_test, calibrated p_fraud) on the same fold as the headline, using the
     same fit/cal/test carve-up as calibration.py. Recomputed here rather than
     imported so this pipeline stands alone like bootstrap and compare do."""

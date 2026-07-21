@@ -31,5 +31,9 @@ warn_return_any = false  # returns crossing the sklearn/pandas boundary are Any
 show_error_codes = true
 
 [[tool.mypy.overrides]]
-module = ["sklearn.*", "joblib.*", "pandas.*"]
+# shap/lightgbm/matplotlib are the optional analysis stack (requirements-
+# analysis.txt) and ship no stubs; numba is deliberately absent in this
+# environment (shap_report.py stubs it, the why is documented there), so mypy
+# must not require it to exist.
+module = ["sklearn.*", "joblib.*", "pandas.*", "shap.*", "lightgbm.*", "matplotlib.*", "numba.*"]
 ignore_missing_imports = true
