@@ -1,5 +1,7 @@
 # LedgerSentry
 
+[![ci](https://github.com/Aeripsen/ledgersentry/actions/workflows/ci.yml/badge.svg)](https://github.com/Aeripsen/ledgersentry/actions/workflows/ci.yml)
+
 Real-time financial-transaction fraud detection with a tunable reject-to-review option.
 A gradient-boosted classifier that scores each transaction and, when it isn't confident
 either way, abstains and returns `"review"` instead of guessing. It is the FlowSentry
