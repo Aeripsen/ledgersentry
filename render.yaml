@@ -1,0 +1,19 @@
+# Render Blueprint: one-click deploy of the LedgerSentry API from the repo
+# Dockerfile. Connect the repo as a Blueprint in the Render dashboard (or use the
+# "Deploy to Render" button in DEPLOY.md) and Render reads this file, builds the
+# image, and serves it. The build bakes the model in (the Dockerfile generates
+# the deterministic synthetic-fixture model when no data file is present), so the
+# service is live with zero data download. Full steps: DEPLOY.md.
+services:
+  - name: ledgersentry
+    type: web
+    runtime: docker
+    plan: free                 # free web tier spins down when idle (see DEPLOY.md)
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health   # Render probes this; the service answers 200 while up
+    autoDeployTrigger: commit
+    envVars:
+      - key: PORT
+        value: "8000"          # matches the Dockerfile's EXPOSE and the CMD default

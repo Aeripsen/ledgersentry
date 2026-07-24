@@ -9,4 +9,11 @@ __pycache__
 *.pyc
 .pytest_cache
 .ruff_cache
+.mypy_cache
 *.egg-info
+# docs and deploy manifests are not needed inside the image (Render/k8s/terraform
+# read them from the repo, not the build context)
+deploy
+docs
+render.yaml
+*.md
