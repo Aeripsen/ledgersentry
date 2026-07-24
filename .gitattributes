@@ -1,0 +1,9 @@
+# Keep container and deploy files LF on every platform. The Dockerfile's
+# shell-form CMD and the YAML/HCL manifests are consumed on Linux (CI, Render,
+# Cloud Run, the k8s image build), where a stray CR would break a command or a
+# parse. Pinning eol=lf means a Windows checkout stays correct too.
+Dockerfile   text eol=lf
+*.sh         text eol=lf
+*.yaml       text eol=lf
+*.yml        text eol=lf
+*.tf         text eol=lf
