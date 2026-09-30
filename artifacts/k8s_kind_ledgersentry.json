@@ -1,0 +1,394 @@
+{
+  "what": "ledgersentry deployed to a kind cluster from deploy/k8s/overlays/kind, smoke-tested, load-tested through its Service, and rolled while under load.",
+  "environment": {
+    "runner_vcpu": 4,
+    "runner_memory_mb": 15989,
+    "kind": "v0.33.0",
+    "kubernetes": "v1.37.0",
+    "git_sha": "05cc9ff5668ffdfd7b046cae9bec8d0c33d6dd70",
+    "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36771694619"
+  },
+  "deploy": {
+    "initial_rollout_seconds": 7,
+    "ready": {
+      "status": "ready",
+      "version": "0.1.0",
+      "expected_features": 5
+    },
+    "predict_example": {
+      "decision": "legit",
+      "p_fraud": 0.0002,
+      "confidence": 0.9998,
+      "missing_fields": [
+        "f_entity_daily_tx_count"
+      ],
+      "latency_ms": 1.947
+    },
+    "pid1": "/usr/local/bin/python3.12 /usr/local/bin/uvicorn ledgersentry.service:app --host 0.0.0.0 --port 8000",
+    "runs_as": "uid=10001(app) gid=999(app) groups=999(app)",
+    "configmap_max_batch": 2000,
+    "max_batch_seen_in_openapi": 2000,
+    "configmap_reaches_process": true
+  },
+  "load_steady": {
+    "phase": "steady",
+    "vus": 16,
+    "duration": "90s",
+    "requests": 31730,
+    "req_per_s": 352.3,
+    "latency_ms": {
+      "avg": 45.1,
+      "p50": 42.51,
+      "p95": 82.64,
+      "p99": 97.56,
+      "max": 558.93
+    },
+    "ok_2xx": 31730,
+    "failed_5xx": 0,
+    "failed_other_status": 0,
+    "failed_connection": 0,
+    "failed_total": 0
+  },
+  "load_during_rolling_restart": {
+    "phase": "restart",
+    "vus": 16,
+    "duration": "120s",
+    "requests": 108825,
+    "req_per_s": 906.8,
+    "latency_ms": {
+      "avg": 16.95,
+      "p50": 14.69,
+      "p95": 38.47,
+      "p99": 55.95,
+      "max": 183.7
+    },
+    "ok_2xx": 108825,
+    "failed_5xx": 0,
+    "failed_other_status": 0,
+    "failed_connection": 0,
+    "failed_total": 0,
+    "rolling_restart": {
+      "started_seconds_into_load": 15,
+      "rollout_seconds": 36,
+      "finished_before_load_ended": true,
+      "pods_before": [
+        "ledgersentry-7fc6585cf4-8v7fk",
+        "ledgersentry-7fc6585cf4-9cddj",
+        "ledgersentry-7fc6585cf4-hjtmg",
+        "ledgersentry-7fc6585cf4-rf695",
+        "ledgersentry-7fc6585cf4-wqkgp"
+      ],
+      "pods_after": [
+        "ledgersentry-6b9f8d9f7f-dnxlh",
+        "ledgersentry-6b9f8d9f7f-fhb94",
+        "ledgersentry-6b9f8d9f7f-kc9f8",
+        "ledgersentry-6b9f8d9f7f-lrhz9",
+        "ledgersentry-6b9f8d9f7f-n6mvs"
+      ],
+      "every_pod_replaced": true
+    }
+  },
+  "hpa": {
+    "columns": [
+      "seconds_since_steady_load_start",
+      "current_replicas",
+      "desired_replicas",
+      "cpu_percent_of_request"
+    ],
+    "replicas_min_seen": 2,
+    "replicas_max_seen": 5,
+    "cpu_percent_max_seen": 384,
+    "timeline": [
+      [
+        0,
+        2,
+        0,
+        null
+      ],
+      [
+        5,
+        2,
+        0,
+        null
+      ],
+      [
+        10,
+        2,
+        0,
+        null
+      ],
+      [
+        15,
+        2,
+        0,
+        null
+      ],
+      [
+        20,
+        2,
+        2,
+        38
+      ],
+      [
+        25,
+        2,
+        2,
+        38
+      ],
+      [
+        30,
+        2,
+        2,
+        38
+      ],
+      [
+        35,
+        2,
+        5,
+        384
+      ],
+      [
+        40,
+        2,
+        5,
+        384
+      ],
+      [
+        45,
+        2,
+        5,
+        384
+      ],
+      [
+        50,
+        5,
+        5,
+        374
+      ],
+      [
+        55,
+        5,
+        5,
+        374
+      ],
+      [
+        61,
+        5,
+        5,
+        374
+      ],
+      [
+        66,
+        5,
+        5,
+        193
+      ],
+      [
+        71,
+        5,
+        5,
+        193
+      ],
+      [
+        76,
+        5,
+        5,
+        193
+      ],
+      [
+        81,
+        5,
+        5,
+        160
+      ],
+      [
+        86,
+        5,
+        5,
+        160
+      ],
+      [
+        91,
+        5,
+        5,
+        160
+      ],
+      [
+        96,
+        5,
+        5,
+        160
+      ],
+      [
+        101,
+        5,
+        5,
+        160
+      ],
+      [
+        106,
+        5,
+        5,
+        160
+      ],
+      [
+        111,
+        5,
+        5,
+        153
+      ],
+      [
+        116,
+        5,
+        5,
+        153
+      ],
+      [
+        121,
+        5,
+        5,
+        153
+      ],
+      [
+        126,
+        5,
+        5,
+        267
+      ],
+      [
+        132,
+        5,
+        5,
+        267
+      ],
+      [
+        137,
+        5,
+        5,
+        267
+      ],
+      [
+        142,
+        5,
+        5,
+        323
+      ],
+      [
+        147,
+        5,
+        5,
+        323
+      ],
+      [
+        152,
+        5,
+        5,
+        323
+      ],
+      [
+        157,
+        5,
+        5,
+        197
+      ],
+      [
+        162,
+        5,
+        5,
+        197
+      ],
+      [
+        167,
+        5,
+        5,
+        197
+      ],
+      [
+        172,
+        5,
+        5,
+        251
+      ],
+      [
+        177,
+        5,
+        5,
+        251
+      ],
+      [
+        182,
+        5,
+        5,
+        264
+      ],
+      [
+        188,
+        5,
+        5,
+        264
+      ],
+      [
+        193,
+        5,
+        5,
+        264
+      ],
+      [
+        198,
+        5,
+        5,
+        273
+      ],
+      [
+        203,
+        5,
+        5,
+        273
+      ],
+      [
+        208,
+        5,
+        5,
+        273
+      ],
+      [
+        213,
+        5,
+        5,
+        261
+      ]
+    ]
+  },
+  "pods_after_steady_load": [
+    {
+      "pod": "ledgersentry-7fc6585cf4-8v7fk",
+      "cpu_millicores": 1000,
+      "memory_mi": 140.0
+    },
+    {
+      "pod": "ledgersentry-7fc6585cf4-9cddj",
+      "cpu_millicores": 2,
+      "memory_mi": 138.0
+    },
+    {
+      "pod": "ledgersentry-7fc6585cf4-hjtmg",
+      "cpu_millicores": 1000,
+      "memory_mi": 140.0
+    },
+    {
+      "pod": "ledgersentry-7fc6585cf4-rf695",
+      "cpu_millicores": 2,
+      "memory_mi": 138.0
+    },
+    {
+      "pod": "ledgersentry-7fc6585cf4-wqkgp",
+      "cpu_millicores": 2,
+      "memory_mi": 138.0
+    }
+  ],
+  "caveats": [
+    "Single-node kind cluster on one GitHub Actions runner. The k6 load generator runs in the same cluster and competes for the same CPUs as the pods.",
+    "Synthetic load: one fixed request body sent in a closed loop. Not production traffic, not users.",
+    "Throughput and latency vary between runners; the gate is on failed requests, not on a throughput number."
+  ]
+}

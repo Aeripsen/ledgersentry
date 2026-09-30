@@ -380,33 +380,32 @@ under `missing_fields`.
 The serving image is self-contained: a build from a clean checkout has no model
 (the `.joblib` is gitignored), so the Docker build generates the deterministic
 synthetic-fixture model exactly as `scripts/train.py` does offline, and the API is
-green on first boot with zero data download. A real model found on the build
-machine is served instead. Three targets are wired and validated, with the exact
-steps in [`DEPLOY.md`](DEPLOY.md):
+green on first boot with zero data download. That also means every deploy result
+below served the **synthetic model**, not the ULB one: they test the serving path,
+not model quality. Full steps and captured output: [`DEPLOY.md`](DEPLOY.md).
 
-- **Render (one click)** - [`render.yaml`](render.yaml) is a Blueprint: connect the
-  repo in Render and it builds the Dockerfile and serves it (a "Deploy to Render"
-  button is in `DEPLOY.md`).
-- **Kubernetes** - [`deploy/k8s/ledgersentry.yaml`](deploy/k8s/ledgersentry.yaml): a
-  non-root, 2-replica Deployment with liveness on `/health` and readiness on
-  `/ready`, plus a ClusterIP Service. `kubectl apply --dry-run=client -f` validates
-  it against a cluster's schema.
-- **Terraform (GCP Cloud Run)** - [`deploy/terraform/`](deploy/terraform): a
-  scale-to-zero Cloud Run v2 service with the same two probes and optional public
-  access.
+- **Kubernetes, run in CI** - [`deploy/k8s/base`](deploy/k8s/base): ConfigMap,
+  Deployment (liveness `/health`, readiness `/ready`, non-root, `maxUnavailable: 0`),
+  Service, CPU HPA and PodDisruptionBudget. [`.github/workflows/k8s.yml`](.github/workflows/k8s.yml)
+  deploys it to a kind cluster, load-tests it through the Service with k6, and runs a
+  rolling restart under load that fails CI on any failed request. Latest:
+  108,825 requests through a rolling restart, 0 failed
+  ([`artifacts/k8s_kind_ledgersentry.json`](artifacts/k8s_kind_ledgersentry.json)).
+  The first run failed 4 of 114,308 on keep-alive connection resets; the fix is a
+  preStop drain ([`src/ledgersentry/drain.py`](src/ledgersentry/drain.py)).
+- **Terraform, applied in CI** - [`deploy/terraform/kubernetes`](deploy/terraform/kubernetes)
+  creates the same objects with the `hashicorp/kubernetes` provider. CI applies it
+  to kind, requires an empty second plan, diffs the live objects against the YAML,
+  and destroys ([`artifacts/terraform_kind_ledgersentry.json`](artifacts/terraform_kind_ledgersentry.json)).
+- **Terraform, GCP Cloud Run** - [`deploy/terraform/cloudrun`](deploy/terraform/cloudrun)
+  is `fmt`-checked and validated in CI, **never applied** (needs a GCP project with
+  billing).
+- **Render** - [`render.yaml`](render.yaml) is a one-click Blueprint, **not deployed**
+  (needs a Render account).
 
-The liveness/readiness split is why the service exposes both endpoints: `/health`
-stays 200 while the model loads (so an orchestrator never kills a warming pod), and
-`/ready` turns 200 only once the compiled scorer can score (so traffic reaches a pod
-only when it can serve). `render.yaml`, the k8s manifest, and the Dockerfile
-contract are pinned by `tests/test_deploy_manifests.py` in CI; the Terraform is
-HCL2-valid and schema-checked against the current `hashicorp/google` provider docs.
-
-Honesty note: `docker`, `kubectl`, and `terraform` are not installed on this build
-machine, so the container build and a live deploy have not been run here - that is
-the one step left, and it needs a cloud login. What is verified is the
-build-and-serve logic (generate the synthetic model with no data file, then answer
-`/health`, `/ready`, and `/predict`), reproduced with the exact steps the image runs.
+All of it is a single-node kind cluster on a 4-vCPU GitHub runner under synthetic
+load, so the throughput figures in `DEPLOY.md` describe that runner, not a
+production service.
 
 ## Data
 
@@ -478,9 +477,9 @@ Makefile         install / test / lint / train / reproduce / bench / serve / das
 Dockerfile / docker-compose.yml   one self-contained image, two services (api:8000,
                  dashboard:8501); build generates the synthetic model if none baked in
 render.yaml      Render Blueprint: one-click Docker web-service deploy
-deploy/k8s/      Kubernetes Deployment (liveness /health, readiness /ready) + Service
-deploy/terraform/  GCP Cloud Run v2 module (the cloud infra that hosts the container)
-DEPLOY.md        exact one-click / kubectl / terraform steps for all three targets
+deploy/k8s/      base manifests, kind overlay, in-cluster k6 load test
+deploy/terraform/  kubernetes/ (applied to kind in CI), cloudrun/ (validated only)
+DEPLOY.md        exact steps and captured CI output for every target
 ```
 
 ## Roadmap
@@ -505,13 +504,10 @@ DEPLOY.md        exact one-click / kubectl / terraform steps for all three targe
       it honestly)
 - [x] Dashboard with the review-threshold knob as a live slider (coverage vs precision,
       live)
-- [x] Dockerfile + docker-compose, plus deploy manifests for three targets: a
-      Render Blueprint (`render.yaml`, one-click), a Kubernetes Deployment + Service
-      with liveness/readiness probes (`deploy/k8s/`), and a GCP Cloud Run Terraform
-      module (`deploy/terraform/`). The image is self-contained (generates the
-      synthetic model at build if none is baked in); the manifests are CI-checked
-      (`tests/test_deploy_manifests.py`). Container build + live deploy not yet run
-      here (docker/kubectl/terraform unavailable on the build machine; flagged below)
+- [x] Dockerfile + docker-compose, plus deploy targets: Kubernetes manifests
+      (`deploy/k8s/`) deployed to kind in CI with a load test and a rolling restart
+      under load, a Terraform kubernetes module applied to kind in CI, a Cloud Run
+      Terraform module (validated only) and a Render Blueprint (not deployed)
 
 **Real-data run (ULB done)**
 - [x] Train and report on real data: ULB credit-card fraud, 284,807 transactions,
@@ -570,12 +566,10 @@ DEPLOY.md        exact one-click / kubectl / terraform steps for all three targe
 **Open (honest gaps)**
 - [ ] Sparkov full run (the streaming story) and IEEE-CIS full run (the headline
       benchmark) - both Kaggle-gated downloads
-- [ ] Container build + live deploy: `docker`, `kubectl`, and `terraform` are not
-      installed on the build machine, so the image build and standing up a live
-      instance (the one-click Render / k8s / Cloud Run steps in `DEPLOY.md`) are the
-      remaining step, which needs a cloud login. The deploy inputs are validated
-      offline (CI + HCL2 + provider-doc schema check); the container itself is not
-      yet built here
+- [ ] Public hosted instance: the image is built and deployed to kind on every
+      deploy change in CI, but nothing is hosted publicly. Cloud Run needs a GCP
+      project with billing and Render needs an account; a clean build would also
+      serve the synthetic model, not the ULB one
 - [ ] Rolling-origin (multi-fold temporal) evaluation - the committed bootstrap
       captures sampling noise only, so fold-choice variance is still unmeasured
       and the committed numbers are one fold
