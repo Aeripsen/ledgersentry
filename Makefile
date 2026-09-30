@@ -3,7 +3,7 @@
 
 PY ?= python
 
-.PHONY: install install-analysis test lint train reproduce bench bootstrap compare compare-boosters shap cost business business-verify serve dashboard
+.PHONY: install install-analysis test lint train reproduce bench bootstrap compare compare-boosters shap cost business business-verify demo-data serve dashboard
 
 install:
 	$(PY) -m pip install -r requirements.txt
@@ -69,6 +69,12 @@ business:
 
 business-verify:
 	$(PY) scripts/business_case.py --verify
+
+# The per-transaction export the live demo page runs on. Refuses to write unless
+# the exported rows rebuild the committed metrics and business case. Needs
+# data/creditcard.csv.
+demo-data:
+	$(PY) scripts/demo_data.py
 
 serve:
 	$(PY) -m uvicorn ledgersentry.service:app --app-dir src

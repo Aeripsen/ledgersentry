@@ -87,6 +87,23 @@ def main() -> int:
         return 1
     print(f"PASS: PR-AUC {got['pr_auc']} / recall {got['recall_at_full_coverage']} "
           f"on {got['n_test']} held-out rows ({got['n_test_fraud']} fraud) all match")
+
+    # 3. the live demo's per-transaction export (make demo-data) must rebuild
+    # these metrics and the committed business case, so the page is held to the
+    # same contract as the headline.
+    demo_path = REPO / "artifacts" / "demo_scores_ulb_creditcard.json"
+    business_path = REPO / "artifacts" / "business_case_ulb_creditcard.json"
+    if demo_path.exists():
+        sys.path.insert(0, str(REPO / "src"))
+        from ledgersentry.demo import check_export
+
+        business = json.loads(business_path.read_text()) if business_path.exists() else None
+        errors = check_export(json.loads(demo_path.read_text()), got, business)
+        if errors:
+            for e in errors:
+                print(f"FAIL: {e}")
+            return 1
+        print("PASS: the demo export rebuilds these metrics and the business case")
     return 0
 
 

@@ -1,6 +1,22 @@
 # LedgerSentry
 
 [![ci](https://github.com/Aeripsen/ledgersentry/actions/workflows/ci.yml/badge.svg)](https://github.com/Aeripsen/ledgersentry/actions/workflows/ci.yml)
+[![live demo](https://img.shields.io/badge/live_demo-aeripsen.github.io%2Fledgersentry-f0a848)](https://aeripsen.github.io/ledgersentry/)
+
+**[Live demo: drag the review knob over 56,961 real held-out card transactions](https://aeripsen.github.io/ledgersentry/)**
+
+**What this is, in 30 seconds.** A card-fraud model that is allowed to say "not sure, send
+it to a person" instead of guessing. Tested on the last 7.65 hours of a public set of real
+card transactions that it never saw in training, against the same model deciding everything
+on its own:
+
+- **False fraud alerts fall 96%**, from 26.9 to 1.1 per 10,000 transactions (95% CI 93% to 99%).
+- **Frauds approved silently fall from 12 to 6 of 75**; the other 16 land in the review queue.
+- **The price is stated:** 709 of every 10,000 transactions go to a human reviewer (7.1%).
+
+Every figure comes from `artifacts/business_case_ulb_creditcard.json` (`make business`,
+details [below](#in-operations-terms-alerts-review-load-fraud-caught)). CI rebuilds it from the
+committed per-transaction scores the demo runs on before the page can deploy.
 
 Real-time financial-transaction fraud detection with a tunable reject-to-review option.
 A gradient-boosted classifier that scores each transaction and, when it isn't confident
