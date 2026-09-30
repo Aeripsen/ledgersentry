@@ -213,12 +213,15 @@ the three sum to 75 at every row. Recall (auto) = caught / 75.
 
 Reading it: on real data the knob genuinely earns its keep. Fully automated
 (threshold 0.50), the model catches **63 of the 75 test frauds (84% recall)**, flags
-216 transactions, and 29% of those flags are truly fraud. Send the most uncertain 7.1%
-of traffic to human review (threshold 0.95) and the automated fraud flags become 89.8%
-precise - a 3x precision lift for reviewing 4,039 of 56,961 transactions. Recall on the
-automated path falls to 70.7% at that setting, but the misses drop from 12 to 6: the
-extra uncertain frauds are surfaced in the review queue (16 of them) rather than
-auto-cleared, so 69 of 75 frauds are still caught by the system as a whole. That is the
+216 transactions, and 29% of those flags are truly fraud. At threshold 0.95 the
+automated fraud flags become 89.8% precise - a 3x precision lift that comes from the
+higher bar itself (a plain 0.95 cut with no review raises the same 59 flags), while the
+most uncertain 7.1% of traffic, 4,039 of 56,961 transactions, goes to review. Recall on
+the automated path falls to 70.7% at that setting, but the frauds cleared unseen drop
+from 12 to 6 instead of rising to the 22 a plain 0.95 cut would clear: the uncertain
+frauds are surfaced in the review queue (16 of them) rather than auto-cleared, so 69 of
+75 frauds are surfaced by the system as a whole. Whether reviewers catch the 16 is not
+measured. That is the
 honest way to read a reject knob - precision, recall, and review-queue load together,
 not one number. The cliff at 0.99 is honest and expected: the model's
 uncalibrated confidence almost never exceeds 0.99 on this data, so that threshold

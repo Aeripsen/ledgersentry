@@ -10,11 +10,11 @@
 **What this is, in 30 seconds.** A card-fraud model that is allowed to say "not sure, send
 it to a person" instead of guessing. Tested on the last 7.65 hours of a public set of real
 card transactions that it never saw in training, against the same model deciding everything
-on its own:
+on its own at the default 0.5 cut:
 
-- **False fraud alerts fall 96%**, from 26.9 to 1.1 per 10,000 transactions (95% CI 93% to 99%).
-- **Frauds approved silently fall from 12 to 6 of 75**; the other 16 land in the review queue.
-- **The price is stated:** 709 of every 10,000 transactions go to a human reviewer (7.1%).
+- **Raising the auto-flag bar from 0.5 to 0.95 cuts false fraud alerts 96%**, from 26.9 to 1.1 per 10,000 transactions (95% CI 93% to 99%). That is the threshold's doing: the same bar with no review queue raises the identical 59 alerts.
+- **The review band keeps what that bar would wave through:** alone, the 0.95 bar clears 22 of 75 frauds unseen. Sending the uncertain middle to review cuts that to 6, against 12 at 0.5 (paired 95% CI 2 to 11 fewer).
+- **The price is stated:** 709 of every 10,000 transactions go to a human reviewer (7.1%), and 16 of those 4,039 are fraud. Whether reviewers catch them is not measured.
 
 Every figure comes from `artifacts/business_case_ulb_creditcard.json` (`make business`,
 details [below](#in-operations-terms-alerts-review-load-fraud-caught)). CI rebuilds it from the
@@ -32,15 +32,18 @@ discipline, same honesty rules, different domain.
 - **Real result:** PR-AUC **0.7278, 95% CI [0.6214, 0.8232]** on the ULB
   credit-card fraud set (284,807 real anonymized transactions, 492 fraud, 0.17%)
   with a strictly temporal holdout - train on the first ~40 hours, test on the last
-  ~7.6 hours, nothing from the future leaks back. No-skill baseline on that fold is
+  ~7.6 hours, nothing from the future leaks back (measured, not assumed: the last
+  training transaction is one second before the first test one, and no second is
+  shared across the boundary; `split_boundary` in the business-case artifact). No-skill baseline on that fold is
   0.0013, so that is roughly a 550x lift. **The interval is published because the
   fold has 75 frauds and 75 positives do not earn four decimals** - it is measured
   (1000-resample bootstrap, committed), not hedged with a disclaimer.
-- **The knob is the product:** versus a plain 0.5 threshold, sending the most uncertain
-  7.1% of traffic to human review cuts false fraud alerts **96% (26.9 to 1.1 per 10,000
-  transactions, 95% CI 93% to 99%)** and halves missed frauds (12 to 6 of 75), and the
-  automated flags become **89.8% precise**. The price is a review queue of 709 per 10,000,
-  stated beside it. See [in operations terms](#in-operations-terms-alerts-review-load-fraud-caught).
+- **The knob is the product:** raising the auto-flag bar from 0.5 to 0.95 cuts false fraud
+  alerts **96% (26.9 to 1.1 per 10,000 transactions, 95% CI 93% to 99%)** and makes the
+  automated flags **89.8% precise**; the review band on the uncertain 0.05 to 0.95 middle
+  (7.1% of traffic) is what stops that bar from clearing 22 of 75 frauds unseen, cutting
+  that to 6. The bar does the precision, the queue does the recall, and the queue's price
+  (709 per 10,000) is stated beside it. See [in operations terms](#in-operations-terms-alerts-review-load-fraud-caught).
 - **Calibrated when it counts:** the raw score is a good ranker and a bad probability
   (measured: Brier worse than predicting the base rate). A Platt map fit on a
   train-only slice cuts test-fold Brier 4.2x without moving PR-AUC a bit, so a fraud
@@ -167,11 +170,12 @@ splits them into auto-flagged, routed-to-human-review, and auto-cleared-as-legit
 | 0.95 | 92.91% | 4,039 | 59 | 89.83% | 53 / 16 / 6 | 70.7% |
 
 Reading it: fully automated the model catches **63 of 75 frauds (84% recall)** and 29%
-of its flags are truly fraud. Route the most uncertain 7.1% of traffic to review
-(threshold 0.95) and the automated flags become **89.8% precise** - and note the misses
-actually *drop* from 12 to 6, because the extra uncertain frauds go to the review queue
-(16 of them) instead of being auto-cleared. So at 0.95, 69 of 75 frauds are surfaced
-(auto-flag + review) and only 6 slip through. That precision lift for a bounded
+of its flags are truly fraud. At threshold 0.95 the automated flags become **89.8%
+precise** (the higher bar does that) while the most uncertain 7.1% of traffic goes to
+review, and note the misses *drop* from 12 to 6 instead of rising to the 22 a plain 0.95
+cut would clear, because the uncertain frauds go to the review queue (16 of them) instead
+of being auto-cleared. So at 0.95, 69 of 75 frauds are surfaced (auto-flag + review) and
+only 6 slip through unseen; whether a reviewer catches the 16 is not measured. That precision lift for a bounded
 human-review budget, with recall stated honestly beside it, is the product. (Above 0.95
 the uncalibrated confidence cliff sends almost everything to review - measured, shown in
 the model card's full 8-row table, and called out as a limitation rather than hidden.)
@@ -185,34 +189,64 @@ answers them on the same fold and the same model, and refuses to write anything 
 its counts match `artifacts/metrics_ulb_creditcard.json` at every threshold. Output:
 `artifacts/business_case_ulb_creditcard.json`, including a 50-row threshold sweep.
 
-Three named policies on the 56,961 held-out transactions (75 frauds, 7.65 hours):
+Four named policies on the 56,961 held-out transactions (75 frauds, 7.65 hours):
 
-| Policy | Alerts / 10k | False alerts / 10k | Review queue / 10k | Frauds caught / in review / missed | Fraud value surfaced |
-|---|---|---|---|---|---|
-| A. single threshold 0.5, no review | 37.9 | 26.9 | 0 | 63 / 0 / 12 | 66.4% |
-| B. single threshold 0.95, no review | 10.4 | 1.1 | 0 | 53 / 0 / 22 | 49.7% |
-| C. review band 0.95 (shipped knob) | 10.4 | 1.1 | 709.1 | 53 / 16 / 6 | 97.2% |
+| Policy | Alerts / 10k | False alerts / 10k | Review queue / 10k | Legit flagged or queued / 10k | Frauds auto-flagged / in review / cleared unseen | Fraud value surfaced |
+|---|---|---|---|---|---|---|
+| A. single threshold 0.5, no review | 37.9 | 26.9 | 0.0 | 26.9 | 63 / 0 / 12 | 66.4% |
+| B. single threshold 0.95, no review | 10.4 | 1.1 | 0.0 | 1.1 | 53 / 0 / 22 | 49.7% |
+| C. review band 0.95 | 10.4 | 1.1 | 709.1 | 707.3 | 53 / 16 / 6 | 97.2% |
+| D. single threshold 0.05, no review | 719.4 | 707.3 | 0.0 | 707.3 | 69 / 0 / 6 | 97.2% |
 
-- **C against A:** false alerts fall **96.1% (95% CI 92.7% to 98.7%)** and missed frauds
-  go from 12 to 6, for a review queue of 709 per 10,000 transactions (7.1% of traffic).
-- **C against B:** the same 59 alerts, but 6 missed frauds instead of 22. Raising the
-  threshold alone buys the precision and gives up the fraud; the queue is what keeps it.
-- **By value:** "fraud value surfaced" is the share of the fold's fraud Amount that is
-  auto-flagged or sent to review. C surfaces 97.2% (CI 89.5% to 99.95%) and clears 2.8%
-  unseen, against 33.6% cleared unseen under A. The value intervals are wide because a
-  few large frauds carry much of the total. Amounts come from the dataset's own `Amount`
-  column; its documentation names no currency, so they are reported as shares.
+Where each effect comes from:
+
+- **The false-alert cut is the threshold's, not the queue's.** A to B (raise the bar from
+  0.5 to 0.95, no review) cuts false alerts **96.1% (95% CI 92.7% to 98.7%)**, from 26.9 to
+  1.1 per 10,000. C raises exactly B's 59 alerts and B's 6 false alerts
+  (`C_vs_B.same_false_alerts: true`). The review queue removes no false alert.
+- **The queue changes what gets cleared unseen.** B clears 22 frauds without a human look;
+  C sends 16 of them to review and clears 6. Against A's 12, that is 6 fewer, paired
+  bootstrap 95% CI 2 to 11 fewer (the difference is taken within each resample, not read
+  off two intervals). "Cleared unseen" is the honest word: nothing here measures whether a
+  reviewer catches the 16 frauds hidden among 4,039 reviews (about one per 252 items).
+- **The cut moves legitimate traffic, it does not remove it.** Counting the queue, C
+  flags or queues 719.4 transactions per 10,000 against A's 37.9, and 707.3 of them are
+  legitimate. At a million transactions a day the same band is about 71,000 reviews.
+- **C finds no fraud a low single threshold misses.** C surfaces exactly the set policy D
+  flags (`surfaced_equals_single_low_threshold: true`): same 69 frauds, same 97.2% of
+  fraud value. What C adds over D is a split of that set into 59 alerts that are 89.8%
+  precise and a review tier, where D raises 4,098 alerts at 1.7% precision.
+- **By value:** C (and D) surface 97.2% of the fold's fraud Amount (CI 89.5% to 99.95%);
+  A surfaces 66.4%. The paired difference is 4.4 to 61.1 points. That width is the point:
+  the fold has 75 frauds and a few large ones carry the total. Amounts come from the
+  dataset's own `Amount` column; its documentation names no currency, so they are shares.
+
+**How 0.95 was chosen.** It was read off the test-fold curve in the committed metrics
+table, not selected on a validation slice, so it is a reported operating point, not a
+tuned one. The neighbours are in `operating_threshold_selection`: at 0.94 the band
+surfaces 82.4% of fraud value with 8 cleared unseen; at 0.96 it surfaces 97.3% with 5,
+for 10.4% of traffic in review.
+
+**Resume-length lines.** The script writes these into `resume_sentences`, and
+`tests/test_demo_data.py` fails if this README stops quoting them word for word:
+
+> Raising the auto-flag threshold from 0.5 to 0.95 cut false fraud alerts 96% (26.9 to 1.1 per 10,000 transactions, 95% CI 93% to 99%) on a temporal holdout of 56,961 real card transactions; a review band on the 0.05 to 0.95 middle routed to a human 16 of the 22 frauds that threshold alone auto-clears, at 709 reviews per 10,000.
+
+> Split the 97.2% of fraud value that a single 0.05 threshold surfaces (95% CI 89.5% to 99.95%) into an 89.8%-precise auto-flag tier and a review tier of 7.1% of traffic; against the 0.5 default, frauds cleared without human review fell from 12 to 6 of 75 (paired bootstrap 95% CI 2 to 11 fewer).
 
 What this does not claim. Nothing here is priced: no analyst cost, no average loss per
-fraud, nothing from the illustrative `expected_cost_curve` artifact. The queue is not
-cheap either: 4,039 reviews hold 16 frauds, so reviewers see about one fraud per 252
-items, and at a million transactions a day the same band is about 71,000 reviews. The
-set C surfaces is exactly what a single threshold at p > 0.05 would flag (checked in the
-artifact, `surfaced_equals_single_low_threshold: true`); the knob does not find more
-fraud, it splits what it surfaces into a small tier precise enough to act on without a
-human and a larger tier that needs one. Intervals are a seeded 1000-resample bootstrap
-with the same limits as `bootstrap.py` (sampling noise only). `make business-verify`
-regenerates the file and fails unless it matches the committed copy byte for byte.
+fraud, nothing from the illustrative `expected_cost_curve` artifact. No per-hour load is
+published: the fold is 7.65 hours of a two-day 2013 dataset, which says nothing about a
+real desk's hourly volume. Intervals are a seeded 1000-resample bootstrap with the same
+limits as `bootstrap.py` (sampling noise only, one fold).
+
+What checks what. CI (`tests/test_demo_data.py`, also the gate in front of the Pages
+deploy) rebuilds every policy, sweep row, interval and sentence in the artifact from the
+committed per-transaction scores. The step before that, retraining from
+`data/creditcard.csv` and getting those same scores, is checked by `make business-verify`,
+which regenerates the file and requires a byte match. It needs the 151 MB data file, so it
+runs locally (last run on CPython 3.13.13 with the pinned `requirements.txt`), not in CI.
+The artifact records no interpreter version, only the pinned library versions.
 
 ### Synthetic fixture (offline CI baseline, labeled synthetic)
 
@@ -307,7 +341,7 @@ pip install -e .                 # optional - scripts/train.py works without it
 
 python scripts/train.py          # no data file present -> synthetic fixture (offline)
                                   # writes artifacts/ledgersentry.joblib + metrics.json
-pytest                           # run the test suite (127 tests)
+pytest                           # run the test suite (150 tests)
 ruff check .                     # lint
 mypy                             # type-check src/
 

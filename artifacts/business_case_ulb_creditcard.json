@@ -2,7 +2,6 @@
   "data_source": "ulb_creditcard",
   "is_synthetic": false,
   "environment": {
-    "python": "3.13.13",
     "sklearn": "1.9.0",
     "pandas": "3.0.3",
     "numpy": "2.5.1"
@@ -16,7 +15,38 @@
     "hours_covered": 7.65,
     "fraud_amount_total": 7729.26
   },
+  "split_boundary": {
+    "train_last_timestamp": "2013-01-02 16:20:48",
+    "test_first_timestamp": "2013-01-02 16:20:49",
+    "no_train_row_later_than_any_test_row": true,
+    "train_rows_later_than_first_test_row": 0,
+    "train_rows_at_boundary_second": 0,
+    "test_rows_at_boundary_second": 3
+  },
   "operating_threshold": 0.95,
+  "operating_threshold_selection": {
+    "how": "0.95 was read off the test-fold curve in metrics_<source>.json. It was not selected on a validation slice, so it is a reported operating point, not a tuned one. Its neighbours from the sweep are below.",
+    "neighbours": {
+      "0.94": {
+        "review_share_of_traffic": 0.0544,
+        "precision_on_alerts": 0.8548,
+        "fraud_missed": 8,
+        "fraud_amount_share_surfaced": 0.8244
+      },
+      "0.95": {
+        "review_share_of_traffic": 0.0709,
+        "precision_on_alerts": 0.8983,
+        "fraud_missed": 6,
+        "fraud_amount_share_surfaced": 0.9718
+      },
+      "0.96": {
+        "review_share_of_traffic": 0.1035,
+        "precision_on_alerts": 0.9286,
+        "fraud_missed": 5,
+        "fraud_amount_share_surfaced": 0.9728
+      }
+    }
+  },
   "policies": {
     "A_single_threshold_0.5": {
       "counts": {
@@ -25,6 +55,9 @@
         "true_alerts": 63,
         "false_alerts": 153,
         "sent_to_review": 0,
+        "legit_sent_to_review": 0,
+        "legit_flagged_or_queued": 153,
+        "flagged_or_queued": 216,
         "fraud_caught_auto": 63,
         "fraud_in_review": 0,
         "fraud_missed": 12,
@@ -34,12 +67,9 @@
         "alerts": 37.9,
         "false_alerts": 26.9,
         "review_queue": 0.0,
+        "legit_flagged_or_queued": 26.9,
+        "flagged_or_queued": 37.9,
         "fraud_missed": 2.1
-      },
-      "per_hour_of_fold": {
-        "alerts": 28.2,
-        "false_alerts": 20.0,
-        "review_queue": 0.0
       },
       "rates": {
         "precision_on_alerts": 0.2917,
@@ -67,6 +97,9 @@
         "true_alerts": 53,
         "false_alerts": 6,
         "sent_to_review": 0,
+        "legit_sent_to_review": 0,
+        "legit_flagged_or_queued": 6,
+        "flagged_or_queued": 59,
         "fraud_caught_auto": 53,
         "fraud_in_review": 0,
         "fraud_missed": 22,
@@ -76,12 +109,9 @@
         "alerts": 10.4,
         "false_alerts": 1.1,
         "review_queue": 0.0,
+        "legit_flagged_or_queued": 1.1,
+        "flagged_or_queued": 10.4,
         "fraud_missed": 3.9
-      },
-      "per_hour_of_fold": {
-        "alerts": 7.7,
-        "false_alerts": 0.8,
-        "review_queue": 0.0
       },
       "rates": {
         "precision_on_alerts": 0.8983,
@@ -109,6 +139,9 @@
         "true_alerts": 53,
         "false_alerts": 6,
         "sent_to_review": 4039,
+        "legit_sent_to_review": 4023,
+        "legit_flagged_or_queued": 4029,
+        "flagged_or_queued": 4098,
         "fraud_caught_auto": 53,
         "fraud_in_review": 16,
         "fraud_missed": 6,
@@ -118,12 +151,9 @@
         "alerts": 10.4,
         "false_alerts": 1.1,
         "review_queue": 709.1,
+        "legit_flagged_or_queued": 707.3,
+        "flagged_or_queued": 719.4,
         "fraud_missed": 1.1
-      },
-      "per_hour_of_fold": {
-        "alerts": 7.7,
-        "false_alerts": 0.8,
-        "review_queue": 527.9
       },
       "rates": {
         "precision_on_alerts": 0.8983,
@@ -144,6 +174,59 @@
         "fraud_amount_share_missed": 0.0282
       }
     },
+    "D_single_threshold_0.05": {
+      "counts": {
+        "n_transactions": 56961,
+        "alerts_auto_flagged": 4098,
+        "true_alerts": 69,
+        "false_alerts": 4029,
+        "sent_to_review": 0,
+        "legit_sent_to_review": 0,
+        "legit_flagged_or_queued": 4029,
+        "flagged_or_queued": 4098,
+        "fraud_caught_auto": 69,
+        "fraud_in_review": 0,
+        "fraud_missed": 6,
+        "fraud_total": 75
+      },
+      "per_10k_transactions": {
+        "alerts": 719.4,
+        "false_alerts": 707.3,
+        "review_queue": 0.0,
+        "legit_flagged_or_queued": 707.3,
+        "flagged_or_queued": 719.4,
+        "fraud_missed": 1.1
+      },
+      "rates": {
+        "precision_on_alerts": 0.0168,
+        "false_alerts_per_true_alert": 58.391,
+        "fraud_share_caught_auto": 0.92,
+        "fraud_share_surfaced": 0.92,
+        "fraud_share_missed": 0.08,
+        "review_queue_fraud_rate": null
+      },
+      "amount": {
+        "fraud_amount_total": 7729.26,
+        "fraud_amount_caught_auto": 7511.14,
+        "fraud_amount_in_review": 0.0,
+        "fraud_amount_missed": 218.12,
+        "legit_amount_auto_flagged": 874766.81,
+        "fraud_amount_share_caught_auto": 0.9718,
+        "fraud_amount_share_surfaced": 0.9718,
+        "fraud_amount_share_missed": 0.0282
+      }
+    },
+    "B_vs_A": {
+      "false_alerts": [
+        153,
+        6
+      ],
+      "false_alert_reduction_share": 0.9608,
+      "fraud_missed": [
+        12,
+        22
+      ]
+    },
     "C_vs_A": {
       "false_alerts": [
         153,
@@ -154,25 +237,46 @@
         12,
         6
       ],
+      "flagged_or_queued": [
+        216,
+        4098
+      ],
+      "legit_flagged_or_queued": [
+        153,
+        4029
+      ],
       "added_review_queue": 4039,
       "added_review_queue_per_10k": 709.1
     },
     "C_vs_B": {
       "same_alerts": true,
+      "same_false_alerts": true,
       "fraud_missed": [
         22,
         6
       ],
+      "frauds_sent_to_review_instead_of_cleared": 16,
       "fraud_amount_missed": [
         3888.06,
         218.12
       ],
-      "cost_review_queue": 4039
+      "review_queue": 4039
+    },
+    "C_vs_D": {
+      "same_surfaced_set": true,
+      "alerts": [
+        4098,
+        59
+      ],
+      "precision_on_alerts": [
+        0.0168,
+        0.8983
+      ]
     },
     "surfaced_equals_single_low_threshold": true
   },
   "bootstrap": {
-    "method": "percentile bootstrap, 1000 row resamples of the test fold, seed 42; sampling noise only (see bootstrap.py for the limits)",
+    "method": "percentile bootstrap, 1000 row resamples of the test fold, seed 42; sampling noise only (see bootstrap.py for the limits). paired_ keys are differences computed within each resample.",
     "n_degenerate_resamples": 0,
     "intervals_95": {
       "A_false_alerts_per_10k": {
@@ -218,6 +322,22 @@
       "C_fraud_amount_share_surfaced": {
         "ci_lower": 0.8946,
         "ci_upper": 0.9995
+      },
+      "C_legit_flagged_or_queued_per_10k": {
+        "ci_lower": 685.548,
+        "ci_upper": 729.0997
+      },
+      "paired_A_minus_C_frauds_cleared_without_review": {
+        "ci_lower": 2.0,
+        "ci_upper": 11.0
+      },
+      "paired_C_minus_A_fraud_amount_share_surfaced": {
+        "ci_lower": 0.0436,
+        "ci_upper": 0.6112
+      },
+      "paired_reduction_share_of_A_frauds_cleared_without_review": {
+        "ci_lower": 0.1997,
+        "ci_upper": 0.8
       }
     }
   },
@@ -924,8 +1044,13 @@
     }
   ],
   "headline_sentences": [
-    "Versus flagging at 0.5 with no review, the 0.95 review band cuts false fraud alerts from 26.9 to 1.1 per 10,000 transactions (96.1% fewer, 95% CI 92.7% to 98.7%), and missed frauds go from 12 to 6 of 75, at the price of a review queue of 709 per 10,000.",
-    "By value, the band auto-flags 49.7% of the fold's fraud amount and surfaces 97.2% of it (auto-flag plus review); 2.8% is cleared unseen, against 33.6% with no review.",
-    "Raising the threshold to 0.95 without a review queue gives the same 59 alerts but misses 22 frauds instead of 6: the queue is what buys the high precision without the misses."
+    "Raising the auto-flag threshold from 0.5 to 0.95 cuts false fraud alerts from 26.9 to 1.1 per 10,000 transactions (96.1% fewer, 95% CI 92.7% to 98.7%). The review queue plays no part in that cut: the same threshold with no review raises the identical 59 alerts.",
+    "What the review band adds is on the miss side. The 0.95 threshold alone clears 22 of 75 frauds without a human look; sending the 0.05 to 0.95 middle to review (709 per 10,000) cuts that to 6, against 12 under the 0.5 default (paired bootstrap, 2 to 11 fewer than 0.5). Whether reviewers catch the 16 frauds in the queue is not measured.",
+    "Counting the queue, 719.4 transactions per 10,000 are flagged or queued against 37.9 under the 0.5 default, and 707.3 of them are legitimate: most of the false-alert cut is legitimate traffic moved from alert to review, not removed.",
+    "By value, the band surfaces 97.2% of the fold's fraud amount (auto-flag plus review, 95% CI 89.5% to 99.95%), exactly the set a single 0.05 threshold flags; the 0.5 default surfaces 66.4% (paired difference 95% CI 4.4 to 61.1 points)."
+  ],
+  "resume_sentences": [
+    "Raising the auto-flag threshold from 0.5 to 0.95 cut false fraud alerts 96% (26.9 to 1.1 per 10,000 transactions, 95% CI 93% to 99%) on a temporal holdout of 56,961 real card transactions; a review band on the 0.05 to 0.95 middle routed to a human 16 of the 22 frauds that threshold alone auto-clears, at 709 reviews per 10,000.",
+    "Split the 97.2% of fraud value that a single 0.05 threshold surfaces (95% CI 89.5% to 99.95%) into an 89.8%-precise auto-flag tier and a review tier of 7.1% of traffic; against the 0.5 default, frauds cleared without human review fell from 12 to 6 of 75 (paired bootstrap 95% CI 2 to 11 fewer)."
   ]
 }

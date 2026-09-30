@@ -11,7 +11,8 @@ browser; it never runs the model and never invents a row.
 Why it can be trusted: check_export() rebuilds, from the exported rows alone,
   1. the committed knob table and PR-AUC in metrics_<source>.json, and
   2. the whole policies / sweep / bootstrap block of business_case_<source>.json
-     (business.py's own functions, called on these rows).
+     (business.py's own functions, called on these rows), and the headline and
+     resume sentences built from them.
 CI runs it offline through tests/test_demo_data.py before pages.yml deploys,
 and scripts/verify_repro.py runs it after a real-data retrain. The business
 numbers stay in ONE artifact (business.py); this module only ships the rows.
@@ -37,7 +38,9 @@ from .business import (
     bootstrap_comparison,
     check_against_committed_metrics,
     compare_policies,
+    headline_sentences,
     holdout_fold,
+    resume_sentences,
     sensitivity_table,
 )
 from .config import get_settings
@@ -68,16 +71,20 @@ def check_export(
     if round(float(average_precision_score(y, p)), 4) != metrics["pr_auc"]:
         errors.append("export does not regenerate the committed PR-AUC")
     if business is not None:
-        hours = float(demo["fold_hours_exact"])
         t = business["operating_threshold"]
         seed = get_settings().random_state  # business.py seeds its bootstrap with this
-        rebuilt = {
-            "policies": compare_policies(p, y, amount, hours, t),
-            "sensitivity_review_band": sensitivity_table(p, y, amount, hours, THRESHOLD_SWEEP),
+        rebuilt: dict[str, Any] = {
+            "policies": compare_policies(p, y, amount, t),
+            "sensitivity_review_band": sensitivity_table(p, y, amount, THRESHOLD_SWEEP),
             "bootstrap": bootstrap_comparison(p, y, amount, t, N_RESAMPLES, seed),
         }
         # JSON round trip so tuples/np scalars compare the way the file stores them
         rebuilt = json.loads(json.dumps(rebuilt))
+        # the sentences are a function of those blocks plus the split boundary,
+        # which needs the training rows and so is taken from the committed file
+        merged = {**business, **rebuilt}
+        rebuilt["headline_sentences"] = headline_sentences(merged)
+        rebuilt["resume_sentences"] = resume_sentences(merged)
         for key, value in rebuilt.items():
             if business.get(key) != value:
                 errors.append(f"business_case[{key!r}] does not regenerate from the export")
