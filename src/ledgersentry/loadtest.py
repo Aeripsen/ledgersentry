@@ -695,7 +695,11 @@ def run(
     print(f"[load] source={source} endpoint={endpoint} bodies={len(bodies)} arm={arm} "
           f"workers={workers} http={http} levels={levels}")
 
-    env = environment(workers, http)  # before the server starts: the load before is honest
+    if url is not None:
+        # An external server may still be starting (a fresh container importing
+        # the model): wait for it first, or its own startup reads as "load before".
+        _wait_ready(url.rstrip("/"))
+    env = environment(workers, http)  # before a harness-started server starts
     prov = provenance()  # at the start: the code the server is about to load
     proc = None
     pids: list[int] = []
