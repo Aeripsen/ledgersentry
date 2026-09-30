@@ -1,8 +1,11 @@
 """The deploy manifests are wired correctly - checked in CI, not just asserted
 in a doc. These pin the render.yaml / Kubernetes / Dockerfile contract so an edit
-that breaks a selector, a probe path, or the non-root uid turns CI red instead of
-failing silently at deploy time (the tools themselves - docker/kubectl/terraform -
-are not in CI, so this is the offline guard for their inputs)."""
+that breaks a selector, a probe path, or the non-root uid turns CI red in the
+fast unit-test job, before anything is built. The tools themselves run in the
+separate k8s workflow (.github/workflows/k8s.yml): docker builds the image,
+kind + kubectl deploy it, Terraform applies its module, kubeconform checks the
+schemas. That workflow only runs when a deploy file changes, and render.yaml is
+never deployed at all, so these offline checks still cover every push."""
 import re
 from pathlib import Path
 

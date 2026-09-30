@@ -1,0 +1,436 @@
+﻿2026-09-30T20:15:13.8438302Z Current runner version: '2.337.0'
+2026-09-30T20:15:13.8475369Z ##[group]Runner Image Provisioner
+2026-09-30T20:15:13.8476885Z Hosted Compute Agent
+2026-09-30T20:15:13.8477859Z Version: 20260828.587
+2026-09-30T20:15:13.8479172Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+2026-09-30T20:15:13.8480404Z Build Date: 2026-08-28T16:44:25Z
+2026-09-30T20:15:13.8482146Z Worker ID: {2a5eca65-91d9-49be-8f7e-3c642acc3834}
+2026-09-30T20:15:13.8483418Z Azure Region: eastus
+2026-09-30T20:15:13.8484332Z ##[endgroup]
+2026-09-30T20:15:13.8486985Z ##[group]Operating System
+2026-09-30T20:15:13.8488026Z Ubuntu
+2026-09-30T20:15:13.8489484Z 24.04.5
+2026-09-30T20:15:13.8490561Z LTS
+2026-09-30T20:15:13.8491609Z ##[endgroup]
+2026-09-30T20:15:13.8493266Z ##[group]Runner Image
+2026-09-30T20:15:13.8494339Z Image: ubuntu-24.04
+2026-09-30T20:15:13.8495337Z Version: 20260920.314.1
+2026-09-30T20:15:13.8497878Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260920.314/images/ubuntu/Ubuntu2404-Readme.md
+2026-09-30T20:15:13.8501744Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260920.314
+2026-09-30T20:15:13.8503552Z ##[endgroup]
+2026-09-30T20:15:13.8505644Z ##[group]GITHUB_TOKEN Permissions
+2026-09-30T20:15:13.8508881Z Contents: read
+2026-09-30T20:15:13.8510016Z Metadata: read
+2026-09-30T20:15:13.8510900Z ##[endgroup]
+2026-09-30T20:15:13.8514315Z Secret source: Actions
+2026-09-30T20:15:13.8515971Z Cache mode: write
+2026-09-30T20:15:13.8517549Z Prepare workflow directory
+2026-09-30T20:15:13.9040427Z Prepare all required actions
+2026-09-30T20:15:13.9089125Z Getting action download info
+2026-09-30T20:15:14.1263721Z Download action repository 'actions/checkout@v7' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-09-30T20:15:14.2105128Z Download action repository 'helm/kind-action@v1.15.0' (SHA:06c1ae10762d3b9c1644e7fe69596ae519e015a2)
+2026-09-30T20:15:14.3123857Z Download action repository 'actions/upload-artifact@v7' (SHA:043fb46d1a93c77aae656e7c1c64a875d1fc6a0a)
+2026-09-30T20:15:14.4944631Z Complete job name: kind-e2e
+2026-09-30T20:15:14.5724207Z ##[group]Run actions/checkout@v7
+2026-09-30T20:15:14.5725122Z with:
+2026-09-30T20:15:14.5725607Z   repository: Aeripsen/ledgersentry
+2026-09-30T20:15:14.5729784Z   token: ***
+2026-09-30T20:15:14.5730250Z   ssh-strict: true
+2026-09-30T20:15:14.5730723Z   ssh-user: git
+2026-09-30T20:15:14.5731193Z   persist-credentials: true
+2026-09-30T20:15:14.5731973Z   clean: true
+2026-09-30T20:15:14.5732443Z   sparse-checkout-cone-mode: true
+2026-09-30T20:15:14.5733004Z   fetch-depth: 1
+2026-09-30T20:15:14.5733459Z   fetch-tags: false
+2026-09-30T20:15:14.5733929Z   show-progress: true
+2026-09-30T20:15:14.5734393Z   lfs: false
+2026-09-30T20:15:14.5734824Z   submodules: false
+2026-09-30T20:15:14.5735297Z   set-safe-directory: true
+2026-09-30T20:15:14.5735835Z   allow-unsafe-pr-checkout: false
+2026-09-30T20:15:14.5736623Z env:
+2026-09-30T20:15:14.5737077Z   TERRAFORM_VERSION: 1.16.4
+2026-09-30T20:15:14.5737598Z   KIND_VERSION: v0.33.0
+2026-09-30T20:15:14.5738096Z ##[endgroup]
+2026-09-30T20:15:14.6760548Z Syncing repository: Aeripsen/ledgersentry
+2026-09-30T20:15:14.6762887Z ##[group]Getting Git version info
+2026-09-30T20:15:14.6763694Z Working directory is '/home/runner/work/ledgersentry/ledgersentry'
+2026-09-30T20:15:14.6765725Z [command]/usr/bin/git version
+2026-09-30T20:15:14.6856221Z git version 2.55.0
+2026-09-30T20:15:14.6880188Z ##[endgroup]
+2026-09-30T20:15:14.6892841Z Temporarily overriding HOME='/home/runner/work/_temp/9b645364-c8d1-47ca-ac32-af5db6429810' before making global git config changes
+2026-09-30T20:15:14.6894736Z Adding repository directory to the temporary git global config as a safe directory
+2026-09-30T20:15:14.6899362Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/ledgersentry/ledgersentry
+2026-09-30T20:15:14.6950146Z Deleting the contents of '/home/runner/work/ledgersentry/ledgersentry'
+2026-09-30T20:15:14.6954044Z ##[group]Determining repository object format
+2026-09-30T20:15:14.6955525Z ##[endgroup]
+2026-09-30T20:15:14.6956629Z ##[group]Initializing the repository
+2026-09-30T20:15:14.6960674Z [command]/usr/bin/git init /home/runner/work/ledgersentry/ledgersentry
+2026-09-30T20:15:14.7050168Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-09-30T20:15:14.7051607Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-09-30T20:15:14.7052714Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-09-30T20:15:14.7053574Z hint: call:
+2026-09-30T20:15:14.7054040Z hint:
+2026-09-30T20:15:14.7054639Z hint: 	git config --global init.defaultBranch <name>
+2026-09-30T20:15:14.7055397Z hint:
+2026-09-30T20:15:14.7056074Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-09-30T20:15:14.7057236Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-09-30T20:15:14.7058124Z hint:
+2026-09-30T20:15:14.7058590Z hint: 	git branch -m <name>
+2026-09-30T20:15:14.7059100Z hint:
+2026-09-30T20:15:14.7059806Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-09-30T20:15:14.7065519Z Initialized empty Git repository in /home/runner/work/ledgersentry/ledgersentry/.git/
+2026-09-30T20:15:14.7075532Z [command]/usr/bin/git remote add origin https://github.com/Aeripsen/ledgersentry
+2026-09-30T20:15:14.7125025Z ##[endgroup]
+2026-09-30T20:15:14.7126336Z ##[group]Disabling automatic garbage collection
+2026-09-30T20:15:14.7128477Z [command]/usr/bin/git config --local gc.auto 0
+2026-09-30T20:15:14.7172135Z ##[endgroup]
+2026-09-30T20:15:14.7173787Z ##[group]Setting up auth
+2026-09-30T20:15:14.7174567Z Removing SSH command configuration
+2026-09-30T20:15:14.7175394Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-09-30T20:15:14.7230456Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-09-30T20:15:14.7586372Z Removing HTTP extra header
+2026-09-30T20:15:14.7594001Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-30T20:15:14.7633266Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-09-30T20:15:14.7868959Z Removing includeIf entries pointing to credentials config files
+2026-09-30T20:15:14.7875179Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-30T20:15:14.7915075Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-09-30T20:15:14.8167601Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-80dbba1e-875c-40e8-a1cd-5e89100f8345.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-09-30T20:15:14.8212377Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/ledgersentry/ledgersentry/.git.path /home/runner/work/_temp/git-credentials-80dbba1e-875c-40e8-a1cd-5e89100f8345.config
+2026-09-30T20:15:14.8247895Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/ledgersentry/ledgersentry/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-80dbba1e-875c-40e8-a1cd-5e89100f8345.config
+2026-09-30T20:15:14.8290123Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-80dbba1e-875c-40e8-a1cd-5e89100f8345.config
+2026-09-30T20:15:14.8329766Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-80dbba1e-875c-40e8-a1cd-5e89100f8345.config
+2026-09-30T20:15:14.8365632Z ##[endgroup]
+2026-09-30T20:15:14.8367073Z ##[group]Fetching the repository
+2026-09-30T20:15:14.8374032Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +58c672b3aefd70a6b2dd455b69dd31de19573c4f:refs/remotes/origin/ci/k8s-e2e
+2026-09-30T20:15:15.1535796Z From https://github.com/Aeripsen/ledgersentry
+2026-09-30T20:15:15.1537987Z  * [new ref]         58c672b3aefd70a6b2dd455b69dd31de19573c4f -> origin/ci/k8s-e2e
+2026-09-30T20:15:15.1547900Z [command]/usr/bin/git branch --list --remote origin/ci/k8s-e2e
+2026-09-30T20:15:15.1585816Z   origin/ci/k8s-e2e
+2026-09-30T20:15:15.1596446Z [command]/usr/bin/git rev-parse refs/remotes/origin/ci/k8s-e2e
+2026-09-30T20:15:15.1632739Z 58c672b3aefd70a6b2dd455b69dd31de19573c4f
+2026-09-30T20:15:15.1645806Z ##[endgroup]
+2026-09-30T20:15:15.1648285Z ##[group]Determining the checkout info
+2026-09-30T20:15:15.1650673Z ##[endgroup]
+2026-09-30T20:15:15.1652469Z [command]/usr/bin/git sparse-checkout disable
+2026-09-30T20:15:15.1712346Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-09-30T20:15:15.1753604Z ##[group]Checking out the ref
+2026-09-30T20:15:15.1758100Z [command]/usr/bin/git checkout --progress --force -B ci/k8s-e2e refs/remotes/origin/ci/k8s-e2e
+2026-09-30T20:15:15.1892366Z Switched to a new branch 'ci/k8s-e2e'
+2026-09-30T20:15:15.1897891Z branch 'ci/k8s-e2e' set up to track 'origin/ci/k8s-e2e'.
+2026-09-30T20:15:15.1905762Z ##[endgroup]
+2026-09-30T20:15:15.1959486Z [command]/usr/bin/git log -1 --format=%H
+2026-09-30T20:15:15.1990789Z 58c672b3aefd70a6b2dd455b69dd31de19573c4f
+2026-09-30T20:15:15.2357224Z ##[group]Run helm/kind-action@v1.15.0
+2026-09-30T20:15:15.2358303Z with:
+2026-09-30T20:15:15.2358983Z   version: v0.33.0
+2026-09-30T20:15:15.2359737Z   install_only: true
+2026-09-30T20:15:15.2360529Z   cluster_name: chart-testing
+2026-09-30T20:15:15.2361632Z   wait: 60s
+2026-09-30T20:15:15.2362315Z   verbosity: 0
+2026-09-30T20:15:15.2363046Z   kubectl_version: v1.37.0
+2026-09-30T20:15:15.2363883Z   registry: false
+2026-09-30T20:15:15.2364631Z   registry_image: registry:2
+2026-09-30T20:15:15.2365522Z   registry_name: kind-registry
+2026-09-30T20:15:15.2366443Z   registry_port: 5000
+2026-09-30T20:15:15.2367301Z   registry_enable_delete: false
+2026-09-30T20:15:15.2368218Z   ignore_failed_clean: false
+2026-09-30T20:15:15.2369091Z   cloud_provider: false
+2026-09-30T20:15:15.2369865Z env:
+2026-09-30T20:15:15.2370533Z   TERRAFORM_VERSION: 1.16.4
+2026-09-30T20:15:15.2442852Z   KIND_VERSION: v0.33.0
+2026-09-30T20:15:15.2444368Z ##[endgroup]
+2026-09-30T20:15:15.2840397Z Installing kind...
+2026-09-30T20:15:15.2855796Z /opt/hostedtoolcache/kind/v0.33.0/amd64/kind/bin ~/work/ledgersentry/ledgersentry
+2026-09-30T20:15:15.5614043Z kind-linux-amd64: OK
+2026-09-30T20:15:15.5652464Z ~/work/ledgersentry/ledgersentry
+2026-09-30T20:15:15.5654208Z Adding kind directory to PATH...
+2026-09-30T20:15:15.5655278Z Installing kubectl...
+2026-09-30T20:15:15.5667808Z /opt/hostedtoolcache/kind/v0.33.0/amd64/kubectl/bin ~/work/ledgersentry/ledgersentry
+2026-09-30T20:15:16.1366811Z kubectl: OK
+2026-09-30T20:15:16.1382060Z ~/work/ledgersentry/ledgersentry
+2026-09-30T20:15:16.1383148Z Adding kubectl directory to PATH...
+2026-09-30T20:15:16.1407704Z kind v0.33.0 go1.26.7 linux/amd64
+2026-09-30T20:15:16.1757576Z Client Version: v1.37.0
+2026-09-30T20:15:16.1762291Z Kustomize Version: v5.8.1
+2026-09-30T20:15:16.1876161Z ##[group]Run bash scripts/k8s_e2e.sh
+2026-09-30T20:15:16.1876852Z [36;1mbash scripts/k8s_e2e.sh[0m
+2026-09-30T20:15:16.2129994Z shell: /usr/bin/bash -e {0}
+2026-09-30T20:15:16.2130658Z env:
+2026-09-30T20:15:16.2131210Z   TERRAFORM_VERSION: 1.16.4
+2026-09-30T20:15:16.2132035Z   KIND_VERSION: v0.33.0
+2026-09-30T20:15:16.2132614Z ##[endgroup]
+2026-09-30T20:15:16.2381131Z [20:15:16] build image ledgersentry:ci
+2026-09-30T20:15:57.1912734Z sha256:6c8b5dd99505216a5e8d38cc7aeca1d84eb3390bf481ae08da229e75daa21a33
+2026-09-30T20:15:57.9803610Z docker.io/grafana/k6:2.3.0
+2026-09-30T20:15:58.0104856Z [20:15:58] create kind cluster ledgersentry
+2026-09-30T20:15:58.2045450Z Creating cluster "ledgersentry" ...
+2026-09-30T20:15:58.2046328Z  • Ensuring node image (kindest/node:v1.37.0) 🖼️  ...
+2026-09-30T20:16:05.8770724Z  ✓ Ensuring node image (kindest/node:v1.37.0) 🖼️
+2026-09-30T20:16:05.8771779Z  • Preparing nodes 📦   ...
+2026-09-30T20:16:07.8968576Z  ✓ Preparing nodes 📦 
+2026-09-30T20:16:07.9256291Z  • Writing configuration 📜  ...
+2026-09-30T20:16:08.1160895Z  ✓ Writing configuration 📜
+2026-09-30T20:16:08.1161323Z  • Starting control-plane 🕹️  ...
+2026-09-30T20:16:16.1275553Z  ✓ Starting control-plane 🕹️
+2026-09-30T20:16:16.1276334Z  • Installing CNI 🔌  ...
+2026-09-30T20:16:16.4502452Z  ✓ Installing CNI 🔌
+2026-09-30T20:16:16.4503114Z  • Installing StorageClass 💾  ...
+2026-09-30T20:16:16.7849706Z  ✓ Installing StorageClass 💾
+2026-09-30T20:16:16.8142715Z  • Waiting ≤ 2m0s for control-plane = Ready ⏳  ...
+2026-09-30T20:16:33.4457372Z  ✓ Waiting ≤ 2m0s for control-plane = Ready ⏳
+2026-09-30T20:16:33.4458190Z  • Ready after 17s 💚
+2026-09-30T20:16:33.5969001Z Set kubectl context to "kind-ledgersentry"
+2026-09-30T20:16:33.5969630Z You can now use your cluster with:
+2026-09-30T20:16:33.5970083Z 
+2026-09-30T20:16:33.5970551Z kubectl cluster-info --context kind-ledgersentry
+2026-09-30T20:16:33.5970918Z 
+2026-09-30T20:16:33.5972055Z Thanks for using kind! 😊
+2026-09-30T20:16:33.6353387Z Switched to context "kind-ledgersentry".
+2026-09-30T20:16:33.9196487Z Image: "ledgersentry:ci" with ID "sha256:6c8b5dd99505216a5e8d38cc7aeca1d84eb3390bf481ae08da229e75daa21a33" not yet present on node "ledgersentry-control-plane", loading...
+2026-09-30T20:16:34.1274233Z Image: "grafana/k6:2.3.0" with ID "sha256:bfa9adb4f73593aaa9647cd339ecd5e6103827bce63267618a4ec51d5db56f72" not yet present on node "ledgersentry-control-plane", loading...
+2026-09-30T20:16:56.6385965Z [20:16:56] install metrics-server v0.9.0
+2026-09-30T20:16:56.8827351Z serviceaccount/metrics-server created
+2026-09-30T20:16:56.8865415Z clusterrole.rbac.authorization.k8s.io/system:aggregated-metrics-reader created
+2026-09-30T20:16:56.8932875Z clusterrole.rbac.authorization.k8s.io/system:metrics-server created
+2026-09-30T20:16:56.9035307Z rolebinding.rbac.authorization.k8s.io/metrics-server-auth-reader created
+2026-09-30T20:16:56.9078881Z clusterrolebinding.rbac.authorization.k8s.io/metrics-server:system:auth-delegator created
+2026-09-30T20:16:56.9114445Z clusterrolebinding.rbac.authorization.k8s.io/system:metrics-server created
+2026-09-30T20:16:56.9195227Z service/metrics-server created
+2026-09-30T20:16:56.9287356Z deployment.apps/metrics-server created
+2026-09-30T20:16:56.9362844Z apiservice.apiregistration.k8s.io/v1beta1.metrics.k8s.io created
+2026-09-30T20:16:57.0257635Z deployment.apps/metrics-server patched
+2026-09-30T20:16:57.0997888Z Waiting for deployment "metrics-server" rollout to finish: 1 old replicas are pending termination...
+2026-09-30T20:17:20.3394847Z Waiting for deployment "metrics-server" rollout to finish: 1 old replicas are pending termination...
+2026-09-30T20:17:20.3579521Z Waiting for deployment "metrics-server" rollout to finish: 1 old replicas are pending termination...
+2026-09-30T20:17:20.3727070Z deployment "metrics-server" successfully rolled out
+2026-09-30T20:17:20.3767403Z [20:17:20] apply deploy/k8s/overlays/kind
+2026-09-30T20:17:20.6305772Z namespace/ledgersentry created
+2026-09-30T20:17:20.6369785Z configmap/ledgersentry-config created
+2026-09-30T20:17:20.6440077Z service/ledgersentry created
+2026-09-30T20:17:20.6524294Z deployment.apps/ledgersentry created
+2026-09-30T20:17:20.6601645Z poddisruptionbudget.policy/ledgersentry created
+2026-09-30T20:17:20.6771835Z horizontalpodautoscaler.autoscaling/ledgersentry created
+2026-09-30T20:17:20.7603433Z Waiting for deployment "ledgersentry" rollout to finish: 0 of 2 updated replicas are available...
+2026-09-30T20:17:26.4109333Z Waiting for deployment "ledgersentry" rollout to finish: 1 of 2 updated replicas are available...
+2026-09-30T20:17:26.4910333Z deployment "ledgersentry" successfully rolled out
+2026-09-30T20:17:26.5616458Z Warning: v1 Endpoints is deprecated in v1.33+; use discovery.k8s.io/v1 EndpointSlice
+2026-09-30T20:17:26.5677990Z NAME                           READY   UP-TO-DATE   AVAILABLE   AGE   CONTAINERS   IMAGES            SELECTOR
+2026-09-30T20:17:26.5681729Z deployment.apps/ledgersentry   2/2     2            2           6s    api          ledgersentry:ci   app=ledgersentry
+2026-09-30T20:17:26.5682711Z 
+2026-09-30T20:17:26.5683140Z NAME                                      DESIRED   CURRENT   READY   AGE   CONTAINERS   IMAGES            SELECTOR
+2026-09-30T20:17:26.5684438Z replicaset.apps/ledgersentry-7fc6585cf4   2         2         2       6s    api          ledgersentry:ci   app=ledgersentry,pod-template-hash=7fc6585cf4
+2026-09-30T20:17:26.5685770Z 
+2026-09-30T20:17:26.5686468Z NAME                                READY   STATUS    RESTARTS   AGE   IP           NODE                         NOMINATED NODE   READINESS GATES
+2026-09-30T20:17:26.5687862Z pod/ledgersentry-7fc6585cf4-p5vwj   1/1     Running   0          6s    10.244.0.8   ledgersentry-control-plane   <none>           <none>
+2026-09-30T20:17:26.5689345Z pod/ledgersentry-7fc6585cf4-tqzhl   1/1     Running   0          6s    10.244.0.7   ledgersentry-control-plane   <none>           <none>
+2026-09-30T20:17:26.5690157Z 
+2026-09-30T20:17:26.5690524Z NAME                   TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE   SELECTOR
+2026-09-30T20:17:26.5691662Z service/ledgersentry   ClusterIP   10.96.130.155   <none>        80/TCP    6s    app=ledgersentry
+2026-09-30T20:17:26.5692303Z 
+2026-09-30T20:17:26.5692749Z NAME                     ENDPOINTS                         AGE
+2026-09-30T20:17:26.5693356Z endpoints/ledgersentry   10.244.0.7:8000,10.244.0.8:8000   6s
+2026-09-30T20:17:26.5694039Z 
+2026-09-30T20:17:26.5694202Z NAME                            DATA   AGE
+2026-09-30T20:17:26.5694659Z configmap/kube-root-ca.crt      1      6s
+2026-09-30T20:17:26.5695433Z configmap/ledgersentry-config   4      6s
+2026-09-30T20:17:26.5695749Z 
+2026-09-30T20:17:26.5696452Z NAME                                               REFERENCE                 TARGETS              MINPODS   MAXPODS   REPLICAS   AGE
+2026-09-30T20:17:26.5698045Z horizontalpodautoscaler.autoscaling/ledgersentry   Deployment/ledgersentry   cpu: <unknown>/70%   2         5         2          6s
+2026-09-30T20:17:26.5699162Z 
+2026-09-30T20:17:26.5699518Z NAME                                      MIN AVAILABLE   MAX UNAVAILABLE   ALLOWED DISRUPTIONS   AGE
+2026-09-30T20:17:26.5700703Z poddisruptionbudget.policy/ledgersentry   1               N/A               1                     6s
+2026-09-30T20:17:26.5739744Z [20:17:26] smoke test through the Service
+2026-09-30T20:17:27.6098767Z {"status":"ok","model":"loaded","version":"0.1.0"}
+2026-09-30T20:17:27.6209565Z {"status":"ready","version":"0.1.0","expected_features":5}
+2026-09-30T20:17:27.6347766Z {"decision":"legit","p_fraud":0.0002,"confidence":0.9998,"missing_fields":["f_entity_daily_tx_count"],"latency_ms":2.403}
+2026-09-30T20:17:27.9740053Z [20:17:27] PID 1: /usr/local/bin/python3.12 /usr/local/bin/uvicorn ledgersentry.service:app --host 0.0.0.0 --port 8000    uid=10001(app) gid=999(app) groups=999(app)
+2026-09-30T20:17:27.9752664Z [20:17:27] wait for metrics-server to report pod CPU
+2026-09-30T20:17:48.3062540Z NAME                            CPU(cores)   MEMORY(bytes)   
+2026-09-30T20:17:48.3063689Z ledgersentry-7fc6585cf4-p5vwj   2m           140Mi           
+2026-09-30T20:17:48.3064302Z ledgersentry-7fc6585cf4-tqzhl   2m           138Mi           
+2026-09-30T20:17:48.4262770Z configmap/k6-script created
+2026-09-30T20:17:48.4297948Z [20:17:48] phase 1: steady load, 16 VUs for 90s
+2026-09-30T20:17:48.4984699Z job.batch/k6-steady created
+2026-09-30T20:17:49.0230911Z pod/k6-steady-5ch6z condition met
+2026-09-30T20:19:21.6920311Z job.batch/k6-steady condition met
+2026-09-30T20:19:21.7607174Z K6_SUMMARY {"phase":"steady","vus":16,"duration":"90s","requests":21547,"req_per_s":239.22252155663395,"latency_ms":{"avg":66.54188397447507,"p50":56.288892,"p95":142.33909450000002,"p99":170.64694502000003,"max":244.128057},"ok_2xx":21547,"failed_5xx":0,"failed_other_status":0,"failed_connection":0}
+2026-09-30T20:19:21.8108664Z NAME                            CPU(cores)   MEMORY(bytes)   
+2026-09-30T20:19:21.8122548Z ledgersentry-7fc6585cf4-6dtrm   2m           138Mi           
+2026-09-30T20:19:21.8123419Z ledgersentry-7fc6585cf4-7vmq8   2m           138Mi           
+2026-09-30T20:19:21.8124118Z ledgersentry-7fc6585cf4-7zgx8   2m           138Mi           
+2026-09-30T20:19:21.8130120Z ledgersentry-7fc6585cf4-p5vwj   1000m        142Mi           
+2026-09-30T20:19:21.8131316Z ledgersentry-7fc6585cf4-tqzhl   1000m        140Mi           
+2026-09-30T20:19:21.8148764Z [20:19:21] phase 2: rolling restart 15 s into 120s of load
+2026-09-30T20:19:21.9416256Z job.batch/k6-restart created
+2026-09-30T20:19:22.4613999Z pod/k6-restart-qn84s condition met
+2026-09-30T20:19:37.5708124Z deployment.apps/ledgersentry restarted
+2026-09-30T20:19:37.7739408Z Waiting for deployment "ledgersentry" rollout to finish: 1 out of 5 new replicas have been updated...
+2026-09-30T20:19:44.0467055Z Waiting for deployment "ledgersentry" rollout to finish: 1 out of 5 new replicas have been updated...
+2026-09-30T20:19:44.1382471Z Waiting for deployment "ledgersentry" rollout to finish: 1 out of 5 new replicas have been updated...
+2026-09-30T20:19:44.1611615Z Waiting for deployment "ledgersentry" rollout to finish: 2 out of 5 new replicas have been updated...
+2026-09-30T20:19:50.3340800Z Waiting for deployment "ledgersentry" rollout to finish: 2 out of 5 new replicas have been updated...
+2026-09-30T20:19:52.1008420Z Waiting for deployment "ledgersentry" rollout to finish: 2 out of 5 new replicas have been updated...
+2026-09-30T20:19:52.2764752Z Waiting for deployment "ledgersentry" rollout to finish: 2 out of 5 new replicas have been updated...
+2026-09-30T20:19:52.3229057Z Waiting for deployment "ledgersentry" rollout to finish: 3 out of 5 new replicas have been updated...
+2026-09-30T20:19:57.9898018Z Waiting for deployment "ledgersentry" rollout to finish: 3 out of 5 new replicas have been updated...
+2026-09-30T20:19:59.2043675Z Waiting for deployment "ledgersentry" rollout to finish: 3 out of 5 new replicas have been updated...
+2026-09-30T20:19:59.3416389Z Waiting for deployment "ledgersentry" rollout to finish: 3 out of 5 new replicas have been updated...
+2026-09-30T20:19:59.4086385Z Waiting for deployment "ledgersentry" rollout to finish: 4 out of 5 new replicas have been updated...
+2026-09-30T20:20:05.3512470Z Waiting for deployment "ledgersentry" rollout to finish: 4 out of 5 new replicas have been updated...
+2026-09-30T20:20:06.1851760Z Waiting for deployment "ledgersentry" rollout to finish: 4 out of 5 new replicas have been updated...
+2026-09-30T20:20:06.2958614Z Waiting for deployment "ledgersentry" rollout to finish: 4 out of 5 new replicas have been updated...
+2026-09-30T20:20:06.3121490Z Waiting for deployment "ledgersentry" rollout to finish: 1 old replicas are pending termination...
+2026-09-30T20:20:12.2913649Z Waiting for deployment "ledgersentry" rollout to finish: 1 old replicas are pending termination...
+2026-09-30T20:20:13.1789502Z Waiting for deployment "ledgersentry" rollout to finish: 1 old replicas are pending termination...
+2026-09-30T20:20:13.2661216Z deployment "ledgersentry" successfully rolled out
+2026-09-30T20:21:25.1284783Z job.batch/k6-restart condition met
+2026-09-30T20:21:25.1939348Z K6_SUMMARY {"phase":"restart","vus":16,"duration":"120s","requests":71629,"req_per_s":596.8541677382998,"latency_ms":{"avg":25.833511980077624,"p50":21.619963,"p95":58.768619599999866,"p99":82.65827744000003,"max":241.26568},"ok_2xx":71629,"failed_5xx":0,"failed_other_status":0,"failed_connection":0}
+2026-09-30T20:21:25.4910556Z [20:21:25] write report
+2026-09-30T20:21:25.5280461Z {
+2026-09-30T20:21:25.5280788Z   "deploy": {
+2026-09-30T20:21:25.5281293Z     "initial_rollout_seconds": 6,
+2026-09-30T20:21:25.5282044Z     "ready": {
+2026-09-30T20:21:25.5282485Z       "status": "ready",
+2026-09-30T20:21:25.5282865Z       "version": "0.1.0",
+2026-09-30T20:21:25.5284608Z       "expected_features": 5
+2026-09-30T20:21:25.5285253Z     },
+2026-09-30T20:21:25.5285705Z     "predict_example": {
+2026-09-30T20:21:25.5286456Z       "decision": "legit",
+2026-09-30T20:21:25.5286865Z       "p_fraud": 0.0002,
+2026-09-30T20:21:25.5287263Z       "confidence": 0.9998,
+2026-09-30T20:21:25.5287692Z       "missing_fields": [
+2026-09-30T20:21:25.5288111Z         "f_entity_daily_tx_count"
+2026-09-30T20:21:25.5288538Z       ],
+2026-09-30T20:21:25.5288861Z       "latency_ms": 2.403
+2026-09-30T20:21:25.5289241Z     },
+2026-09-30T20:21:25.5289905Z     "pid1": "/usr/local/bin/python3.12 /usr/local/bin/uvicorn ledgersentry.service:app --host 0.0.0.0 --port 8000",
+2026-09-30T20:21:25.5290588Z     "runs_as": "uid=10001(app) gid=999(app) groups=999(app)",
+2026-09-30T20:21:25.5291009Z     "configmap_max_batch": 2000,
+2026-09-30T20:21:25.5291309Z     "max_batch_seen_in_openapi": 2000,
+2026-09-30T20:21:25.5291978Z     "configmap_reaches_process": true
+2026-09-30T20:21:25.5292274Z   },
+2026-09-30T20:21:25.5292479Z   "load_steady": {
+2026-09-30T20:21:25.5292717Z     "phase": "steady",
+2026-09-30T20:21:25.5292956Z     "vus": 16,
+2026-09-30T20:21:25.5293190Z     "duration": "90s",
+2026-09-30T20:21:25.5293430Z     "requests": 21547,
+2026-09-30T20:21:25.5293668Z     "req_per_s": 239.2,
+2026-09-30T20:21:25.5293918Z     "latency_ms": {
+2026-09-30T20:21:25.5294150Z       "avg": 66.54,
+2026-09-30T20:21:25.5294373Z       "p50": 56.29,
+2026-09-30T20:21:25.5294596Z       "p95": 142.34,
+2026-09-30T20:21:25.5294823Z       "p99": 170.65,
+2026-09-30T20:21:25.5295018Z       "max": 244.13
+2026-09-30T20:21:25.5295193Z     },
+2026-09-30T20:21:25.5295360Z     "ok_2xx": 21547,
+2026-09-30T20:21:25.5295544Z     "failed_5xx": 0,
+2026-09-30T20:21:25.5295744Z     "failed_other_status": 0,
+2026-09-30T20:21:25.5295970Z     "failed_connection": 0,
+2026-09-30T20:21:25.5296198Z     "failed_total": 0
+2026-09-30T20:21:25.5296393Z   },
+2026-09-30T20:21:25.5296577Z   "load_during_rolling_restart": {
+2026-09-30T20:21:25.5296817Z     "phase": "restart",
+2026-09-30T20:21:25.5297012Z     "vus": 16,
+2026-09-30T20:21:25.5297195Z     "duration": "120s",
+2026-09-30T20:21:25.5297398Z     "requests": 71629,
+2026-09-30T20:21:25.5297589Z     "req_per_s": 596.9,
+2026-09-30T20:21:25.5297781Z     "latency_ms": {
+2026-09-30T20:21:25.5297969Z       "avg": 25.83,
+2026-09-30T20:21:25.5298147Z       "p50": 21.62,
+2026-09-30T20:21:25.5298322Z       "p95": 58.77,
+2026-09-30T20:21:25.5298496Z       "p99": 82.66,
+2026-09-30T20:21:25.5298672Z       "max": 241.27
+2026-09-30T20:21:25.5298849Z     },
+2026-09-30T20:21:25.5299015Z     "ok_2xx": 71629,
+2026-09-30T20:21:25.5299200Z     "failed_5xx": 0,
+2026-09-30T20:21:25.5299396Z     "failed_other_status": 0,
+2026-09-30T20:21:25.5299624Z     "failed_connection": 0,
+2026-09-30T20:21:25.5299839Z     "failed_total": 0,
+2026-09-30T20:21:25.5300040Z     "rolling_restart": {
+2026-09-30T20:21:25.5300259Z       "started_seconds_into_load": 15,
+2026-09-30T20:21:25.5300511Z       "rollout_seconds": 36,
+2026-09-30T20:21:25.5300751Z       "finished_before_load_ended": true,
+2026-09-30T20:21:25.5301039Z       "pods_before": [
+2026-09-30T20:21:25.5301353Z         "ledgersentry-7fc6585cf4-6dtrm",
+2026-09-30T20:21:25.5301869Z         "ledgersentry-7fc6585cf4-7vmq8",
+2026-09-30T20:21:25.5302136Z         "ledgersentry-7fc6585cf4-7zgx8",
+2026-09-30T20:21:25.5302563Z         "ledgersentry-7fc6585cf4-p5vwj",
+2026-09-30T20:21:25.5302836Z         "ledgersentry-7fc6585cf4-tqzhl"
+2026-09-30T20:21:25.5303074Z       ],
+2026-09-30T20:21:25.5303242Z       "pods_after": [
+2026-09-30T20:21:25.5303454Z         "ledgersentry-795c94cbbf-hmdgr",
+2026-09-30T20:21:25.5303729Z         "ledgersentry-795c94cbbf-qrtm9",
+2026-09-30T20:21:25.5303985Z         "ledgersentry-795c94cbbf-r9gjt",
+2026-09-30T20:21:25.5304244Z         "ledgersentry-795c94cbbf-wpt4l",
+2026-09-30T20:21:25.5304516Z         "ledgersentry-795c94cbbf-z6hmv"
+2026-09-30T20:21:25.5304759Z       ],
+2026-09-30T20:21:25.5304941Z       "every_pod_replaced": true
+2026-09-30T20:21:25.5305251Z     }
+2026-09-30T20:21:25.5305410Z   }
+2026-09-30T20:21:25.5305567Z }
+2026-09-30T20:21:27.6035269Z ##[group]Run actions/upload-artifact@v7
+2026-09-30T20:21:27.6035738Z with:
+2026-09-30T20:21:27.6035929Z   name: k8s-kind-run
+2026-09-30T20:21:27.6036191Z   path: k8s-run/
+artifacts/k8s_kind_ledgersentry.json
+
+2026-09-30T20:21:27.6036500Z   if-no-files-found: warn
+2026-09-30T20:21:27.6036720Z   compression-level: 6
+2026-09-30T20:21:27.6036930Z   overwrite: false
+2026-09-30T20:21:27.6037135Z   include-hidden-files: false
+2026-09-30T20:21:27.6037358Z   archive: true
+2026-09-30T20:21:27.6037536Z env:
+2026-09-30T20:21:27.6037717Z   TERRAFORM_VERSION: 1.16.4
+2026-09-30T20:21:27.6037936Z   KIND_VERSION: v0.33.0
+2026-09-30T20:21:27.6038135Z ##[endgroup]
+2026-09-30T20:21:27.7553536Z Multiple search paths detected. Calculating the least common ancestor of all paths
+2026-09-30T20:21:27.7556310Z The least common ancestor is /home/runner/work/ledgersentry/ledgersentry. This will be the root directory of the artifact
+2026-09-30T20:21:27.7557663Z With the provided path, there will be 17 files uploaded
+2026-09-30T20:21:27.7563628Z Artifact name is valid!
+2026-09-30T20:21:27.7564344Z Root directory input is valid!
+2026-09-30T20:21:27.9496357Z Uploading artifact: k8s-kind-run.zip
+2026-09-30T20:21:27.9545245Z Beginning upload of artifact content to blob storage
+2026-09-30T20:21:28.0418059Z Uploaded bytes 7890
+2026-09-30T20:21:28.0532066Z Finished uploading artifact content to blob storage!
+2026-09-30T20:21:28.0533439Z SHA256 digest of uploaded artifact is 98a4620113528e2f4887391b61557d18b2a7171af74dc98a7f5d83a8744df8c1
+2026-09-30T20:21:28.0534387Z Finalizing artifact upload
+2026-09-30T20:21:28.2909784Z Artifact k8s-kind-run successfully finalized. Artifact ID 11124202092
+2026-09-30T20:21:28.2910847Z Artifact k8s-kind-run has been successfully uploaded! Final size is 7890 bytes. Artifact ID is 11124202092
+2026-09-30T20:21:28.2915129Z Artifact download URL: https://github.com/Aeripsen/ledgersentry/actions/runs/36770455800/artifacts/11124202092
+2026-09-30T20:21:28.3088957Z Post job cleanup.
+2026-09-30T20:21:28.3503893Z Error response from daemon: No such container: kind-registry
+2026-09-30T20:21:28.3652372Z Deleting cluster "chart-testing" ...
+2026-09-30T20:21:28.3888222Z Post job cleanup.
+2026-09-30T20:21:28.4772565Z [command]/usr/bin/git version
+2026-09-30T20:21:28.4830159Z git version 2.55.0
+2026-09-30T20:21:28.4883898Z Temporarily overriding HOME='/home/runner/work/_temp/07e2f069-bab1-4a9e-bafd-cd8237987879' before making global git config changes
+2026-09-30T20:21:28.4885402Z Adding repository directory to the temporary git global config as a safe directory
+2026-09-30T20:21:28.4890228Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/ledgersentry/ledgersentry
+2026-09-30T20:21:28.4927669Z Removing SSH command configuration
+2026-09-30T20:21:28.4936367Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-09-30T20:21:28.4976344Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-09-30T20:21:28.5236238Z Removing HTTP extra header
+2026-09-30T20:21:28.5243232Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-30T20:21:28.5288527Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-09-30T20:21:28.5554465Z Removing includeIf entries pointing to credentials config files
+2026-09-30T20:21:28.5564838Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-30T20:21:28.5600227Z includeif.gitdir:/home/runner/work/ledgersentry/ledgersentry/.git.path
+2026-09-30T20:21:28.5603089Z includeif.gitdir:/home/runner/work/ledgersentry/ledgersentry/.git/worktrees/*.path
+2026-09-30T20:21:28.5604994Z includeif.gitdir:/github/workspace/.git.path
+2026-09-30T20:21:28.5606407Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-09-30T20:21:28.5626213Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/ledgersentry/ledgersentry/.git.path
+2026-09-30T20:21:28.5655373Z /home/runner/work/_temp/git-credentials-80dbba1e-875c-40e8-a1cd-5e89100f8345.config
+2026-09-30T20:21:28.5675804Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/ledgersentry/ledgersentry/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-80dbba1e\-875c\-40e8\-a1cd\-5e89100f8345\.config
+2026-09-30T20:21:28.5720950Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/ledgersentry/ledgersentry/.git/worktrees/*.path
+2026-09-30T20:21:28.5762857Z /home/runner/work/_temp/git-credentials-80dbba1e-875c-40e8-a1cd-5e89100f8345.config
+2026-09-30T20:21:28.5817027Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/ledgersentry/ledgersentry/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-80dbba1e\-875c\-40e8\-a1cd\-5e89100f8345\.config
+2026-09-30T20:21:28.5847860Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-09-30T20:21:28.5879039Z /github/runner_temp/git-credentials-80dbba1e-875c-40e8-a1cd-5e89100f8345.config
+2026-09-30T20:21:28.5890418Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-80dbba1e\-875c\-40e8\-a1cd\-5e89100f8345\.config
+2026-09-30T20:21:28.5933588Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-09-30T20:21:28.5981841Z /github/runner_temp/git-credentials-80dbba1e-875c-40e8-a1cd-5e89100f8345.config
+2026-09-30T20:21:28.6004598Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-80dbba1e\-875c\-40e8\-a1cd\-5e89100f8345\.config
+2026-09-30T20:21:28.6044610Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-09-30T20:21:28.6312362Z Removing credentials config '/home/runner/work/_temp/git-credentials-80dbba1e-875c-40e8-a1cd-5e89100f8345.config'
+2026-09-30T20:21:28.6480265Z Cleaning up orphan processes
+2026-09-30T20:21:28.7225201Z Terminate orphan process: pid (12408) (kubectl)

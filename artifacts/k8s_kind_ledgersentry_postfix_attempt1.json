@@ -1,0 +1,86 @@
+{
+  "source": "Run 36770455800 attempt 1, job kind-e2e. The 'report' block is the JSON that scripts/k8s_report.py printed to the job log (timestamps stripped), copied verbatim. The raw log is artifacts/ci_logs/k8s_kind_ledgersentry_postfix_attempt1.log.",
+  "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36770455800/attempts/1",
+  "report": {
+    "deploy": {
+      "initial_rollout_seconds": 6,
+      "ready": {
+        "status": "ready",
+        "version": "0.1.0",
+        "expected_features": 5
+      },
+      "predict_example": {
+        "decision": "legit",
+        "p_fraud": 0.0002,
+        "confidence": 0.9998,
+        "missing_fields": [
+          "f_entity_daily_tx_count"
+        ],
+        "latency_ms": 2.196
+      },
+      "pid1": "/usr/local/bin/python3.12 /usr/local/bin/uvicorn ledgersentry.service:app --host 0.0.0.0 --port 8000",
+      "runs_as": "uid=10001(app) gid=999(app) groups=999(app)",
+      "configmap_max_batch": 2000,
+      "max_batch_seen_in_openapi": 2000,
+      "configmap_reaches_process": true
+    },
+    "load_steady": {
+      "phase": "steady",
+      "vus": 16,
+      "duration": "90s",
+      "requests": 21507,
+      "req_per_s": 238.8,
+      "latency_ms": {
+        "avg": 66.61,
+        "p50": 62.57,
+        "p95": 115.17,
+        "p99": 144.5,
+        "max": 241.62
+      },
+      "ok_2xx": 21507,
+      "failed_5xx": 0,
+      "failed_other_status": 0,
+      "failed_connection": 0,
+      "failed_total": 0
+    },
+    "load_during_rolling_restart": {
+      "phase": "restart",
+      "vus": 16,
+      "duration": "120s",
+      "requests": 74490,
+      "req_per_s": 620.7,
+      "latency_ms": {
+        "avg": 24.85,
+        "p50": 23.21,
+        "p95": 52.13,
+        "p99": 74.08,
+        "max": 235.31
+      },
+      "ok_2xx": 74490,
+      "failed_5xx": 0,
+      "failed_other_status": 0,
+      "failed_connection": 0,
+      "failed_total": 0,
+      "rolling_restart": {
+        "started_seconds_into_load": 15,
+        "rollout_seconds": 36,
+        "finished_before_load_ended": true,
+        "pods_before": [
+          "ledgersentry-7fc6585cf4-8krkc",
+          "ledgersentry-7fc6585cf4-hmcxg",
+          "ledgersentry-7fc6585cf4-lh846",
+          "ledgersentry-7fc6585cf4-lhzjv",
+          "ledgersentry-7fc6585cf4-r7rnc"
+        ],
+        "pods_after": [
+          "ledgersentry-5576959f9b-4842x",
+          "ledgersentry-5576959f9b-lzprh",
+          "ledgersentry-5576959f9b-ssvcl",
+          "ledgersentry-5576959f9b-ttjjm",
+          "ledgersentry-5576959f9b-xqhtp"
+        ],
+        "every_pod_replaced": true
+      }
+    }
+  }
+}

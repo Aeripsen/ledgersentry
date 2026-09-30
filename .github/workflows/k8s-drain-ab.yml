@@ -1,0 +1,61 @@
+name: k8s-drain-ab
+
+# What is the connection drain (src/ledgersentry/drain.py) worth? Runs the whole
+# of scripts/k8s_e2e.sh, rolling restart under load included, REPS times with
+# the drain and REPS times with DRAIN=off (preStop back to a plain `sleep 5`),
+# each on its own fresh runner and kind cluster, then counts failed requests
+# per run with scripts/k8s_drain_ab.py. Manual only: 12 jobs of about 7 minutes.
+# The summary is committed as artifacts/k8s_drain_ab_ledgersentry.json.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  KIND_VERSION: "v0.33.0"
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        drain: ["on", "off"]
+        rep: [1, 2, 3, 4, 5, 6]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: helm/kind-action@v1.15.0
+        with:
+          version: ${{ env.KIND_VERSION }}
+          install_only: true
+      - name: k8s_e2e.sh, drain ${{ matrix.drain }}, rep ${{ matrix.rep }}
+        env:
+          DRAIN: ${{ matrix.drain }}
+          GATE: "0"
+          ARTIFACT: k8s-run/report.json
+        run: bash scripts/k8s_e2e.sh
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: ab-${{ matrix.drain }}-${{ matrix.rep }}
+          path: k8s-run/
+
+  summary:
+    needs: run
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: ab-*
+          path: ab
+      - name: Failed requests per run, with and without the drain
+        run: python3 scripts/k8s_drain_ab.py ab --app ledgersentry --out artifacts/k8s_drain_ab_ledgersentry.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: drain-ab-summary
+          path: artifacts/k8s_drain_ab_ledgersentry.json

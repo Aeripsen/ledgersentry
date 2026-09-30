@@ -10,10 +10,20 @@
 # 3. wait for the rollout (every pod passed /ready), smoke-test /health, /ready,
 #    /predict through the Service, check the ConfigMap value reached the process,
 #    record PID 1 and the uid the container runs as
-# 4. steady load: k6 in-cluster against the Service, while logging HPA replicas
-# 5. rolling restart DURING load: count every failed request
-# 6. scripts/k8s_report.py writes artifacts/k8s_kind_<app>.json and exits 1 if
-#    any request failed
+# 4. PodDisruptionBudget: with 2 pods up, evict one through the Eviction API
+#    (allowed), then the other straight away (must be refused, minAvailable: 1)
+# 5. steady load: k6 in-cluster against the Service, while logging HPA replicas;
+#    afterwards count the requests each pod served (uvicorn access log)
+# 6. rolling restart DURING load: a fresh k6 run, restart RESTART_AFTER s into it,
+#    count every failed request; per-pod counts are taken again just before the
+#    restart, and k6 reports requests per 10 s so the report can compare the
+#    window before the restart with the windows during and after it
+# 7. scripts/k8s_report.py writes the artifact and exits 1 if any request failed
+#    or any check above did not hold (GATE=0 records without failing, for the
+#    drain A/B in .github/workflows/k8s-drain-ab.yml)
+#
+# DRAIN=off replaces the preStop hook with the old plain `sleep 5` (no drain
+# file, so no `Connection: close`), to measure what the drain is worth.
 #
 # Everything here is a kind cluster on one machine. The numbers describe that
 # machine under synthetic load, nothing more.
@@ -26,7 +36,10 @@ OUT=${OUT:-k8s-run}
 VUS=${VUS:-16}
 STEADY=${STEADY:-90s}
 RESTART=${RESTART:-120s}
-RESTART_AFTER=${RESTART_AFTER:-15}
+RESTART_AFTER=${RESTART_AFTER:-30}
+DRAIN=${DRAIN:-on}
+GATE=${GATE:-1}
+ARTIFACT=${ARTIFACT:-artifacts/k8s_kind_$APP.json}
 METRICS_SERVER=${METRICS_SERVER:-v0.9.0}
 K6_IMAGE=grafana/k6:2.3.0
 
@@ -41,6 +54,7 @@ kn() { kubectl -n "$NS" "$@"; }
   echo "kind_version=$(kind version | awk '{print $2}')"
   echo "run_url=${GITHUB_SERVER_URL:-}/${GITHUB_REPOSITORY:-}/actions/runs/${GITHUB_RUN_ID:-}"
   echo "git_sha=$(git rev-parse HEAD)"
+  echo "drain=$DRAIN"
 } > "$OUT/env.txt"
 
 log "build image $APP:ci"
@@ -65,6 +79,11 @@ kubectl -n kube-system rollout status deploy/metrics-server --timeout=180s
 log "apply deploy/k8s/overlays/kind"
 t0=$(now)
 kubectl apply -k deploy/k8s/overlays/kind
+if [ "$DRAIN" = off ]; then
+  log "DRAIN=off: preStop is a plain sleep 5, as before drain.py existed"
+  kn patch deploy "$APP" --type=json -p \
+    '[{"op":"replace","path":"/spec/template/spec/containers/0/lifecycle/preStop/exec/command","value":["sh","-c","sleep 5"]}]'
+fi
 kn rollout status "deploy/$APP" --timeout=300s
 echo "rollout_seconds=$(( $(now) - t0 ))" >> "$OUT/times.env"
 kn get deploy,rs,pod,svc,endpoints,cm,hpa,pdb -o wide | tee "$OUT/objects.txt"
@@ -85,6 +104,26 @@ POD=$(kn get pod -l "app=$APP" -o jsonpath='{.items[0].metadata.name}')
 kn exec "$POD" -- cat /proc/1/cmdline | tr '\0' ' ' > "$OUT/pid1.txt"
 kn exec "$POD" -- id > "$OUT/id.txt"
 log "PID 1: $(cat "$OUT/pid1.txt")   $(cat "$OUT/id.txt")"
+
+log "PodDisruptionBudget: evict one of the 2 pods, then the other at once"
+kn wait --for=jsonpath='{.status.disruptionsAllowed}'=1 "pdb/$APP" --timeout=120s
+read -r P1 P2 _ <<< "$(kn get pod -l "app=$APP" -o jsonpath='{.items[*].metadata.name}')"
+evict() {
+  printf '{"apiVersion":"policy/v1","kind":"Eviction","metadata":{"name":"%s","namespace":"%s"}}' "$1" "$NS" \
+    | kubectl create --raw "/api/v1/namespaces/$NS/pods/$1/eviction" -f - 2>&1 | tr '\n' ' '
+  return "${PIPESTATUS[1]}"
+}
+first_rc=0; first_out=$(evict "$P1") || first_rc=$?
+second_rc=0; second_out=$(evict "$P2") || second_rc=$?
+{
+  echo "first_pod=$P1"; echo "first_rc=$first_rc"; echo "first_out=$first_out"
+  echo "second_pod=$P2"; echo "second_rc=$second_rc"; echo "second_out=$second_out"
+} | tee "$OUT/pdb.txt"
+kn rollout status "deploy/$APP" --timeout=180s
+for _ in $(seq 60); do
+  [ "$(kn get pod -l "app=$APP" -o jsonpath='{.items[*].metadata.name}' | wc -w)" -eq 2 ] && break
+  sleep 2
+done
 
 log "wait for metrics-server to report pod CPU"
 for _ in $(seq 60); do kn top pod > /dev/null 2>&1 && break; sleep 5; done
@@ -109,6 +148,11 @@ start_phase() {
   kn wait --for=jsonpath='{.status.phase}'=Running pod -l "job-name=k6-$1" --timeout=120s
   echo "$1_load_start=$(now)" >> "$OUT/times.env"
 }
+pod_requests() {  # "<pod> <POST /predict lines in its uvicorn access log>", running pods
+  for p in $(kn get pod -l "app=$APP" --field-selector=status.phase=Running -o jsonpath='{.items[*].metadata.name}'); do
+    echo "$p $(kn logs "$p" 2>/dev/null | grep -c '"POST /predict HTTP' || true)"
+  done
+}
 finish_phase() {
   kn wait --for=condition=complete "job/k6-$1" --timeout=900s
   echo "$1_load_end=$(now)" >> "$OUT/times.env"
@@ -120,11 +164,14 @@ log "phase 1: steady load, $VUS VUs for $STEADY"
 start_phase steady "$STEADY"
 finish_phase steady
 kn top pod | tee "$OUT/top.txt"
+pod_requests | tee "$OUT/pod_requests_steady_end.txt"
 
 log "phase 2: rolling restart $RESTART_AFTER s into $RESTART of load"
 kn get pod -l "app=$APP" -o jsonpath='{.items[*].metadata.name}' > "$OUT/pods_before.txt"
 start_phase restart "$RESTART"
 sleep "$RESTART_AFTER"
+echo "pre_restart_count_at=$(now)" >> "$OUT/times.env"
+pod_requests | tee "$OUT/pod_requests_pre_restart.txt"
 echo "restart_start=$(now)" >> "$OUT/times.env"
 kn rollout restart "deploy/$APP"
 kn rollout status "deploy/$APP" --timeout=600s
@@ -136,5 +183,7 @@ kn get pod -l "app=$APP" --field-selector=status.phase=Running \
 
 kill $HPA_WATCH 2>/dev/null || true
 log "write report"
+REPORT_ARGS=()
+[ "$GATE" = 0 ] && REPORT_ARGS+=(--no-gate)
 python3 scripts/k8s_report.py kind --app "$APP" --out-dir "$OUT" \
-  --artifact "artifacts/k8s_kind_$APP.json" "$@"
+  --artifact "$ARTIFACT" "${REPORT_ARGS[@]}" "$@"

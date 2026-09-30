@@ -1,0 +1,480 @@
+{
+  "source": "Run 36770455800 attempt 2, job kind-e2e. The 'report' block is the JSON that scripts/k8s_report.py printed to the job log (timestamps stripped), copied verbatim. The raw log is artifacts/ci_logs/k8s_kind_ledgersentry_postfix_attempt2.log. The 'full_artifact' block is the uploaded k8s-kind-run artifact of this attempt (the artifact of attempt 1 was replaced when attempt 2 uploaded under the same name).",
+  "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36770455800/attempts/2",
+  "report": {
+    "deploy": {
+      "initial_rollout_seconds": 6,
+      "ready": {
+        "status": "ready",
+        "version": "0.1.0",
+        "expected_features": 5
+      },
+      "predict_example": {
+        "decision": "legit",
+        "p_fraud": 0.0002,
+        "confidence": 0.9998,
+        "missing_fields": [
+          "f_entity_daily_tx_count"
+        ],
+        "latency_ms": 2.403
+      },
+      "pid1": "/usr/local/bin/python3.12 /usr/local/bin/uvicorn ledgersentry.service:app --host 0.0.0.0 --port 8000",
+      "runs_as": "uid=10001(app) gid=999(app) groups=999(app)",
+      "configmap_max_batch": 2000,
+      "max_batch_seen_in_openapi": 2000,
+      "configmap_reaches_process": true
+    },
+    "load_steady": {
+      "phase": "steady",
+      "vus": 16,
+      "duration": "90s",
+      "requests": 21547,
+      "req_per_s": 239.2,
+      "latency_ms": {
+        "avg": 66.54,
+        "p50": 56.29,
+        "p95": 142.34,
+        "p99": 170.65,
+        "max": 244.13
+      },
+      "ok_2xx": 21547,
+      "failed_5xx": 0,
+      "failed_other_status": 0,
+      "failed_connection": 0,
+      "failed_total": 0
+    },
+    "load_during_rolling_restart": {
+      "phase": "restart",
+      "vus": 16,
+      "duration": "120s",
+      "requests": 71629,
+      "req_per_s": 596.9,
+      "latency_ms": {
+        "avg": 25.83,
+        "p50": 21.62,
+        "p95": 58.77,
+        "p99": 82.66,
+        "max": 241.27
+      },
+      "ok_2xx": 71629,
+      "failed_5xx": 0,
+      "failed_other_status": 0,
+      "failed_connection": 0,
+      "failed_total": 0,
+      "rolling_restart": {
+        "started_seconds_into_load": 15,
+        "rollout_seconds": 36,
+        "finished_before_load_ended": true,
+        "pods_before": [
+          "ledgersentry-7fc6585cf4-6dtrm",
+          "ledgersentry-7fc6585cf4-7vmq8",
+          "ledgersentry-7fc6585cf4-7zgx8",
+          "ledgersentry-7fc6585cf4-p5vwj",
+          "ledgersentry-7fc6585cf4-tqzhl"
+        ],
+        "pods_after": [
+          "ledgersentry-795c94cbbf-hmdgr",
+          "ledgersentry-795c94cbbf-qrtm9",
+          "ledgersentry-795c94cbbf-r9gjt",
+          "ledgersentry-795c94cbbf-wpt4l",
+          "ledgersentry-795c94cbbf-z6hmv"
+        ],
+        "every_pod_replaced": true
+      }
+    }
+  },
+  "full_artifact": {
+    "what": "ledgersentry deployed to a kind cluster from deploy/k8s/overlays/kind, smoke-tested, load-tested through its Service, and rolled while under load.",
+    "environment": {
+      "runner_vcpu": 4,
+      "runner_memory_mb": 15989,
+      "kind": "v0.33.0",
+      "kubernetes": "v1.37.0",
+      "git_sha": "58c672b3aefd70a6b2dd455b69dd31de19573c4f",
+      "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36770455800"
+    },
+    "deploy": {
+      "initial_rollout_seconds": 6,
+      "ready": {
+        "status": "ready",
+        "version": "0.1.0",
+        "expected_features": 5
+      },
+      "predict_example": {
+        "decision": "legit",
+        "p_fraud": 0.0002,
+        "confidence": 0.9998,
+        "missing_fields": [
+          "f_entity_daily_tx_count"
+        ],
+        "latency_ms": 2.403
+      },
+      "pid1": "/usr/local/bin/python3.12 /usr/local/bin/uvicorn ledgersentry.service:app --host 0.0.0.0 --port 8000",
+      "runs_as": "uid=10001(app) gid=999(app) groups=999(app)",
+      "configmap_max_batch": 2000,
+      "max_batch_seen_in_openapi": 2000,
+      "configmap_reaches_process": true
+    },
+    "load_steady": {
+      "phase": "steady",
+      "vus": 16,
+      "duration": "90s",
+      "requests": 21547,
+      "req_per_s": 239.2,
+      "latency_ms": {
+        "avg": 66.54,
+        "p50": 56.29,
+        "p95": 142.34,
+        "p99": 170.65,
+        "max": 244.13
+      },
+      "ok_2xx": 21547,
+      "failed_5xx": 0,
+      "failed_other_status": 0,
+      "failed_connection": 0,
+      "failed_total": 0
+    },
+    "load_during_rolling_restart": {
+      "phase": "restart",
+      "vus": 16,
+      "duration": "120s",
+      "requests": 71629,
+      "req_per_s": 596.9,
+      "latency_ms": {
+        "avg": 25.83,
+        "p50": 21.62,
+        "p95": 58.77,
+        "p99": 82.66,
+        "max": 241.27
+      },
+      "ok_2xx": 71629,
+      "failed_5xx": 0,
+      "failed_other_status": 0,
+      "failed_connection": 0,
+      "failed_total": 0,
+      "rolling_restart": {
+        "started_seconds_into_load": 15,
+        "rollout_seconds": 36,
+        "finished_before_load_ended": true,
+        "pods_before": [
+          "ledgersentry-7fc6585cf4-6dtrm",
+          "ledgersentry-7fc6585cf4-7vmq8",
+          "ledgersentry-7fc6585cf4-7zgx8",
+          "ledgersentry-7fc6585cf4-p5vwj",
+          "ledgersentry-7fc6585cf4-tqzhl"
+        ],
+        "pods_after": [
+          "ledgersentry-795c94cbbf-hmdgr",
+          "ledgersentry-795c94cbbf-qrtm9",
+          "ledgersentry-795c94cbbf-r9gjt",
+          "ledgersentry-795c94cbbf-wpt4l",
+          "ledgersentry-795c94cbbf-z6hmv"
+        ],
+        "every_pod_replaced": true
+      }
+    },
+    "hpa": {
+      "columns": [
+        "seconds_since_steady_load_start",
+        "current_replicas",
+        "desired_replicas",
+        "cpu_percent_of_request"
+      ],
+      "replicas_min_seen": 2,
+      "replicas_max_seen": 5,
+      "cpu_percent_max_seen": 291,
+      "timeline": [
+        [
+          -1,
+          2,
+          0,
+          null
+        ],
+        [
+          4,
+          2,
+          2,
+          0
+        ],
+        [
+          9,
+          2,
+          2,
+          0
+        ],
+        [
+          14,
+          2,
+          2,
+          0
+        ],
+        [
+          19,
+          2,
+          4,
+          140
+        ],
+        [
+          24,
+          2,
+          4,
+          140
+        ],
+        [
+          29,
+          2,
+          4,
+          140
+        ],
+        [
+          34,
+          4,
+          5,
+          291
+        ],
+        [
+          40,
+          4,
+          5,
+          291
+        ],
+        [
+          45,
+          4,
+          5,
+          291
+        ],
+        [
+          50,
+          5,
+          5,
+          193
+        ],
+        [
+          55,
+          5,
+          5,
+          193
+        ],
+        [
+          60,
+          5,
+          5,
+          193
+        ],
+        [
+          65,
+          5,
+          5,
+          199
+        ],
+        [
+          70,
+          5,
+          5,
+          199
+        ],
+        [
+          75,
+          5,
+          5,
+          199
+        ],
+        [
+          80,
+          5,
+          5,
+          160
+        ],
+        [
+          85,
+          5,
+          5,
+          160
+        ],
+        [
+          90,
+          5,
+          5,
+          160
+        ],
+        [
+          95,
+          5,
+          5,
+          160
+        ],
+        [
+          101,
+          5,
+          5,
+          160
+        ],
+        [
+          106,
+          5,
+          5,
+          160
+        ],
+        [
+          111,
+          5,
+          5,
+          136
+        ],
+        [
+          116,
+          5,
+          5,
+          136
+        ],
+        [
+          121,
+          5,
+          5,
+          136
+        ],
+        [
+          126,
+          5,
+          5,
+          242
+        ],
+        [
+          131,
+          5,
+          5,
+          242
+        ],
+        [
+          136,
+          5,
+          5,
+          242
+        ],
+        [
+          142,
+          5,
+          5,
+          206
+        ],
+        [
+          147,
+          5,
+          5,
+          206
+        ],
+        [
+          152,
+          5,
+          5,
+          207
+        ],
+        [
+          157,
+          5,
+          5,
+          207
+        ],
+        [
+          162,
+          5,
+          5,
+          207
+        ],
+        [
+          167,
+          5,
+          5,
+          231
+        ],
+        [
+          172,
+          5,
+          5,
+          231
+        ],
+        [
+          177,
+          5,
+          5,
+          231
+        ],
+        [
+          182,
+          5,
+          5,
+          287
+        ],
+        [
+          188,
+          5,
+          5,
+          287
+        ],
+        [
+          193,
+          5,
+          5,
+          287
+        ],
+        [
+          198,
+          5,
+          5,
+          270
+        ],
+        [
+          203,
+          5,
+          5,
+          270
+        ],
+        [
+          208,
+          5,
+          5,
+          270
+        ],
+        [
+          213,
+          5,
+          5,
+          264
+        ]
+      ]
+    },
+    "pods_after_steady_load": [
+      {
+        "pod": "ledgersentry-7fc6585cf4-6dtrm",
+        "cpu_millicores": 2,
+        "memory_mi": 138.0
+      },
+      {
+        "pod": "ledgersentry-7fc6585cf4-7vmq8",
+        "cpu_millicores": 2,
+        "memory_mi": 138.0
+      },
+      {
+        "pod": "ledgersentry-7fc6585cf4-7zgx8",
+        "cpu_millicores": 2,
+        "memory_mi": 138.0
+      },
+      {
+        "pod": "ledgersentry-7fc6585cf4-p5vwj",
+        "cpu_millicores": 1000,
+        "memory_mi": 142.0
+      },
+      {
+        "pod": "ledgersentry-7fc6585cf4-tqzhl",
+        "cpu_millicores": 1000,
+        "memory_mi": 140.0
+      }
+    ],
+    "caveats": [
+      "Single-node kind cluster on one GitHub Actions runner. The k6 load generator runs in the same cluster and competes for the same CPUs as the pods.",
+      "Synthetic load: one fixed request body sent in a closed loop. Not production traffic, not users.",
+      "Throughput and latency vary between runners; the gate is on failed requests, not on a throughput number."
+    ]
+  }
+}

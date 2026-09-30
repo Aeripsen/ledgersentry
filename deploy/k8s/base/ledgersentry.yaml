@@ -23,8 +23,11 @@ metadata:
     app: ledgersentry
 data:
   # Read by src/ledgersentry/config.py (env beats yaml beats code defaults).
-  # These are the code defaults, so the served model behaves exactly like the
-  # one behind the committed metrics. The kind overlay overrides MAX_BATCH on
+  # These are the code defaults, so the serving settings (batch cap, PSI drift
+  # thresholds) match a local run. They do not decide which model is served:
+  # that is whatever joblib the image holds, and an image built from a clean
+  # checkout holds the 5-feature synthetic fixture (DEPLOY.md), not the ULB
+  # model behind the README metrics. The kind overlay overrides MAX_BATCH on
   # purpose so CI can prove this ConfigMap actually reaches the process.
   LEDGERSENTRY_MAX_BATCH: "10000"
   LEDGERSENTRY_PSI_BINS: "10"

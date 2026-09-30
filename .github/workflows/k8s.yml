@@ -5,6 +5,9 @@ name: k8s
 # load; Terraform applies deploy/terraform/kubernetes to a second kind cluster
 # and destroys it; the Cloud Run module is fmt-checked and validated (applying
 # it needs a GCP project with billing, which this workflow never touches).
+# The manifests are schema-checked with kubeconform, and docker-compose.yml is
+# brought up and smoke-tested. k8s-drain-ab.yml (manual) repeats the rolling
+# restart with and without the connection drain.
 # DEPLOY.md holds the output of a run and how to reproduce it locally.
 
 on:
@@ -13,6 +16,8 @@ on:
     paths:
       - "deploy/**"
       - "Dockerfile"
+      - "docker-compose.yml"
+      - "scripts/compose_smoke.sh"
       - "requirements.txt"
       - "src/**"
       - "scripts/k8s_*"
@@ -22,6 +27,8 @@ on:
     paths:
       - "deploy/**"
       - "Dockerfile"
+      - "docker-compose.yml"
+      - "scripts/compose_smoke.sh"
       - "scripts/k8s_*"
       - "scripts/tf_kind_e2e.sh"
       - ".github/workflows/k8s.yml"
@@ -52,6 +59,29 @@ jobs:
             terraform -chdir=deploy/terraform/$m init -backend=false -input=false -no-color
             terraform -chdir=deploy/terraform/$m validate -no-color
           done
+
+  kubeconform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: kubeconform -strict on the base, the kind overlay and the k6 Job
+        run: bash scripts/k8s_schema.sh
+
+  compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: docker compose up, smoke-test the API and the dashboard, down
+        run: bash scripts/compose_smoke.sh
+      - name: Compose logs on failure
+        if: failure()
+        run: docker compose logs --tail=200 || true
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: compose-run
+          path: compose-run/
 
   kind-e2e:
     runs-on: ubuntu-latest

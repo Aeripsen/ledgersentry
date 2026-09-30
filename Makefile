@@ -3,7 +3,7 @@
 
 PY ?= python
 
-.PHONY: install install-analysis test lint train reproduce bench bootstrap compare compare-boosters shap cost business business-verify demo-data demo-verify site-check serve dashboard k8s-e2e tf-kind install-mlops drift-report mlflow-ui
+.PHONY: install install-analysis test lint train reproduce bench bootstrap compare compare-boosters shap cost business business-verify demo-data demo-verify site-check serve dashboard k8s-e2e tf-kind install-mlops drift-report mlflow-ui k8s-schema compose-smoke
 
 install:
 	$(PY) -m pip install -r requirements.txt
@@ -114,3 +114,11 @@ mlflow-ui:
 # fold (both time windows of the committed split) -> reports/evidently_<source>.html
 drift-report:
 	$(PY) scripts/evidently_report.py
+
+# kubeconform -strict on the rendered base, kind overlay and k6 Job (needs kubectl).
+k8s-schema:
+	bash scripts/k8s_schema.sh
+
+# docker compose up, smoke-test API and dashboard, down (needs docker).
+compose-smoke:
+	bash scripts/compose_smoke.sh
