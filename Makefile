@@ -3,7 +3,7 @@
 
 PY ?= python
 
-.PHONY: install install-analysis test lint train reproduce bench bootstrap compare compare-boosters shap cost serve dashboard
+.PHONY: install install-analysis test lint train reproduce bench bootstrap compare compare-boosters shap cost business business-verify serve dashboard
 
 install:
 	$(PY) -m pip install -r requirements.txt
@@ -59,6 +59,16 @@ shap:
 # assumptions is visible.
 cost:
 	$(PY) scripts/cost.py
+
+# The knob in operations units: alerts and false alerts per 10k transactions,
+# review load, frauds caught / in review / missed, and the share of fraud by
+# the dataset's own Amount. Counts only, nothing priced. Fails unless its counts
+# match the committed metrics file. business-verify requires a byte match.
+business:
+	$(PY) scripts/business_case.py
+
+business-verify:
+	$(PY) scripts/business_case.py --verify
 
 serve:
 	$(PY) -m uvicorn ledgersentry.service:app --app-dir src

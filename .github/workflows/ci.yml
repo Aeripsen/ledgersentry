@@ -41,3 +41,6 @@ jobs:
 
       - name: Bootstrap CIs on synthetic fallback (smoke test)
         run: python scripts/bootstrap.py
+
+      - name: Business-outcome table on synthetic fallback (smoke test)
+        run: python scripts/business_case.py

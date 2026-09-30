@@ -18,10 +18,11 @@ discipline, same honesty rules, different domain.
   0.0013, so that is roughly a 550x lift. **The interval is published because the
   fold has 75 frauds and 75 positives do not earn four decimals** - it is measured
   (1000-resample bootstrap, committed), not hedged with a disclaimer.
-- **The knob is the product:** fully automated it catches **63 of 75 test frauds
-  (84% recall)** and 29% of its flags are truly fraud; send the most uncertain 7.1% of
-  traffic to human review and the automated flags become **89.8% precise**. The full
-  measured coverage / precision / recall table is below.
+- **The knob is the product:** versus a plain 0.5 threshold, sending the most uncertain
+  7.1% of traffic to human review cuts false fraud alerts **96% (26.9 to 1.1 per 10,000
+  transactions, 95% CI 93% to 99%)** and halves missed frauds (12 to 6 of 75), and the
+  automated flags become **89.8% precise**. The price is a review queue of 709 per 10,000,
+  stated beside it. See [in operations terms](#in-operations-terms-alerts-review-load-fraud-caught).
 - **Calibrated when it counts:** the raw score is a good ranker and a bad probability
   (measured: Brier worse than predicting the base rate). A Platt map fit on a
   train-only slice cuts test-fold Brier 4.2x without moving PR-AUC a bit, so a fraud
@@ -157,6 +158,44 @@ human-review budget, with recall stated honestly beside it, is the product. (Abo
 the uncalibrated confidence cliff sends almost everything to review - measured, shown in
 the model card's full 8-row table, and called out as a limitation rather than hidden.)
 
+### In operations terms: alerts, review load, fraud caught
+
+The table above is a model table. A fraud desk asks different questions: how many alerts
+per 10,000 transactions, how many of them are wrong, how big the review queue gets, and
+how much fraud gets through by value. `make business` (`python scripts/business_case.py`)
+answers them on the same fold and the same model, and refuses to write anything unless
+its counts match `artifacts/metrics_ulb_creditcard.json` at every threshold. Output:
+`artifacts/business_case_ulb_creditcard.json`, including a 50-row threshold sweep.
+
+Three named policies on the 56,961 held-out transactions (75 frauds, 7.65 hours):
+
+| Policy | Alerts / 10k | False alerts / 10k | Review queue / 10k | Frauds caught / in review / missed | Fraud value surfaced |
+|---|---|---|---|---|---|
+| A. single threshold 0.5, no review | 37.9 | 26.9 | 0 | 63 / 0 / 12 | 66.4% |
+| B. single threshold 0.95, no review | 10.4 | 1.1 | 0 | 53 / 0 / 22 | 49.7% |
+| C. review band 0.95 (shipped knob) | 10.4 | 1.1 | 709.1 | 53 / 16 / 6 | 97.2% |
+
+- **C against A:** false alerts fall **96.1% (95% CI 92.7% to 98.7%)** and missed frauds
+  go from 12 to 6, for a review queue of 709 per 10,000 transactions (7.1% of traffic).
+- **C against B:** the same 59 alerts, but 6 missed frauds instead of 22. Raising the
+  threshold alone buys the precision and gives up the fraud; the queue is what keeps it.
+- **By value:** "fraud value surfaced" is the share of the fold's fraud Amount that is
+  auto-flagged or sent to review. C surfaces 97.2% (CI 89.5% to 99.95%) and clears 2.8%
+  unseen, against 33.6% cleared unseen under A. The value intervals are wide because a
+  few large frauds carry much of the total. Amounts come from the dataset's own `Amount`
+  column; its documentation names no currency, so they are reported as shares.
+
+What this does not claim. Nothing here is priced: no analyst cost, no average loss per
+fraud, nothing from the illustrative `expected_cost_curve` artifact. The queue is not
+cheap either: 4,039 reviews hold 16 frauds, so reviewers see about one fraud per 252
+items, and at a million transactions a day the same band is about 71,000 reviews. The
+set C surfaces is exactly what a single threshold at p > 0.05 would flag (checked in the
+artifact, `surfaced_equals_single_low_threshold: true`); the knob does not find more
+fraud, it splits what it surfaces into a small tier precise enough to act on without a
+human and a larger tier that needs one. Intervals are a seeded 1000-resample bootstrap
+with the same limits as `bootstrap.py` (sampling noise only). `make business-verify`
+regenerates the file and fails unless it matches the committed copy byte for byte.
+
 ### Synthetic fixture (offline CI baseline, labeled synthetic)
 
 With no real file in `data/`, the same pipeline runs a deterministic seeded fixture
@@ -268,6 +307,8 @@ python scripts/compare.py        # feature-set x boosting-config comparison, sel
                                   # on an inner validation slice -> comparison_<source>.json
 python scripts/cost.py           # expected cost per review threshold, illustrative
                                   # cost triples -> expected_cost_curve_<source>.json
+python scripts/business_case.py  # alerts, review load, fraud caught/missed by count and
+                                  # Amount, nothing priced -> business_case_<source>.json
 
 # optional analysis extras (lightgbm + shap; see requirements-analysis.txt for
 # why shap installs --no-deps):
@@ -384,6 +425,9 @@ src/ledgersentry/
                  optional install, explains, never trains
   cost.py        expected cost per review threshold on the calibrated knob,
                  priced under illustrative cost triples
+  business.py    the knob in operations units (alerts / 10k, review load, fraud
+                 caught vs missed by count and Amount), three named policies,
+                 bootstrap CIs; counts only, checked against the metrics file
   scoring.py     TransactionScorer protocol: CompiledScorer (serving) + PandasScorer
                  (reference + benchmark baseline), pinned equal by tests
   train.py       load -> split -> fit -> evaluate -> artifacts (+ drift reference)

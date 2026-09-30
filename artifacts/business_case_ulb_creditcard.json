@@ -1,0 +1,931 @@
+{
+  "data_source": "ulb_creditcard",
+  "is_synthetic": false,
+  "environment": {
+    "python": "3.13.13",
+    "sklearn": "1.9.0",
+    "pandas": "3.0.3",
+    "numpy": "2.5.1"
+  },
+  "what": "the reject knob as an operations table: alerts, false alerts, review load, frauds caught / in review / missed, by count and by the dataset's own Amount column, on the same held-out fold and model as the headline",
+  "no_prices": "nothing here is priced. Amounts are sums of the dataset's Amount column over real fold transactions; the ULB documentation describes Amount only as the transaction amount, so amounts are reported in the dataset's own units and as shares. No external average-loss figure is used, and nothing is taken from expected_cost_curve (whose costs are illustrative).",
+  "consistency_check": "counts match metrics_ulb_creditcard.json at all 8 committed thresholds",
+  "fold": {
+    "n_transactions": 56961,
+    "n_fraud": 75,
+    "hours_covered": 7.65,
+    "fraud_amount_total": 7729.26
+  },
+  "operating_threshold": 0.95,
+  "policies": {
+    "A_single_threshold_0.5": {
+      "counts": {
+        "n_transactions": 56961,
+        "alerts_auto_flagged": 216,
+        "true_alerts": 63,
+        "false_alerts": 153,
+        "sent_to_review": 0,
+        "fraud_caught_auto": 63,
+        "fraud_in_review": 0,
+        "fraud_missed": 12,
+        "fraud_total": 75
+      },
+      "per_10k_transactions": {
+        "alerts": 37.9,
+        "false_alerts": 26.9,
+        "review_queue": 0.0,
+        "fraud_missed": 2.1
+      },
+      "per_hour_of_fold": {
+        "alerts": 28.2,
+        "false_alerts": 20.0,
+        "review_queue": 0.0
+      },
+      "rates": {
+        "precision_on_alerts": 0.2917,
+        "false_alerts_per_true_alert": 2.429,
+        "fraud_share_caught_auto": 0.84,
+        "fraud_share_surfaced": 0.84,
+        "fraud_share_missed": 0.16,
+        "review_queue_fraud_rate": null
+      },
+      "amount": {
+        "fraud_amount_total": 7729.26,
+        "fraud_amount_caught_auto": 5134.11,
+        "fraud_amount_in_review": 0.0,
+        "fraud_amount_missed": 2595.15,
+        "legit_amount_auto_flagged": 62354.0,
+        "fraud_amount_share_caught_auto": 0.6642,
+        "fraud_amount_share_surfaced": 0.6642,
+        "fraud_amount_share_missed": 0.3358
+      }
+    },
+    "B_single_threshold_0.95": {
+      "counts": {
+        "n_transactions": 56961,
+        "alerts_auto_flagged": 59,
+        "true_alerts": 53,
+        "false_alerts": 6,
+        "sent_to_review": 0,
+        "fraud_caught_auto": 53,
+        "fraud_in_review": 0,
+        "fraud_missed": 22,
+        "fraud_total": 75
+      },
+      "per_10k_transactions": {
+        "alerts": 10.4,
+        "false_alerts": 1.1,
+        "review_queue": 0.0,
+        "fraud_missed": 3.9
+      },
+      "per_hour_of_fold": {
+        "alerts": 7.7,
+        "false_alerts": 0.8,
+        "review_queue": 0.0
+      },
+      "rates": {
+        "precision_on_alerts": 0.8983,
+        "false_alerts_per_true_alert": 0.113,
+        "fraud_share_caught_auto": 0.7067,
+        "fraud_share_surfaced": 0.7067,
+        "fraud_share_missed": 0.2933,
+        "review_queue_fraud_rate": null
+      },
+      "amount": {
+        "fraud_amount_total": 7729.26,
+        "fraud_amount_caught_auto": 3841.2,
+        "fraud_amount_in_review": 0.0,
+        "fraud_amount_missed": 3888.06,
+        "legit_amount_auto_flagged": 26018.02,
+        "fraud_amount_share_caught_auto": 0.497,
+        "fraud_amount_share_surfaced": 0.497,
+        "fraud_amount_share_missed": 0.503
+      }
+    },
+    "C_review_band_0.95": {
+      "counts": {
+        "n_transactions": 56961,
+        "alerts_auto_flagged": 59,
+        "true_alerts": 53,
+        "false_alerts": 6,
+        "sent_to_review": 4039,
+        "fraud_caught_auto": 53,
+        "fraud_in_review": 16,
+        "fraud_missed": 6,
+        "fraud_total": 75
+      },
+      "per_10k_transactions": {
+        "alerts": 10.4,
+        "false_alerts": 1.1,
+        "review_queue": 709.1,
+        "fraud_missed": 1.1
+      },
+      "per_hour_of_fold": {
+        "alerts": 7.7,
+        "false_alerts": 0.8,
+        "review_queue": 527.9
+      },
+      "rates": {
+        "precision_on_alerts": 0.8983,
+        "false_alerts_per_true_alert": 0.113,
+        "fraud_share_caught_auto": 0.7067,
+        "fraud_share_surfaced": 0.92,
+        "fraud_share_missed": 0.08,
+        "review_queue_fraud_rate": 0.004
+      },
+      "amount": {
+        "fraud_amount_total": 7729.26,
+        "fraud_amount_caught_auto": 3841.2,
+        "fraud_amount_in_review": 3669.94,
+        "fraud_amount_missed": 218.12,
+        "legit_amount_auto_flagged": 26018.02,
+        "fraud_amount_share_caught_auto": 0.497,
+        "fraud_amount_share_surfaced": 0.9718,
+        "fraud_amount_share_missed": 0.0282
+      }
+    },
+    "C_vs_A": {
+      "false_alerts": [
+        153,
+        6
+      ],
+      "false_alert_reduction_share": 0.9608,
+      "fraud_missed": [
+        12,
+        6
+      ],
+      "added_review_queue": 4039,
+      "added_review_queue_per_10k": 709.1
+    },
+    "C_vs_B": {
+      "same_alerts": true,
+      "fraud_missed": [
+        22,
+        6
+      ],
+      "fraud_amount_missed": [
+        3888.06,
+        218.12
+      ],
+      "cost_review_queue": 4039
+    },
+    "surfaced_equals_single_low_threshold": true
+  },
+  "bootstrap": {
+    "method": "percentile bootstrap, 1000 row resamples of the test fold, seed 42; sampling noise only (see bootstrap.py for the limits)",
+    "n_degenerate_resamples": 0,
+    "intervals_95": {
+      "A_false_alerts_per_10k": {
+        "ci_lower": 22.6471,
+        "ci_upper": 31.2495
+      },
+      "C_false_alerts_per_10k": {
+        "ci_lower": 0.3511,
+        "ci_upper": 1.9311
+      },
+      "false_alert_reduction_share": {
+        "ci_lower": 0.9265,
+        "ci_upper": 0.9868
+      },
+      "C_review_queue_per_10k": {
+        "ci_lower": 687.4879,
+        "ci_upper": 731.0265
+      },
+      "C_precision_on_alerts": {
+        "ci_lower": 0.82,
+        "ci_upper": 0.9661
+      },
+      "A_fraud_share_missed": {
+        "ci_lower": 0.0833,
+        "ci_upper": 0.25
+      },
+      "C_fraud_share_missed": {
+        "ci_lower": 0.0253,
+        "ci_upper": 0.1452
+      },
+      "A_fraud_amount_share_missed": {
+        "ci_lower": 0.0783,
+        "ci_upper": 0.6367
+      },
+      "C_fraud_amount_share_missed": {
+        "ci_lower": 0.0005,
+        "ci_upper": 0.1054
+      },
+      "C_fraud_amount_share_caught_auto": {
+        "ci_lower": 0.2155,
+        "ci_upper": 0.8025
+      },
+      "C_fraud_amount_share_surfaced": {
+        "ci_lower": 0.8946,
+        "ci_upper": 0.9995
+      }
+    }
+  },
+  "sensitivity_review_band": [
+    {
+      "review_threshold": 0.5,
+      "alerts_per_10k": 37.9,
+      "false_alerts_per_10k": 26.9,
+      "review_queue_per_10k": 0.0,
+      "review_share_of_traffic": 0.0,
+      "precision_on_alerts": 0.2917,
+      "fraud_caught_auto": 63,
+      "fraud_in_review": 0,
+      "fraud_missed": 12,
+      "fraud_amount_share_caught_auto": 0.6642,
+      "fraud_amount_share_surfaced": 0.6642,
+      "fraud_amount_share_missed": 0.3358
+    },
+    {
+      "review_threshold": 0.51,
+      "alerts_per_10k": 36.0,
+      "false_alerts_per_10k": 24.9,
+      "review_queue_per_10k": 3.3,
+      "review_share_of_traffic": 0.0003,
+      "precision_on_alerts": 0.3073,
+      "fraud_caught_auto": 63,
+      "fraud_in_review": 0,
+      "fraud_missed": 12,
+      "fraud_amount_share_caught_auto": 0.6642,
+      "fraud_amount_share_surfaced": 0.6642,
+      "fraud_amount_share_missed": 0.3358
+    },
+    {
+      "review_threshold": 0.52,
+      "alerts_per_10k": 33.9,
+      "false_alerts_per_10k": 23.0,
+      "review_queue_per_10k": 6.8,
+      "review_share_of_traffic": 0.0007,
+      "precision_on_alerts": 0.3212,
+      "fraud_caught_auto": 62,
+      "fraud_in_review": 1,
+      "fraud_missed": 12,
+      "fraud_amount_share_caught_auto": 0.6638,
+      "fraud_amount_share_surfaced": 0.6642,
+      "fraud_amount_share_missed": 0.3358
+    },
+    {
+      "review_threshold": 0.53,
+      "alerts_per_10k": 33.0,
+      "false_alerts_per_10k": 22.3,
+      "review_queue_per_10k": 9.0,
+      "review_share_of_traffic": 0.0009,
+      "precision_on_alerts": 0.3245,
+      "fraud_caught_auto": 61,
+      "fraud_in_review": 2,
+      "fraud_missed": 12,
+      "fraud_amount_share_caught_auto": 0.6622,
+      "fraud_amount_share_surfaced": 0.6642,
+      "fraud_amount_share_missed": 0.3358
+    },
+    {
+      "review_threshold": 0.54,
+      "alerts_per_10k": 31.6,
+      "false_alerts_per_10k": 20.9,
+      "review_queue_per_10k": 11.6,
+      "review_share_of_traffic": 0.0012,
+      "precision_on_alerts": 0.3389,
+      "fraud_caught_auto": 61,
+      "fraud_in_review": 2,
+      "fraud_missed": 12,
+      "fraud_amount_share_caught_auto": 0.6622,
+      "fraud_amount_share_surfaced": 0.6642,
+      "fraud_amount_share_missed": 0.3358
+    },
+    {
+      "review_threshold": 0.55,
+      "alerts_per_10k": 31.1,
+      "false_alerts_per_10k": 20.4,
+      "review_queue_per_10k": 14.0,
+      "review_share_of_traffic": 0.0014,
+      "precision_on_alerts": 0.3446,
+      "fraud_caught_auto": 61,
+      "fraud_in_review": 2,
+      "fraud_missed": 12,
+      "fraud_amount_share_caught_auto": 0.6622,
+      "fraud_amount_share_surfaced": 0.6642,
+      "fraud_amount_share_missed": 0.3358
+    },
+    {
+      "review_threshold": 0.56,
+      "alerts_per_10k": 30.4,
+      "false_alerts_per_10k": 19.7,
+      "review_queue_per_10k": 16.2,
+      "review_share_of_traffic": 0.0016,
+      "precision_on_alerts": 0.3526,
+      "fraud_caught_auto": 61,
+      "fraud_in_review": 3,
+      "fraud_missed": 11,
+      "fraud_amount_share_caught_auto": 0.6622,
+      "fraud_amount_share_surfaced": 0.6653,
+      "fraud_amount_share_missed": 0.3347
+    },
+    {
+      "review_threshold": 0.57,
+      "alerts_per_10k": 29.8,
+      "false_alerts_per_10k": 19.1,
+      "review_queue_per_10k": 17.9,
+      "review_share_of_traffic": 0.0018,
+      "precision_on_alerts": 0.3588,
+      "fraud_caught_auto": 61,
+      "fraud_in_review": 4,
+      "fraud_missed": 10,
+      "fraud_amount_share_caught_auto": 0.6622,
+      "fraud_amount_share_surfaced": 0.7116,
+      "fraud_amount_share_missed": 0.2884
+    },
+    {
+      "review_threshold": 0.58,
+      "alerts_per_10k": 29.0,
+      "false_alerts_per_10k": 18.4,
+      "review_queue_per_10k": 19.7,
+      "review_share_of_traffic": 0.002,
+      "precision_on_alerts": 0.3636,
+      "fraud_caught_auto": 60,
+      "fraud_in_review": 5,
+      "fraud_missed": 10,
+      "fraud_amount_share_caught_auto": 0.5333,
+      "fraud_amount_share_surfaced": 0.7116,
+      "fraud_amount_share_missed": 0.2884
+    },
+    {
+      "review_threshold": 0.59,
+      "alerts_per_10k": 27.9,
+      "false_alerts_per_10k": 17.4,
+      "review_queue_per_10k": 21.9,
+      "review_share_of_traffic": 0.0022,
+      "precision_on_alerts": 0.3774,
+      "fraud_caught_auto": 60,
+      "fraud_in_review": 5,
+      "fraud_missed": 10,
+      "fraud_amount_share_caught_auto": 0.5333,
+      "fraud_amount_share_surfaced": 0.7116,
+      "fraud_amount_share_missed": 0.2884
+    },
+    {
+      "review_threshold": 0.6,
+      "alerts_per_10k": 27.4,
+      "false_alerts_per_10k": 16.9,
+      "review_queue_per_10k": 24.4,
+      "review_share_of_traffic": 0.0024,
+      "precision_on_alerts": 0.3846,
+      "fraud_caught_auto": 60,
+      "fraud_in_review": 6,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.5333,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.61,
+      "alerts_per_10k": 26.3,
+      "false_alerts_per_10k": 15.8,
+      "review_queue_per_10k": 26.5,
+      "review_share_of_traffic": 0.0027,
+      "precision_on_alerts": 0.4,
+      "fraud_caught_auto": 60,
+      "fraud_in_review": 6,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.5333,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.62,
+      "alerts_per_10k": 25.8,
+      "false_alerts_per_10k": 15.3,
+      "review_queue_per_10k": 30.5,
+      "review_share_of_traffic": 0.0031,
+      "precision_on_alerts": 0.4082,
+      "fraud_caught_auto": 60,
+      "fraud_in_review": 6,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.5333,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.63,
+      "alerts_per_10k": 25.3,
+      "false_alerts_per_10k": 14.7,
+      "review_queue_per_10k": 32.5,
+      "review_share_of_traffic": 0.0032,
+      "precision_on_alerts": 0.4167,
+      "fraud_caught_auto": 60,
+      "fraud_in_review": 6,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.5333,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.64,
+      "alerts_per_10k": 24.6,
+      "false_alerts_per_10k": 14.0,
+      "review_queue_per_10k": 35.6,
+      "review_share_of_traffic": 0.0036,
+      "precision_on_alerts": 0.4286,
+      "fraud_caught_auto": 60,
+      "fraud_in_review": 6,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.5333,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.65,
+      "alerts_per_10k": 24.1,
+      "false_alerts_per_10k": 13.7,
+      "review_queue_per_10k": 38.3,
+      "review_share_of_traffic": 0.0038,
+      "precision_on_alerts": 0.4307,
+      "fraud_caught_auto": 59,
+      "fraud_in_review": 7,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.5324,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.66,
+      "alerts_per_10k": 23.3,
+      "false_alerts_per_10k": 13.2,
+      "review_queue_per_10k": 41.4,
+      "review_share_of_traffic": 0.0041,
+      "precision_on_alerts": 0.4361,
+      "fraud_caught_auto": 58,
+      "fraud_in_review": 8,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.5318,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.67,
+      "alerts_per_10k": 23.0,
+      "false_alerts_per_10k": 13.0,
+      "review_queue_per_10k": 45.5,
+      "review_share_of_traffic": 0.0045,
+      "precision_on_alerts": 0.4351,
+      "fraud_caught_auto": 57,
+      "fraud_in_review": 9,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.5317,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.68,
+      "alerts_per_10k": 23.0,
+      "false_alerts_per_10k": 13.0,
+      "review_queue_per_10k": 48.6,
+      "review_share_of_traffic": 0.0049,
+      "precision_on_alerts": 0.4351,
+      "fraud_caught_auto": 57,
+      "fraud_in_review": 9,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.5317,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.69,
+      "alerts_per_10k": 22.6,
+      "false_alerts_per_10k": 12.6,
+      "review_queue_per_10k": 52.3,
+      "review_share_of_traffic": 0.0052,
+      "precision_on_alerts": 0.4419,
+      "fraud_caught_auto": 57,
+      "fraud_in_review": 9,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.5317,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.7,
+      "alerts_per_10k": 22.6,
+      "false_alerts_per_10k": 12.6,
+      "review_queue_per_10k": 54.8,
+      "review_share_of_traffic": 0.0055,
+      "precision_on_alerts": 0.4419,
+      "fraud_caught_auto": 57,
+      "fraud_in_review": 9,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.5317,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.71,
+      "alerts_per_10k": 21.9,
+      "false_alerts_per_10k": 12.1,
+      "review_queue_per_10k": 59.2,
+      "review_share_of_traffic": 0.0059,
+      "precision_on_alerts": 0.448,
+      "fraud_caught_auto": 56,
+      "fraud_in_review": 10,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.5294,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.72,
+      "alerts_per_10k": 21.9,
+      "false_alerts_per_10k": 12.1,
+      "review_queue_per_10k": 62.1,
+      "review_share_of_traffic": 0.0062,
+      "precision_on_alerts": 0.448,
+      "fraud_caught_auto": 56,
+      "fraud_in_review": 10,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.5294,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.73,
+      "alerts_per_10k": 21.2,
+      "false_alerts_per_10k": 11.4,
+      "review_queue_per_10k": 66.9,
+      "review_share_of_traffic": 0.0067,
+      "precision_on_alerts": 0.4628,
+      "fraud_caught_auto": 56,
+      "fraud_in_review": 10,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.5294,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.74,
+      "alerts_per_10k": 20.4,
+      "false_alerts_per_10k": 10.5,
+      "review_queue_per_10k": 71.8,
+      "review_share_of_traffic": 0.0072,
+      "precision_on_alerts": 0.4828,
+      "fraud_caught_auto": 56,
+      "fraud_in_review": 10,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.5294,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.75,
+      "alerts_per_10k": 19.8,
+      "false_alerts_per_10k": 10.0,
+      "review_queue_per_10k": 76.0,
+      "review_share_of_traffic": 0.0076,
+      "precision_on_alerts": 0.4956,
+      "fraud_caught_auto": 56,
+      "fraud_in_review": 10,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.5294,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.76,
+      "alerts_per_10k": 19.5,
+      "false_alerts_per_10k": 9.7,
+      "review_queue_per_10k": 79.9,
+      "review_share_of_traffic": 0.008,
+      "precision_on_alerts": 0.5045,
+      "fraud_caught_auto": 56,
+      "fraud_in_review": 10,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.5294,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.77,
+      "alerts_per_10k": 19.3,
+      "false_alerts_per_10k": 9.5,
+      "review_queue_per_10k": 84.6,
+      "review_share_of_traffic": 0.0085,
+      "precision_on_alerts": 0.5091,
+      "fraud_caught_auto": 56,
+      "fraud_in_review": 10,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.5294,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.78,
+      "alerts_per_10k": 19.1,
+      "false_alerts_per_10k": 9.3,
+      "review_queue_per_10k": 89.4,
+      "review_share_of_traffic": 0.0089,
+      "precision_on_alerts": 0.5138,
+      "fraud_caught_auto": 56,
+      "fraud_in_review": 10,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.5294,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.79,
+      "alerts_per_10k": 18.8,
+      "false_alerts_per_10k": 9.0,
+      "review_queue_per_10k": 96.6,
+      "review_share_of_traffic": 0.0097,
+      "precision_on_alerts": 0.5234,
+      "fraud_caught_auto": 56,
+      "fraud_in_review": 10,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.5294,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.8,
+      "alerts_per_10k": 18.4,
+      "false_alerts_per_10k": 8.6,
+      "review_queue_per_10k": 102.4,
+      "review_share_of_traffic": 0.0102,
+      "precision_on_alerts": 0.5333,
+      "fraud_caught_auto": 56,
+      "fraud_in_review": 10,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.5294,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.81,
+      "alerts_per_10k": 18.1,
+      "false_alerts_per_10k": 8.4,
+      "review_queue_per_10k": 110.6,
+      "review_share_of_traffic": 0.0111,
+      "precision_on_alerts": 0.534,
+      "fraud_caught_auto": 55,
+      "fraud_in_review": 11,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.4974,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.82,
+      "alerts_per_10k": 17.2,
+      "false_alerts_per_10k": 7.5,
+      "review_queue_per_10k": 118.5,
+      "review_share_of_traffic": 0.0119,
+      "precision_on_alerts": 0.5612,
+      "fraud_caught_auto": 55,
+      "fraud_in_review": 11,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.4974,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.83,
+      "alerts_per_10k": 17.0,
+      "false_alerts_per_10k": 7.4,
+      "review_queue_per_10k": 130.1,
+      "review_share_of_traffic": 0.013,
+      "precision_on_alerts": 0.567,
+      "fraud_caught_auto": 55,
+      "fraud_in_review": 11,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.4974,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.84,
+      "alerts_per_10k": 16.5,
+      "false_alerts_per_10k": 6.8,
+      "review_queue_per_10k": 141.0,
+      "review_share_of_traffic": 0.0141,
+      "precision_on_alerts": 0.5851,
+      "fraud_caught_auto": 55,
+      "fraud_in_review": 11,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.4974,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.85,
+      "alerts_per_10k": 15.4,
+      "false_alerts_per_10k": 5.8,
+      "review_queue_per_10k": 152.0,
+      "review_share_of_traffic": 0.0152,
+      "precision_on_alerts": 0.625,
+      "fraud_caught_auto": 55,
+      "fraud_in_review": 11,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.4974,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.86,
+      "alerts_per_10k": 15.3,
+      "false_alerts_per_10k": 5.6,
+      "review_queue_per_10k": 167.5,
+      "review_share_of_traffic": 0.0167,
+      "precision_on_alerts": 0.6322,
+      "fraud_caught_auto": 55,
+      "fraud_in_review": 11,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.4974,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.87,
+      "alerts_per_10k": 14.7,
+      "false_alerts_per_10k": 5.3,
+      "review_queue_per_10k": 186.3,
+      "review_share_of_traffic": 0.0186,
+      "precision_on_alerts": 0.6429,
+      "fraud_caught_auto": 54,
+      "fraud_in_review": 12,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.4973,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.88,
+      "alerts_per_10k": 13.9,
+      "false_alerts_per_10k": 4.4,
+      "review_queue_per_10k": 216.3,
+      "review_share_of_traffic": 0.0216,
+      "precision_on_alerts": 0.6835,
+      "fraud_caught_auto": 54,
+      "fraud_in_review": 12,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.4973,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.89,
+      "alerts_per_10k": 13.5,
+      "false_alerts_per_10k": 4.0,
+      "review_queue_per_10k": 242.3,
+      "review_share_of_traffic": 0.0242,
+      "precision_on_alerts": 0.7013,
+      "fraud_caught_auto": 54,
+      "fraud_in_review": 12,
+      "fraud_missed": 9,
+      "fraud_amount_share_caught_auto": 0.4973,
+      "fraud_amount_share_surfaced": 0.7423,
+      "fraud_amount_share_missed": 0.2577
+    },
+    {
+      "review_threshold": 0.9,
+      "alerts_per_10k": 12.8,
+      "false_alerts_per_10k": 3.3,
+      "review_queue_per_10k": 277.7,
+      "review_share_of_traffic": 0.0278,
+      "precision_on_alerts": 0.7397,
+      "fraud_caught_auto": 54,
+      "fraud_in_review": 13,
+      "fraud_missed": 8,
+      "fraud_amount_share_caught_auto": 0.4973,
+      "fraud_amount_share_surfaced": 0.8244,
+      "fraud_amount_share_missed": 0.1756
+    },
+    {
+      "review_threshold": 0.91,
+      "alerts_per_10k": 12.5,
+      "false_alerts_per_10k": 3.0,
+      "review_queue_per_10k": 317.6,
+      "review_share_of_traffic": 0.0318,
+      "precision_on_alerts": 0.7606,
+      "fraud_caught_auto": 54,
+      "fraud_in_review": 13,
+      "fraud_missed": 8,
+      "fraud_amount_share_caught_auto": 0.4973,
+      "fraud_amount_share_surfaced": 0.8244,
+      "fraud_amount_share_missed": 0.1756
+    },
+    {
+      "review_threshold": 0.92,
+      "alerts_per_10k": 11.4,
+      "false_alerts_per_10k": 1.9,
+      "review_queue_per_10k": 376.7,
+      "review_share_of_traffic": 0.0377,
+      "precision_on_alerts": 0.8308,
+      "fraud_caught_auto": 54,
+      "fraud_in_review": 13,
+      "fraud_missed": 8,
+      "fraud_amount_share_caught_auto": 0.4973,
+      "fraud_amount_share_surfaced": 0.8244,
+      "fraud_amount_share_missed": 0.1756
+    },
+    {
+      "review_threshold": 0.93,
+      "alerts_per_10k": 11.4,
+      "false_alerts_per_10k": 1.9,
+      "review_queue_per_10k": 439.2,
+      "review_share_of_traffic": 0.0439,
+      "precision_on_alerts": 0.8308,
+      "fraud_caught_auto": 54,
+      "fraud_in_review": 13,
+      "fraud_missed": 8,
+      "fraud_amount_share_caught_auto": 0.4973,
+      "fraud_amount_share_surfaced": 0.8244,
+      "fraud_amount_share_missed": 0.1756
+    },
+    {
+      "review_threshold": 0.94,
+      "alerts_per_10k": 10.9,
+      "false_alerts_per_10k": 1.6,
+      "review_queue_per_10k": 543.7,
+      "review_share_of_traffic": 0.0544,
+      "precision_on_alerts": 0.8548,
+      "fraud_caught_auto": 53,
+      "fraud_in_review": 14,
+      "fraud_missed": 8,
+      "fraud_amount_share_caught_auto": 0.497,
+      "fraud_amount_share_surfaced": 0.8244,
+      "fraud_amount_share_missed": 0.1756
+    },
+    {
+      "review_threshold": 0.95,
+      "alerts_per_10k": 10.4,
+      "false_alerts_per_10k": 1.1,
+      "review_queue_per_10k": 709.1,
+      "review_share_of_traffic": 0.0709,
+      "precision_on_alerts": 0.8983,
+      "fraud_caught_auto": 53,
+      "fraud_in_review": 16,
+      "fraud_missed": 6,
+      "fraud_amount_share_caught_auto": 0.497,
+      "fraud_amount_share_surfaced": 0.9718,
+      "fraud_amount_share_missed": 0.0282
+    },
+    {
+      "review_threshold": 0.96,
+      "alerts_per_10k": 9.8,
+      "false_alerts_per_10k": 0.7,
+      "review_queue_per_10k": 1035.3,
+      "review_share_of_traffic": 0.1035,
+      "precision_on_alerts": 0.9286,
+      "fraud_caught_auto": 52,
+      "fraud_in_review": 18,
+      "fraud_missed": 5,
+      "fraud_amount_share_caught_auto": 0.4968,
+      "fraud_amount_share_surfaced": 0.9728,
+      "fraud_amount_share_missed": 0.0272
+    },
+    {
+      "review_threshold": 0.97,
+      "alerts_per_10k": 9.8,
+      "false_alerts_per_10k": 0.7,
+      "review_queue_per_10k": 1762.4,
+      "review_share_of_traffic": 0.1762,
+      "precision_on_alerts": 0.9286,
+      "fraud_caught_auto": 52,
+      "fraud_in_review": 20,
+      "fraud_missed": 3,
+      "fraud_amount_share_caught_auto": 0.4968,
+      "fraud_amount_share_surfaced": 0.9996,
+      "fraud_amount_share_missed": 0.0004
+    },
+    {
+      "review_threshold": 0.98,
+      "alerts_per_10k": 9.3,
+      "false_alerts_per_10k": 0.7,
+      "review_queue_per_10k": 3960.3,
+      "review_share_of_traffic": 0.396,
+      "precision_on_alerts": 0.9245,
+      "fraud_caught_auto": 49,
+      "fraud_in_review": 25,
+      "fraud_missed": 1,
+      "fraud_amount_share_caught_auto": 0.4864,
+      "fraud_amount_share_surfaced": 0.9997,
+      "fraud_amount_share_missed": 0.0003
+    },
+    {
+      "review_threshold": 0.99,
+      "alerts_per_10k": 0.0,
+      "false_alerts_per_10k": 0.0,
+      "review_queue_per_10k": 9996.8,
+      "review_share_of_traffic": 0.9997,
+      "precision_on_alerts": null,
+      "fraud_caught_auto": 0,
+      "fraud_in_review": 75,
+      "fraud_missed": 0,
+      "fraud_amount_share_caught_auto": 0.0,
+      "fraud_amount_share_surfaced": 1.0,
+      "fraud_amount_share_missed": 0.0
+    }
+  ],
+  "headline_sentences": [
+    "Versus flagging at 0.5 with no review, the 0.95 review band cuts false fraud alerts from 26.9 to 1.1 per 10,000 transactions (96.1% fewer, 95% CI 92.7% to 98.7%), and missed frauds go from 12 to 6 of 75, at the price of a review queue of 709 per 10,000.",
+    "By value, the band auto-flags 49.7% of the fold's fraud amount and surfaces 97.2% of it (auto-flag plus review); 2.8% is cleared unseen, against 33.6% with no review.",
+    "Raising the threshold to 0.95 without a review queue gives the same 59 alerts but misses 22 frauds instead of 6: the queue is what buys the high precision without the misses."
+  ]
+}
