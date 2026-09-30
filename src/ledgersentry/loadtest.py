@@ -638,11 +638,12 @@ def provenance() -> dict[str, Any]:
 
     sha = _git("rev-parse", "HEAD") or None
     dirty = _git("status", "--porcelain", "--", ".", ":(exclude)artifacts") if sha else ""
-    model = REPO_ROOT / "artifacts" / f"{PKG}.joblib"  # gitignored, so hashed here
+    model = get_settings().artifact_dir / f"{PKG}.joblib"  # gitignored, so hashed here
     return {
         "git_sha": sha,
         "git_dirty_outside_artifacts": bool(dirty) if sha else None,
         "dirty_paths": [ln.split(maxsplit=1)[-1] for ln in dirty.splitlines()][:20],
+        "model_artifact_path": str(model),
         "model_artifact_sha256": (
             hashlib.sha256(model.read_bytes()).hexdigest() if model.exists() else None
         ),
@@ -928,6 +929,25 @@ def ab_table(summary: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def validate_args(
+    ab_rounds: int, url: str | None, extra_env: dict[str, str], ab_dir: Path | None,
+) -> str | None:
+    """Combinations that would write a result whose labels are wrong."""
+    owned = [k for k in extra_env if k in THREAD_VARS or k == "WEB_CONCURRENCY"]
+    if owned:
+        return (f"--env may not set {', '.join(owned)}: the arm sets the thread variables "
+                "and --workers sets WEB_CONCURRENCY, and the result labels follow them")
+    if ab_rounds and url:
+        return ("--ab-rounds starts its own server per arm; against --url every arm would be "
+                "the same server (scripts/loadtest_linux.sh runs an external A/B)")
+    if ab_rounds and ab_dir is not None and any(
+        p.name != "summary.json" for p in ab_dir.glob("*.json")
+    ):
+        return (f"{ab_dir} already holds results; the summary would mix them with this run. "
+                "Use an empty --ab-dir")
+    return None
+
+
 def _maybe_json(value: str) -> Any:
     """--meta values that are JSON (a probe's output) are stored as JSON."""
     try:
@@ -1016,10 +1036,13 @@ def main() -> None:
         "n_payloads": args.payloads, "url": args.url, "extra_env": extra_env,
         "server_pid": args.server_pid, "meta": meta,
     }
+    ab_dir = Path(args.ab_dir) if args.ab_dir else (
+        get_settings().artifact_dir / "loadtest_ab" / args.endpoint
+    )
+    problem = validate_args(args.ab_rounds, args.url, extra_env, ab_dir)
+    if problem:
+        raise SystemExit(problem)
     if args.ab_rounds:
-        ab_dir = Path(args.ab_dir) if args.ab_dir else (
-            get_settings().artifact_dir / "loadtest_ab" / args.endpoint
-        )
         ab_dir.mkdir(parents=True, exist_ok=True)
         for rnd in range(1, args.ab_rounds + 1):
             for w in [int(x) for x in args.ab_workers.split(",")]:

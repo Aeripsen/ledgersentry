@@ -176,3 +176,16 @@ def test_check_result_flags_missing_provenance_and_cpu() -> None:
 def test_shown_cmd_hides_pid_and_paths() -> None:
     cmd = ["C:/x/py-spy.exe", "record", "--pid", "123", "--output", "/tmp/a/b.txt", "--gil"]
     assert lt._shown_cmd(cmd) == "py-spy record --pid <server pid> --output b.txt --gil"
+
+
+def test_validate_args_refuses_combinations_that_mislabel_results(tmp_path: Path) -> None:
+    assert lt.validate_args(0, None, {}, tmp_path) is None
+    assert lt.validate_args(3, None, {"X": "1"}, tmp_path) is None
+    assert "OMP_NUM_THREADS" in lt.validate_args(3, None, {"OMP_NUM_THREADS": "1"}, tmp_path)
+    assert "WEB_CONCURRENCY" in lt.validate_args(0, None, {"WEB_CONCURRENCY": "4"}, tmp_path)
+    assert "--url" in lt.validate_args(1, "http://127.0.0.1:8000", {}, tmp_path)
+    (tmp_path / "summary.json").write_text("{}")
+    assert lt.validate_args(1, None, {}, tmp_path) is None  # a summary alone is not a result
+    (tmp_path / "omp1_w1_r1.json").write_text("{}")
+    assert "already holds results" in lt.validate_args(1, None, {}, tmp_path)
+    assert lt.validate_args(0, None, {}, tmp_path) is None  # single runs do not summarize
