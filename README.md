@@ -369,7 +369,7 @@ Median req/s over 3 runs (min to max), median p99:
 | 1 worker, `OMP_NUM_THREADS=1` (shipped) | 343.0 (277.6 to 349.0), 3.9 ms | 323.7 (286.5 to 324.0), 17.7 ms | 336.4 (299.4 to 337.8), 108.2 ms | 330.8 (302.2 to 333.2), 401.4 ms | 96 to 124 |
 | 1 worker, unset (before) | 314.4 (295.9 to 322.9), 4.4 ms | 266.5 (257.7 to 271.6), 20.4 ms | 242.1 (239.8 to 272.6), 197.4 ms | 230.4 (214.4 to 249.0), 659.0 ms | 590 to 1,052 |
 | 4 workers, `OMP_NUM_THREADS=1` (shipped) | 334.0 (311.3 to 347.3), 4.0 ms | **1,128.6** (785.8 to 1,129.7), **4.2 ms** | 1,181.0 (1,139.3 to 1,192.9), 44.4 ms | 1,215.6 (1,185.9 to 1,225.3), 140.9 ms | 97 to 467 |
-| 4 workers, unset (before) | 318.8 (256.3 to 322.3), 4.3 ms | 404.4 (397.7 to 595.5), 18.8 ms | 578.1 (418.6 to 624.5), 99.6 ms | 519.9 (493.2 to 538.7), 401.8 ms | 561 to 969 |
+| 4 workers, unset (before) | 318.8 (256.3 to 322.3), 4.3 ms | 404.4 (397.7 to 595.5), 18.8 ms | 578.1 (418.6 to 624.5), 99.6 ms | 519.9 (493.2 to 538.7), 401.8 ms | 561 to 1,088 |
 
 **The bottleneck.** With the thread variables unset, one worker used 5.9 to 10.5 of the 12
 logical cores and got less throughput than the shipped arm, which used 1.0 to 1.2. The
