@@ -220,14 +220,22 @@ def kind_report(args: argparse.Namespace) -> int:
     # window is the difference between the two counts.
     at_steady_end = _pod_counts(d / "pod_requests_steady_end.txt")
     at_pre = _pod_counts(d / "pod_requests_pre_restart.txt")
-    pods_served = None
+    pods_served: dict[str, Any] | None = None
     if at_steady_end and at_pre:
+        window = {p: n - at_steady_end.get(p, 0) for p, n in at_pre.items()}
         pods_served = {
             "steady_phase": _spread(at_steady_end),
-            "restart_phase_before_restart": _spread(
-                {p: n - at_steady_end.get(p, 0) for p, n in at_pre.items()}),
+            "restart_phase_before_restart": _spread(window),
             "counted_seconds_into_restart_phase":
                 t["pre_restart_count_at"] - t["restart_load_start"],
+            # Log counts are only usable if nothing was lost: kubectl logs
+            # returns the current log file only, so a rotation drops lines. The
+            # steady total must match k6's count (the smoke-test /predict can
+            # add one), and no pod's count may go down between the two samples.
+            "complete": {
+                "steady_phase": abs(sum(at_steady_end.values()) - steady["requests"]) <= 2,
+                "restart_phase_before_restart": all(v >= 0 for v in window.values()),
+            },
         }
         # Replacement pods only ever served the restart phase, so their counts
         # show where the clients' connections ended up after the rollout.
@@ -235,6 +243,10 @@ def kind_report(args: argparse.Namespace) -> int:
         if at_end:
             pods_served["replacement_pods_whole_restart_phase"] = _spread(
                 {p: n for p, n in at_end.items() if p in after})
+            # Not checkable: the old pods' share of this phase is gone with
+            # them, so there is no total to compare with. The 200Mi log limit in
+            # deploy/k8s/kind-cluster.yaml is what keeps these counts whole.
+            pods_served["complete"]["replacement_pods_whole_restart_phase"] = None
 
     pdb_kv = _kv(d / "pdb.txt")
     pdb = None

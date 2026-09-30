@@ -63,7 +63,7 @@ docker pull -q "$K6_IMAGE"
 
 if ! kind get clusters 2>/dev/null | grep -qx "$CLUSTER"; then
   log "create kind cluster $CLUSTER"
-  kind create cluster --name "$CLUSTER" --wait 120s
+  kind create cluster --name "$CLUSTER" --config deploy/k8s/kind-cluster.yaml --wait 120s
 fi
 kubectl config use-context "kind-$CLUSTER"
 kind load docker-image "$APP:ci" "$K6_IMAGE" --name "$CLUSTER"

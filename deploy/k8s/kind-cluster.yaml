@@ -1,0 +1,13 @@
+# The kind cluster scripts/k8s_e2e.sh creates. One change from kind's defaults:
+# the kubelet keeps up to 200Mi of a container's log before rotating it (the
+# default is 10Mi). The run counts the requests each pod served from its uvicorn
+# access log, and `kubectl logs` returns only the current log file, so a rotation
+# mid-run made a pod's count go backwards (seen in a FlowSentry A/B run at about
+# 480 req/s). scripts/k8s_report.py also checks the counts against k6's own
+# totals and marks them incomplete if they do not add up.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+kubeadmConfigPatches:
+  - |
+    kind: KubeletConfiguration
+    containerLogMaxSize: 200Mi
