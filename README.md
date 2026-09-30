@@ -447,7 +447,7 @@ scored by a model that did not train on it: reference = the inner validation sli
 80%, the carve `compare.py` selects on), current = the test fold (16:20 to 23:59 on day 2,
 scored by the shipped model). The script refuses to write unless both windows reproduce the
 committed PR-AUCs. From `artifacts/evidently_summary_ulb_creditcard.json` and
-`reports/evidently_ulb_creditcard.html`:
+[`reports/evidently_ulb_creditcard.html`](https://aeripsen.github.io/ledgersentry/reports/evidently_ulb_creditcard.html) (open it in the browser):
 
 | | Reference | Current |
 |---|---|---|

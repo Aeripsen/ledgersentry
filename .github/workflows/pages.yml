@@ -43,6 +43,9 @@ jobs:
 
       - name: Assemble the site from the committed artifacts (same code the site job checked)
         run: python scripts/check_site.py --build _site
+      # the committed Evidently drift + performance report, served beside the demo
+      - name: Add the Evidently report
+        run: mkdir -p _site/reports && cp reports/*.html _site/reports/
 
       - uses: actions/upload-pages-artifact@v3
         with:
