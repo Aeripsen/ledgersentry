@@ -1,0 +1,32 @@
+# One load phase as a Job. CI fills PHASE / DURATION / VUS with sed and reads
+# the K6_SUMMARY line from the pod log. The k6 script and payload come from the
+# k6-script ConfigMap that CI creates from this directory.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: k6-__PHASE__
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: k6
+          image: grafana/k6:2.3.0
+          args: ["run", "--quiet", "--no-color", "/scripts/load.js"]
+          env:
+            - name: TARGET
+              value: http://ledgersentry.ledgersentry.svc.cluster.local
+            - name: PHASE
+              value: "__PHASE__"
+            - name: DURATION
+              value: "__DURATION__"
+            - name: VUS
+              value: "__VUS__"
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: k6-script

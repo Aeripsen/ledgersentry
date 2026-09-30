@@ -1,7 +1,7 @@
 # LedgerSentry serving image. Builds a self-contained image that serves the
 # FastAPI app, and the same image also runs the Streamlit dashboard (see
 # docker-compose.yml). Used directly by render.yaml, deploy/k8s, and the
-# deploy/terraform Cloud Run module - see DEPLOY.md.
+# deploy/terraform modules - see DEPLOY.md.
 FROM python:3.12-slim
 
 WORKDIR /app
@@ -35,7 +35,7 @@ RUN test -f artifacts/ledgersentry.joblib \
     || python -c "from ledgersentry.train import main; main()"
 
 # Drop root: run as an unprivileged user so k8s runAsNonRoot (uid 10001 in
-# deploy/k8s/ledgersentry.yaml) can be enforced. Everything above ran as root;
+# deploy/k8s/base/ledgersentry.yaml) can be enforced. Everything above ran as root;
 # chown hands the baked image to the runtime user, which only reads it.
 RUN useradd --system --uid 10001 --home-dir /app app && chown -R app /app
 USER app
@@ -47,4 +47,10 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD python -c "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('PORT', '8000') + '/health')"
 
-CMD ["sh", "-c", "uvicorn ledgersentry.service:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# `exec` replaces the shell with uvicorn, so uvicorn is PID 1 and gets the
+# SIGTERM that Kubernetes and Cloud Run send on shutdown, and drains in-flight
+# requests. Whether a bare `sh -c` does that on its own depends on the shell
+# build; a shell left as PID 1 does not forward SIGTERM, and the pod would sit
+# until the SIGKILL at the end of the grace period. CI records PID 1
+# (scripts/k8s_e2e.sh) so this is checked, not assumed.
+CMD ["sh", "-c", "exec uvicorn ledgersentry.service:app --host 0.0.0.0 --port ${PORT:-8000}"]

@@ -1,0 +1,5 @@
+# Base: `kubectl apply -k deploy/k8s/base` applies ledgersentry.yaml as written.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ledgersentry.yaml

@@ -1,0 +1,102 @@
+name: k8s
+
+# Runs the deploy story for real on a free GitHub runner: the image is built,
+# deployed to a kind cluster from deploy/k8s, load-tested and rolled under
+# load; Terraform applies deploy/terraform/kubernetes to a second kind cluster
+# and destroys it; the Cloud Run module is fmt-checked and validated (applying
+# it needs a GCP project with billing, which this workflow never touches).
+# DEPLOY.md holds the output of a run and how to reproduce it locally.
+
+on:
+  push:
+    branches: [master, "ci/**"]
+    paths:
+      - "deploy/**"
+      - "Dockerfile"
+      - "requirements.txt"
+      - "src/**"
+      - "scripts/k8s_*"
+      - "scripts/tf_kind_e2e.sh"
+      - ".github/workflows/k8s.yml"
+  pull_request:
+    paths:
+      - "deploy/**"
+      - "Dockerfile"
+      - "scripts/k8s_*"
+      - "scripts/tf_kind_e2e.sh"
+      - ".github/workflows/k8s.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  TERRAFORM_VERSION: "1.16.4"
+  KIND_VERSION: "v0.33.0"
+
+jobs:
+  terraform-static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+      - name: terraform fmt -check
+        run: terraform fmt -check -recursive -diff deploy/terraform
+      - name: terraform validate (cloudrun, kubernetes)
+        run: |
+          for m in cloudrun kubernetes; do
+            echo "== deploy/terraform/$m"
+            terraform -chdir=deploy/terraform/$m init -backend=false -input=false -no-color
+            terraform -chdir=deploy/terraform/$m validate -no-color
+          done
+
+  kind-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: helm/kind-action@v1.15.0
+        with:
+          version: ${{ env.KIND_VERSION }}
+          install_only: true
+      - name: Deploy to kind, smoke test, load test, rolling restart under load
+        run: bash scripts/k8s_e2e.sh
+      - name: Cluster state on failure
+        if: failure()
+        run: |
+          kubectl -n ledgersentry get all,cm,hpa,pdb -o wide || true
+          kubectl -n ledgersentry describe deploy,pod || true
+          kubectl -n ledgersentry logs -l app=ledgersentry --tail=200 --prefix || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k8s-kind-run
+          path: |
+            k8s-run/
+            artifacts/k8s_kind_ledgersentry.json
+
+  terraform-kind:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+      - uses: helm/kind-action@v1.15.0
+        with:
+          version: ${{ env.KIND_VERSION }}
+          install_only: true
+      - name: terraform apply to kind, smoke test, empty re-plan, parity, destroy
+        run: bash scripts/tf_kind_e2e.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: terraform-kind-run
+          path: |
+            tf-run/
+            artifacts/terraform_kind_ledgersentry.json
