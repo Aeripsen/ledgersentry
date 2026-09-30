@@ -5,6 +5,8 @@
 
 **[Live demo: drag the review knob over 56,961 real held-out card transactions](https://aeripsen.github.io/ledgersentry/)**
 
+[![the review knob moving over the held-out fold](docs/img/demo.gif)](https://aeripsen.github.io/ledgersentry/)
+
 **What this is, in 30 seconds.** A card-fraud model that is allowed to say "not sure, send
 it to a person" instead of guessing. Tested on the last 7.65 hours of a public set of real
 card transactions that it never saw in training, against the same model deciding everything

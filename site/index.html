@@ -232,6 +232,8 @@ footer { padding: 1.4rem 0 2.4rem; color: var(--faint); font-size: .85rem; }
   var nf = function (x, d) { return x.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }); };
   var money = function (x) { return nf(x, 2); };
   var pct = function (x, d) { return nf(100 * x, d === undefined ? 1 : d) + "%"; };
+  // a share of fraud amount must never read 0% or 100% while some of it is on the other side
+  var share = function (x) { return x > 0 && x < 0.001 ? "<0.1%" : x < 1 && x > 0.999 ? ">99.9%" : pct(x, 1); };
 
   function lanesFor(flagAt, clearAt, symmetric, t) {
     // Symmetric mode uses the repo's exact rule (model.curve_from_scores):
@@ -279,8 +281,8 @@ footer { padding: 1.4rem 0 2.4rem; color: var(--faint); font-size: .85rem; }
     $("m-prec").textContent = c.n[2] ? pct(c.fraud[2] / c.n[2]) : "nothing blocked";
     $("m-rev").textContent = nf(per(c.n[1]), 1);
     $("m-miss").textContent = c.fraud[0] + " of " + FRAUD_IDX.length;
-    $("m-amt").textContent = money(c.amt[2] + c.amt[1]) + " (" + pct((c.amt[2] + c.amt[1]) / FRAUD_TOTAL, 0) + ")";
-    $("m-amt-miss").textContent = money(c.amt[0]) + " (" + pct(c.amt[0] / FRAUD_TOTAL, 1) + ")";
+    $("m-amt").textContent = money(c.amt[2] + c.amt[1]) + " (" + share((c.amt[2] + c.amt[1]) / FRAUD_TOTAL) + ")";
+    $("m-amt-miss").textContent = money(c.amt[0]) + " (" + share(c.amt[0] / FRAUD_TOTAL) + ")";
     $("m-legit-amt").textContent = money(c.legitAmt[2]);
     $("c-ff").textContent = c.fraud[2]; $("c-fr").textContent = c.fraud[1]; $("c-fc").textContent = c.fraud[0];
     $("c-lf").textContent = nf(fa, 0); $("c-lr").textContent = nf(c.n[1] - c.fraud[1], 0); $("c-lc").textContent = nf(c.n[0] - c.fraud[0], 0);
