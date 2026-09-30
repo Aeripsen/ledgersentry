@@ -229,6 +229,12 @@ def kind_report(args: argparse.Namespace) -> int:
             "counted_seconds_into_restart_phase":
                 t["pre_restart_count_at"] - t["restart_load_start"],
         }
+        # Replacement pods only ever served the restart phase, so their counts
+        # show where the clients' connections ended up after the rollout.
+        at_end = _pod_counts(d / "pod_requests_restart_end.txt")
+        if at_end:
+            pods_served["replacement_pods_whole_restart_phase"] = _spread(
+                {p: n for p, n in at_end.items() if p in after})
 
     pdb_kv = _kv(d / "pdb.txt")
     pdb = None

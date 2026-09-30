@@ -16,7 +16,7 @@
 #    afterwards count the requests each pod served (uvicorn access log)
 # 6. rolling restart DURING load: a fresh k6 run, restart RESTART_AFTER s into it,
 #    count every failed request; per-pod counts are taken again just before the
-#    restart, and k6 reports requests per 10 s so the report can compare the
+#    restart and, for the replacement pods, at the end, and k6 reports requests per 10 s so the report can compare the
 #    window before the restart with the windows during and after it
 # 7. scripts/k8s_report.py writes the artifact and exits 1 if any request failed
 #    or any check above did not hold (GATE=0 records without failing, for the
@@ -180,6 +180,7 @@ finish_phase restart
 for p in $(cat "$OUT/pods_before.txt"); do kn wait --for=delete "pod/$p" --timeout=120s || true; done
 kn get pod -l "app=$APP" --field-selector=status.phase=Running \
   -o jsonpath='{.items[*].metadata.name}' > "$OUT/pods_after.txt"
+pod_requests | tee "$OUT/pod_requests_restart_end.txt"
 
 kill $HPA_WATCH 2>/dev/null || true
 log "write report"
