@@ -117,7 +117,7 @@ resource "kubernetes_deployment_v1" "api" {
           lifecycle {
             pre_stop {
               exec {
-                command = ["sleep", "5"]
+                command = ["sh", "-c", "touch /tmp/draining && sleep 5"]
               }
             }
           }
@@ -191,6 +191,33 @@ resource "kubernetes_horizontal_pod_autoscaler_v2" "api" {
         target {
           type                = "Utilization"
           average_utilization = var.cpu_target_percent
+        }
+      }
+    }
+
+    # Same policy as the YAML (the Kubernetes defaults, written out).
+    behavior {
+      scale_up {
+        stabilization_window_seconds = 0
+        select_policy                = "Max"
+        policy {
+          type           = "Pods"
+          value          = 4
+          period_seconds = 15
+        }
+        policy {
+          type           = "Percent"
+          value          = 100
+          period_seconds = 15
+        }
+      }
+      scale_down {
+        stabilization_window_seconds = 300
+        select_policy                = "Max"
+        policy {
+          type           = "Percent"
+          value          = 100
+          period_seconds = 15
         }
       }
     }

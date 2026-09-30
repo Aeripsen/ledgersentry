@@ -39,6 +39,7 @@ from pydantic import BaseModel, Field
 
 from . import __version__
 from .config import get_settings
+from .drain import DrainMiddleware
 from .drift import drift_report
 from .scoring import CompiledScorer, build_scorer
 
@@ -80,6 +81,8 @@ app = FastAPI(
     version=__version__,
     description="Real-time financial-transaction fraud detection with a tunable reject option.",
 )
+# Connection draining for rolling restarts (drain.py, deploy/k8s preStop).
+app.add_middleware(DrainMiddleware)
 
 _bundle = None
 _scorer_cache: tuple[object, CompiledScorer] | None = None
