@@ -634,12 +634,18 @@ def _git(*args: str) -> str:
 def provenance() -> dict[str, Any]:
     """Which code produced the file. Changes under artifacts/ do not count as
     dirty: the harness writes there while it runs."""
+    import hashlib
+
     sha = _git("rev-parse", "HEAD") or None
     dirty = _git("status", "--porcelain", "--", ".", ":(exclude)artifacts") if sha else ""
+    model = REPO_ROOT / "artifacts" / f"{PKG}.joblib"  # gitignored, so hashed here
     return {
         "git_sha": sha,
         "git_dirty_outside_artifacts": bool(dirty) if sha else None,
         "dirty_paths": [ln.split(maxsplit=1)[-1] for ln in dirty.splitlines()][:20],
+        "model_artifact_sha256": (
+            hashlib.sha256(model.read_bytes()).hexdigest() if model.exists() else None
+        ),
         "harness_argv": sys.argv[1:],
     }
 
@@ -689,6 +695,7 @@ def run(
           f"workers={workers} http={http} levels={levels}")
 
     env = environment(workers, http)  # before the server starts: the load before is honest
+    prov = provenance()  # at the start: the code the server is about to load
     proc = None
     pids: list[int] = []
     tmp = Path(tempfile.mkdtemp(prefix=f"{PKG}_load_"))
@@ -777,7 +784,10 @@ def run(
         "is_synthetic": source == "synthetic",
         "warmup_s": warmup_s,
         "measure_s": measure_s,
-        "provenance": provenance(),
+        "provenance": {
+            **prov,
+            "git_sha_changed_during_run": provenance()["git_sha"] != prov["git_sha"],
+        },
         "server": server,
         "meta": meta or {},
         "environment": env,
