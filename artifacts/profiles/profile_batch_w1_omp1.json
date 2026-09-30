@@ -1,0 +1,148 @@
+{
+  "what": "closed-loop HTTP load test against the service process; client-side latency, send to last byte; real held-out rows as payloads",
+  "label": "profile_batch_w1_omp1",
+  "arm": "omp1",
+  "arm_what": "thread-count ENV from the Dockerfile (OMP_NUM_THREADS=1), as shipped",
+  "endpoint": "/predict/batch",
+  "batch_size": 100,
+  "data_source": "ulb_creditcard",
+  "is_synthetic": false,
+  "warmup_s": 2.0,
+  "measure_s": 10.0,
+  "provenance": {
+    "git_sha": "86ee9fcc453879498a9f1324e007a8f07e31f6da",
+    "git_dirty_outside_artifacts": false,
+    "dirty_paths": [],
+    "model_artifact_sha256": "aa8c3a1a5c1fc4b8c2558025f60f7a8f4611f8208cff792cc2eed20dfe280f03",
+    "harness_argv": [
+      "--endpoint",
+      "batch",
+      "--levels",
+      "4",
+      "--pyspy-at",
+      "4",
+      "--label",
+      "profile_batch_w1_omp1",
+      "--out",
+      "artifacts/profiles/profile_batch_w1_omp1.json"
+    ],
+    "git_sha_changed_during_run": false
+  },
+  "server": {
+    "mode": "started by the harness",
+    "cmd": [
+      "python.exe",
+      "-m",
+      "uvicorn",
+      "ledgersentry.service:app",
+      "--app-dir",
+      "src",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "51789"
+    ],
+    "workers_via": "WEB_CONCURRENCY",
+    "thread_env": {
+      "OMP_NUM_THREADS": "1"
+    },
+    "thread_env_source": "Dockerfile ENV",
+    "env_overrides": {},
+    "arm_resolved": {
+      "OMP_NUM_THREADS": "1",
+      "MKL_NUM_THREADS": null,
+      "OPENBLAS_NUM_THREADS": null
+    },
+    "openmp_probe": {
+      "hgb_predict_openmp_threads": 1,
+      "openmp_runtime": "vcomp",
+      "openmp_pool_num_threads": 1,
+      "OMP_NUM_THREADS": "1"
+    }
+  },
+  "meta": {},
+  "environment": {
+    "cpu": "Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz",
+    "physical_cores": 6,
+    "logical_cpus": 12,
+    "ram_gb": 15.9,
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.13",
+    "fastapi": "0.139.2",
+    "uvicorn": "0.52.4",
+    "http_parser": "httptools",
+    "event_loop": "asyncio",
+    "scikit_learn": "1.9.0",
+    "numpy": "2.4.6",
+    "uvicorn_workers": 1,
+    "machine_cpu_busy_percent_before_run": 2.5,
+    "client": "stdlib asyncio keep-alive HTTP/1.1, same machine as the server",
+    "measured_at": "2026-09-30T22:15:02Z"
+  },
+  "levels": [
+    {
+      "concurrency": 4,
+      "client_processes": 4,
+      "requests": 899,
+      "ok": 899,
+      "errors": 0,
+      "error_rate": 0.0,
+      "req_per_s": 89.9,
+      "p50_ms": 43.679,
+      "p95_ms": 52.99,
+      "p99_ms": 57.238,
+      "max_ms": 67.738,
+      "mean_ms": 44.227,
+      "server_cpu_percent": 111.3,
+      "machine_cpu_percent": 16.5,
+      "rows_per_s": 8990.0
+    }
+  ],
+  "summary": {
+    "peak": {
+      "concurrency": 4,
+      "req_per_s": 89.9,
+      "p50_ms": 43.679,
+      "p99_ms": 57.238
+    },
+    "knee": null,
+    "best_with_p99_under_budget": null,
+    "latency_budget_ms": 10.0,
+    "total_errors": 0
+  },
+  "profile": {
+    "concurrency": 4,
+    "command": "py-spy record --pid <server pid> --duration 10 --rate 100 --gil --format raw --output profile_batch_w1_omp1_c4.txt",
+    "pid_target": "the uvicorn process the harness started",
+    "file": "profile_batch_w1_omp1_c4.txt",
+    "samples": 884,
+    "bucket_regex": {
+      "scoring (ledgersentry/scoring.py)": "ledgersentry[\\\\/]scoring\\.py",
+      "model predict (sklearn)": "sklearn[\\\\/]",
+      "json decode": "json[\\\\/]decoder\\.py",
+      "pydantic validation": "pydantic",
+      "pandas": "pandas[\\\\/]",
+      "logging": "logging[\\\\/]"
+    },
+    "share_percent": {
+      "scoring (ledgersentry/scoring.py)": 40.4,
+      "model predict (sklearn)": 20.6,
+      "json decode": 16.3,
+      "pydantic validation": 4.6,
+      "pandas": 31.9,
+      "logging": 3.7
+    },
+    "top_leaf_frames_percent": {
+      "raw_decode (json\\decoder.py:361)": 16.1,
+      "_predict_iterations (sklearn\\ensemble\\_hist_gradient_boosting\\gradient_boosting.py:1243)": 7.0,
+      "predict (sklearn\\ensemble\\_hist_gradient_boosting\\predictor.py:81)": 6.1,
+      "validate_python (pydantic\\type_adapter.py:441)": 4.1,
+      "convert (pandas\\core\\internals\\construction.py:1004)": 3.8,
+      "predict (sklearn\\ensemble\\_hist_gradient_boosting\\predictor.py:72)": 1.9,
+      "__contains__ (pandas\\core\\indexes\\base.py:5371)": 1.4,
+      "to_numpy (pandas\\core\\base.py:689)": 1.4,
+      "transform_frame (ledgersentry\\scoring.py:189)": 1.4,
+      "predict_batch (ledgersentry\\service.py:276)": 1.4
+    }
+  }
+}

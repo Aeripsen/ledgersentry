@@ -714,7 +714,9 @@ def run(
         cmd = server_cmd(port, http)
         server = {
             "mode": "started by the harness",
-            "cmd": [Path(cmd[0]).name, *cmd[1:]],
+            # repo-relative, so a result file carries no machine-specific path
+            "cmd": [Path(cmd[0]).name, *("src" if a == str(REPO_ROOT / "src") else a
+                                         for a in cmd[1:])],
             "workers_via": "WEB_CONCURRENCY",
             "thread_env": {k: senv[k] for k in THREAD_VARS if k in senv},
             "thread_env_source": "unset" if spec["unset_thread_env"] else "Dockerfile ENV",

@@ -1,0 +1,229 @@
+{
+  "what": "closed-loop HTTP load test against the service process; client-side latency, send to last byte; real held-out rows as payloads",
+  "label": "omp1_w4_r1",
+  "arm": "omp1",
+  "arm_what": "thread-count ENV from the Dockerfile (OMP_NUM_THREADS=1), as shipped",
+  "endpoint": "/predict",
+  "batch_size": 1,
+  "data_source": "ulb_creditcard",
+  "is_synthetic": false,
+  "warmup_s": 2.0,
+  "measure_s": 10.0,
+  "provenance": {
+    "git_sha": "86ee9fcc453879498a9f1324e007a8f07e31f6da",
+    "git_dirty_outside_artifacts": false,
+    "dirty_paths": [],
+    "model_artifact_sha256": "aa8c3a1a5c1fc4b8c2558025f60f7a8f4611f8208cff792cc2eed20dfe280f03",
+    "harness_argv": [
+      "--ab-rounds",
+      "3",
+      "--ab-workers",
+      "1,4"
+    ],
+    "git_sha_changed_during_run": false
+  },
+  "server": {
+    "mode": "started by the harness",
+    "cmd": [
+      "python.exe",
+      "-m",
+      "uvicorn",
+      "ledgersentry.service:app",
+      "--app-dir",
+      "src",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "52948"
+    ],
+    "workers_via": "WEB_CONCURRENCY",
+    "thread_env": {
+      "OMP_NUM_THREADS": "1"
+    },
+    "thread_env_source": "Dockerfile ENV",
+    "env_overrides": {},
+    "arm_resolved": {
+      "OMP_NUM_THREADS": "1",
+      "MKL_NUM_THREADS": null,
+      "OPENBLAS_NUM_THREADS": null
+    },
+    "openmp_probe": {
+      "hgb_predict_openmp_threads": 1,
+      "openmp_runtime": "vcomp",
+      "openmp_pool_num_threads": 1,
+      "OMP_NUM_THREADS": "1"
+    }
+  },
+  "meta": {},
+  "environment": {
+    "cpu": "Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz",
+    "physical_cores": 6,
+    "logical_cpus": 12,
+    "ram_gb": 15.9,
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.13",
+    "fastapi": "0.139.2",
+    "uvicorn": "0.52.4",
+    "http_parser": "httptools",
+    "event_loop": "asyncio",
+    "scikit_learn": "1.9.0",
+    "numpy": "2.4.6",
+    "uvicorn_workers": 4,
+    "machine_cpu_busy_percent_before_run": 65.8,
+    "client": "stdlib asyncio keep-alive HTTP/1.1, same machine as the server",
+    "measured_at": "2026-09-30T21:45:46Z"
+  },
+  "levels": [
+    {
+      "concurrency": 1,
+      "client_processes": 1,
+      "requests": 3113,
+      "ok": 3113,
+      "errors": 0,
+      "error_rate": 0.0,
+      "req_per_s": 311.3,
+      "p50_ms": 3.13,
+      "p95_ms": 3.86,
+      "p99_ms": 4.072,
+      "max_ms": 11.96,
+      "mean_ms": 3.21,
+      "server_cpu_percent": 98.8,
+      "machine_cpu_percent": 36.2
+    },
+    {
+      "concurrency": 2,
+      "client_processes": 2,
+      "requests": 5566,
+      "ok": 5566,
+      "errors": 0,
+      "error_rate": 0.0,
+      "req_per_s": 556.6,
+      "p50_ms": 3.629,
+      "p95_ms": 4.019,
+      "p99_ms": 4.203,
+      "max_ms": 13.421,
+      "mean_ms": 3.591,
+      "server_cpu_percent": 198.1,
+      "machine_cpu_percent": 45.2
+    },
+    {
+      "concurrency": 4,
+      "client_processes": 4,
+      "requests": 7858,
+      "ok": 7858,
+      "errors": 0,
+      "error_rate": 0.0,
+      "req_per_s": 785.8,
+      "p50_ms": 3.96,
+      "p95_ms": 8.097,
+      "p99_ms": 10.761,
+      "max_ms": 40.856,
+      "mean_ms": 5.087,
+      "server_cpu_percent": 305.9,
+      "machine_cpu_percent": 77.8
+    },
+    {
+      "concurrency": 8,
+      "client_processes": 4,
+      "requests": 10582,
+      "ok": 10582,
+      "errors": 0,
+      "error_rate": 0.0,
+      "req_per_s": 1058.2,
+      "p50_ms": 6.718,
+      "p95_ms": 15.053,
+      "p99_ms": 17.409,
+      "max_ms": 51.556,
+      "mean_ms": 7.551,
+      "server_cpu_percent": 422.7,
+      "machine_cpu_percent": 66.4
+    },
+    {
+      "concurrency": 16,
+      "client_processes": 4,
+      "requests": 11204,
+      "ok": 11204,
+      "errors": 0,
+      "error_rate": 0.0,
+      "req_per_s": 1120.4,
+      "p50_ms": 14.148,
+      "p95_ms": 18.668,
+      "p99_ms": 21.285,
+      "max_ms": 39.44,
+      "mean_ms": 14.254,
+      "server_cpu_percent": 457.5,
+      "machine_cpu_percent": 60.4
+    },
+    {
+      "concurrency": 32,
+      "client_processes": 4,
+      "requests": 11393,
+      "ok": 11393,
+      "errors": 0,
+      "error_rate": 0.0,
+      "req_per_s": 1139.3,
+      "p50_ms": 27.506,
+      "p95_ms": 34.298,
+      "p99_ms": 40.982,
+      "max_ms": 86.155,
+      "mean_ms": 28.01,
+      "server_cpu_percent": 455.8,
+      "machine_cpu_percent": 64.7
+    },
+    {
+      "concurrency": 64,
+      "client_processes": 4,
+      "requests": 11778,
+      "ok": 11778,
+      "errors": 0,
+      "error_rate": 0.0,
+      "req_per_s": 1177.8,
+      "p50_ms": 51.379,
+      "p95_ms": 70.392,
+      "p99_ms": 74.589,
+      "max_ms": 85.701,
+      "mean_ms": 54.039,
+      "server_cpu_percent": 455.9,
+      "machine_cpu_percent": 57.8
+    },
+    {
+      "concurrency": 128,
+      "client_processes": 4,
+      "requests": 11859,
+      "ok": 11859,
+      "errors": 0,
+      "error_rate": 0.0,
+      "req_per_s": 1185.9,
+      "p50_ms": 109.933,
+      "p95_ms": 123.708,
+      "p99_ms": 129.604,
+      "max_ms": 143.353,
+      "mean_ms": 106.738,
+      "server_cpu_percent": 464.1,
+      "machine_cpu_percent": 63.7
+    }
+  ],
+  "summary": {
+    "peak": {
+      "concurrency": 128,
+      "req_per_s": 1185.9,
+      "p50_ms": 109.933,
+      "p99_ms": 129.604
+    },
+    "knee": {
+      "concurrency": 8,
+      "req_per_s": 1058.2,
+      "p99_ms": 17.409,
+      "next_level_gain": 1.059
+    },
+    "best_with_p99_under_budget": {
+      "concurrency": 2,
+      "req_per_s": 556.6,
+      "p50_ms": 3.629,
+      "p99_ms": 4.203
+    },
+    "latency_budget_ms": 10.0,
+    "total_errors": 0
+  },
+  "ab_round": 1
+}

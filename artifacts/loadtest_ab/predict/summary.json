@@ -1,0 +1,909 @@
+{
+  "arms": {
+    "omp1": "thread-count ENV from the Dockerfile (OMP_NUM_THREADS=1), as shipped",
+    "ompdefault": "thread-count variables unset: scikit-learn sizes the OpenMP team (before the fix)"
+  },
+  "files": [
+    "omp1_w1_r1.json",
+    "omp1_w1_r2.json",
+    "omp1_w1_r3.json",
+    "omp1_w4_r1.json",
+    "omp1_w4_r2.json",
+    "omp1_w4_r3.json",
+    "ompdefault_w1_r1.json",
+    "ompdefault_w1_r2.json",
+    "ompdefault_w1_r3.json",
+    "ompdefault_w4_r1.json",
+    "ompdefault_w4_r2.json",
+    "ompdefault_w4_r3.json"
+  ],
+  "git_shas": [
+    "86ee9fcc453879498a9f1324e007a8f07e31f6da"
+  ],
+  "machine_cpu_busy_percent_before_runs": [
+    2.9,
+    65.8
+  ],
+  "rows": [
+    {
+      "endpoint": "/predict",
+      "workers": 1,
+      "concurrency": 1,
+      "omp1": {
+        "runs": 3,
+        "req_per_s": [
+          277.6,
+          343.0,
+          349.0
+        ],
+        "p99_ms": [
+          3.796,
+          3.891,
+          4.543
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          97.7,
+          96.4,
+          96.4
+        ],
+        "machine_cpu_percent": [
+          40.1,
+          18.0,
+          15.2
+        ]
+      },
+      "ompdefault": {
+        "runs": 3,
+        "req_per_s": [
+          295.9,
+          314.4,
+          322.9
+        ],
+        "p99_ms": [
+          4.164,
+          4.405,
+          4.757
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          591.5,
+          590.3,
+          592.5
+        ],
+        "machine_cpu_percent": [
+          68.8,
+          65.4,
+          57.3
+        ]
+      },
+      "median_ratio": 1.09,
+      "worst_case_ratio": 0.86
+    },
+    {
+      "endpoint": "/predict",
+      "workers": 1,
+      "concurrency": 2,
+      "omp1": {
+        "runs": 3,
+        "req_per_s": [
+          269.3,
+          310.2,
+          315.3
+        ],
+        "p99_ms": [
+          8.281,
+          8.591,
+          10.599
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          111.3,
+          116.9,
+          112.0
+        ],
+        "machine_cpu_percent": [
+          47.8,
+          18.6,
+          19.3
+        ]
+      },
+      "ompdefault": {
+        "runs": 3,
+        "req_per_s": [
+          253.3,
+          280.0,
+          291.9
+        ],
+        "p99_ms": [
+          9.96,
+          11.962,
+          14.358
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          926.5,
+          978.5,
+          1052.3
+        ],
+        "machine_cpu_percent": [
+          99.6,
+          97.5,
+          95.8
+        ]
+      },
+      "median_ratio": 1.11,
+      "worst_case_ratio": 0.92
+    },
+    {
+      "endpoint": "/predict",
+      "workers": 1,
+      "concurrency": 4,
+      "omp1": {
+        "runs": 3,
+        "req_per_s": [
+          286.5,
+          323.7,
+          324.0
+        ],
+        "p99_ms": [
+          17.528,
+          17.661,
+          20.712
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          115.2,
+          119.2,
+          117.3
+        ],
+        "machine_cpu_percent": [
+          62.9,
+          20.9,
+          15.9
+        ]
+      },
+      "ompdefault": {
+        "runs": 3,
+        "req_per_s": [
+          257.7,
+          266.5,
+          271.6
+        ],
+        "p99_ms": [
+          18.479,
+          20.411,
+          20.961
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          834.0,
+          913.3,
+          951.2
+        ],
+        "machine_cpu_percent": [
+          100.0,
+          100.0,
+          100.0
+        ]
+      },
+      "median_ratio": 1.21,
+      "worst_case_ratio": 1.05
+    },
+    {
+      "endpoint": "/predict",
+      "workers": 1,
+      "concurrency": 8,
+      "omp1": {
+        "runs": 3,
+        "req_per_s": [
+          275.9,
+          329.2,
+          330.4
+        ],
+        "p99_ms": [
+          31.905,
+          32.64,
+          36.592
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          116.6,
+          118.1,
+          117.7
+        ],
+        "machine_cpu_percent": [
+          51.4,
+          21.2,
+          16.9
+        ]
+      },
+      "ompdefault": {
+        "runs": 3,
+        "req_per_s": [
+          235.1,
+          237.5,
+          259.2
+        ],
+        "p99_ms": [
+          40.563,
+          62.38,
+          63.242
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          743.9,
+          820.6,
+          938.9
+        ],
+        "machine_cpu_percent": [
+          100.0,
+          100.0,
+          100.0
+        ]
+      },
+      "median_ratio": 1.39,
+      "worst_case_ratio": 1.06
+    },
+    {
+      "endpoint": "/predict",
+      "workers": 1,
+      "concurrency": 16,
+      "omp1": {
+        "runs": 3,
+        "req_per_s": [
+          283.7,
+          335.1,
+          336.9
+        ],
+        "p99_ms": [
+          56.654,
+          57.597,
+          66.385
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          114.8,
+          117.2,
+          118.3
+        ],
+        "machine_cpu_percent": [
+          49.3,
+          17.2,
+          16.4
+        ]
+      },
+      "ompdefault": {
+        "runs": 3,
+        "req_per_s": [
+          243.6,
+          263.6,
+          278.7
+        ],
+        "p99_ms": [
+          69.618,
+          84.86,
+          116.39
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          781.9,
+          882.3,
+          943.1
+        ],
+        "machine_cpu_percent": [
+          100.0,
+          100.0,
+          100.0
+        ]
+      },
+      "median_ratio": 1.27,
+      "worst_case_ratio": 1.02
+    },
+    {
+      "endpoint": "/predict",
+      "workers": 1,
+      "concurrency": 32,
+      "omp1": {
+        "runs": 3,
+        "req_per_s": [
+          299.4,
+          336.4,
+          337.8
+        ],
+        "p99_ms": [
+          108.123,
+          108.249,
+          136.499
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          117.2,
+          118.6,
+          121.1
+        ],
+        "machine_cpu_percent": [
+          62.7,
+          17.5,
+          16.7
+        ]
+      },
+      "ompdefault": {
+        "runs": 3,
+        "req_per_s": [
+          239.8,
+          242.1,
+          272.6
+        ],
+        "p99_ms": [
+          146.72,
+          197.4,
+          262.835
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          740.6,
+          812.5,
+          935.0
+        ],
+        "machine_cpu_percent": [
+          100.0,
+          100.0,
+          100.0
+        ]
+      },
+      "median_ratio": 1.39,
+      "worst_case_ratio": 1.1
+    },
+    {
+      "endpoint": "/predict",
+      "workers": 1,
+      "concurrency": 64,
+      "omp1": {
+        "runs": 3,
+        "req_per_s": [
+          300.7,
+          337.0,
+          340.9
+        ],
+        "p99_ms": [
+          201.302,
+          206.796,
+          247.005
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          118.6,
+          118.1,
+          117.5
+        ],
+        "machine_cpu_percent": [
+          53.7,
+          15.8,
+          19.7
+        ]
+      },
+      "ompdefault": {
+        "runs": 3,
+        "req_per_s": [
+          219.1,
+          238.0,
+          261.9
+        ],
+        "p99_ms": [
+          318.4,
+          341.018,
+          562.92
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          655.3,
+          792.1,
+          916.7
+        ],
+        "machine_cpu_percent": [
+          100.0,
+          100.0,
+          100.0
+        ]
+      },
+      "median_ratio": 1.42,
+      "worst_case_ratio": 1.15
+    },
+    {
+      "endpoint": "/predict",
+      "workers": 1,
+      "concurrency": 128,
+      "omp1": {
+        "runs": 3,
+        "req_per_s": [
+          302.2,
+          330.8,
+          333.2
+        ],
+        "p99_ms": [
+          392.99,
+          401.438,
+          470.418
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          115.6,
+          122.2,
+          123.8
+        ],
+        "machine_cpu_percent": [
+          44.0,
+          16.2,
+          22.4
+        ]
+      },
+      "ompdefault": {
+        "runs": 3,
+        "req_per_s": [
+          214.4,
+          230.4,
+          249.0
+        ],
+        "p99_ms": [
+          610.336,
+          658.951,
+          685.625
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          663.5,
+          825.3,
+          893.1
+        ],
+        "machine_cpu_percent": [
+          100.0,
+          100.0,
+          100.0
+        ]
+      },
+      "median_ratio": 1.44,
+      "worst_case_ratio": 1.21
+    },
+    {
+      "endpoint": "/predict",
+      "workers": 4,
+      "concurrency": 1,
+      "omp1": {
+        "runs": 3,
+        "req_per_s": [
+          311.3,
+          334.0,
+          347.3
+        ],
+        "p99_ms": [
+          3.729,
+          4.002,
+          4.072
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          98.8,
+          98.6,
+          97.0
+        ],
+        "machine_cpu_percent": [
+          36.2,
+          14.3,
+          21.9
+        ]
+      },
+      "ompdefault": {
+        "runs": 3,
+        "req_per_s": [
+          256.3,
+          318.8,
+          322.3
+        ],
+        "p99_ms": [
+          3.944,
+          4.327,
+          6.694
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          561.2,
+          590.8,
+          595.8
+        ],
+        "machine_cpu_percent": [
+          82.2,
+          57.5,
+          57.5
+        ]
+      },
+      "median_ratio": 1.05,
+      "worst_case_ratio": 0.97
+    },
+    {
+      "endpoint": "/predict",
+      "workers": 4,
+      "concurrency": 2,
+      "omp1": {
+        "runs": 3,
+        "req_per_s": [
+          556.6,
+          594.2,
+          602.6
+        ],
+        "p99_ms": [
+          3.887,
+          3.987,
+          4.203
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          198.1,
+          192.3,
+          196.4
+        ],
+        "machine_cpu_percent": [
+          45.2,
+          25.7,
+          25.8
+        ]
+      },
+      "ompdefault": {
+        "runs": 3,
+        "req_per_s": [
+          374.6,
+          511.3,
+          524.9
+        ],
+        "p99_ms": [
+          4.76,
+          5.312,
+          10.186
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          710.6,
+          1088.1,
+          1033.5
+        ],
+        "machine_cpu_percent": [
+          100.0,
+          99.5,
+          99.7
+        ]
+      },
+      "median_ratio": 1.16,
+      "worst_case_ratio": 1.06
+    },
+    {
+      "endpoint": "/predict",
+      "workers": 4,
+      "concurrency": 4,
+      "omp1": {
+        "runs": 3,
+        "req_per_s": [
+          785.8,
+          1128.6,
+          1129.7
+        ],
+        "p99_ms": [
+          4.081,
+          4.156,
+          10.761
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          305.9,
+          394.9,
+          389.7
+        ],
+        "machine_cpu_percent": [
+          77.8,
+          45.7,
+          42.3
+        ]
+      },
+      "ompdefault": {
+        "runs": 3,
+        "req_per_s": [
+          397.7,
+          404.4,
+          595.5
+        ],
+        "p99_ms": [
+          12.247,
+          18.751,
+          25.737
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          809.8,
+          905.0,
+          803.7
+        ],
+        "machine_cpu_percent": [
+          100.0,
+          100.0,
+          100.0
+        ]
+      },
+      "median_ratio": 2.79,
+      "worst_case_ratio": 1.32
+    },
+    {
+      "endpoint": "/predict",
+      "workers": 4,
+      "concurrency": 8,
+      "omp1": {
+        "runs": 3,
+        "req_per_s": [
+          1058.2,
+          1113.4,
+          1121.2
+        ],
+        "p99_ms": [
+          8.597,
+          16.512,
+          17.409
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          422.7,
+          427.0,
+          451.6
+        ],
+        "machine_cpu_percent": [
+          66.4,
+          49.6,
+          47.7
+        ]
+      },
+      "ompdefault": {
+        "runs": 3,
+        "req_per_s": [
+          506.2,
+          592.1,
+          668.7
+        ],
+        "p99_ms": [
+          22.317,
+          24.179,
+          36.126
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          859.4,
+          906.4,
+          920.8
+        ],
+        "machine_cpu_percent": [
+          100.0,
+          100.0,
+          100.0
+        ]
+      },
+      "median_ratio": 1.88,
+      "worst_case_ratio": 1.58
+    },
+    {
+      "endpoint": "/predict",
+      "workers": 4,
+      "concurrency": 16,
+      "omp1": {
+        "runs": 3,
+        "req_per_s": [
+          1120.4,
+          1136.9,
+          1162.9
+        ],
+        "p99_ms": [
+          20.162,
+          21.285,
+          22.193
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          457.5,
+          449.1,
+          455.3
+        ],
+        "machine_cpu_percent": [
+          60.4,
+          59.0,
+          47.2
+        ]
+      },
+      "ompdefault": {
+        "runs": 3,
+        "req_per_s": [
+          389.4,
+          604.0,
+          616.5
+        ],
+        "p99_ms": [
+          30.478,
+          48.281,
+          93.318
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          835.4,
+          917.7,
+          903.9
+        ],
+        "machine_cpu_percent": [
+          100.0,
+          100.0,
+          100.0
+        ]
+      },
+      "median_ratio": 1.88,
+      "worst_case_ratio": 1.82
+    },
+    {
+      "endpoint": "/predict",
+      "workers": 4,
+      "concurrency": 32,
+      "omp1": {
+        "runs": 3,
+        "req_per_s": [
+          1139.3,
+          1181.0,
+          1192.9
+        ],
+        "p99_ms": [
+          40.982,
+          44.406,
+          46.253
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          455.8,
+          457.1,
+          458.9
+        ],
+        "machine_cpu_percent": [
+          64.7,
+          50.8,
+          50.9
+        ]
+      },
+      "ompdefault": {
+        "runs": 3,
+        "req_per_s": [
+          418.6,
+          578.1,
+          624.5
+        ],
+        "p99_ms": [
+          75.685,
+          99.574,
+          172.78
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          828.5,
+          943.0,
+          969.4
+        ],
+        "machine_cpu_percent": [
+          100.0,
+          100.0,
+          100.0
+        ]
+      },
+      "median_ratio": 2.04,
+      "worst_case_ratio": 1.82
+    },
+    {
+      "endpoint": "/predict",
+      "workers": 4,
+      "concurrency": 64,
+      "omp1": {
+        "runs": 3,
+        "req_per_s": [
+          1177.8,
+          1209.6,
+          1214.2
+        ],
+        "p99_ms": [
+          73.576,
+          74.589,
+          79.369
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          455.9,
+          463.3,
+          467.2
+        ],
+        "machine_cpu_percent": [
+          57.8,
+          51.7,
+          49.5
+        ]
+      },
+      "ompdefault": {
+        "runs": 3,
+        "req_per_s": [
+          464.9,
+          575.3,
+          585.9
+        ],
+        "p99_ms": [
+          163.11,
+          219.727,
+          223.443
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          870.9,
+          953.9,
+          945.3
+        ],
+        "machine_cpu_percent": [
+          100.0,
+          100.0,
+          100.0
+        ]
+      },
+      "median_ratio": 2.1,
+      "worst_case_ratio": 2.01
+    },
+    {
+      "endpoint": "/predict",
+      "workers": 4,
+      "concurrency": 128,
+      "omp1": {
+        "runs": 3,
+        "req_per_s": [
+          1185.9,
+          1215.6,
+          1225.3
+        ],
+        "p99_ms": [
+          129.604,
+          140.913,
+          152.208
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          464.1,
+          463.4,
+          464.5
+        ],
+        "machine_cpu_percent": [
+          63.7,
+          50.5,
+          54.2
+        ]
+      },
+      "ompdefault": {
+        "runs": 3,
+        "req_per_s": [
+          493.2,
+          519.9,
+          538.7
+        ],
+        "p99_ms": [
+          366.567,
+          401.765,
+          436.247
+        ],
+        "errors": 0,
+        "server_cpu_percent": [
+          899.1,
+          958.0,
+          923.8
+        ],
+        "machine_cpu_percent": [
+          100.0,
+          100.0,
+          100.0
+        ]
+      },
+      "median_ratio": 2.34,
+      "worst_case_ratio": 2.2
+    }
+  ]
+}

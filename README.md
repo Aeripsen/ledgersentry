@@ -335,70 +335,116 @@ its own measured percentiles.
 
 ### Load test: the HTTP service under concurrent clients
 
-`python scripts/loadtest.py` (or `make loadtest`) starts uvicorn the way the Dockerfile
-does and drives `POST /predict` with 1, 2, 4 ... 128 concurrent keep-alive connections
-over real held-out ULB rows. It is a closed loop: each connection sends its next request
-as soon as the last response is read. Each level runs 2 s of warmup and 10 s of
-measurement. Latency is client-side, send to last byte, so unlike `bench.py` it includes
-HTTP parsing, validation and logging. Every level of every run, with the environment,
-is in `artifacts/loadtest_<label>.json`;
-`python scripts/loadtest.py --table "artifacts/loadtest_*.json"` prints them all.
+`make loadtest` runs an A/B against a real uvicorn server and drives `POST /predict` with
+1, 2, 4 ... 128 concurrent keep-alive connections over real held-out ULB rows. The shipped
+arm applies the Dockerfile's `ENV OMP_NUM_THREADS=1`, parsed from the Dockerfile, so a bare
+`python scripts/loadtest.py` also measures what ships; the before arm (`--arm ompdefault`)
+unsets it. The arms alternate (ABBA) over 3 rounds at 1 and 4 workers. It is a closed loop:
+each connection sends its next request as soon as the last response is read. Each level
+runs 2 s of warmup and 10 s of measurement, and latency is client-side, send to last byte,
+so unlike `bench.py` it includes HTTP parsing, validation and logging. It serves the
+image's app with the image's thread setting, but it is not the image: host 127.0.0.1, this
+machine's Python and uvicorn, and workers set through `WEB_CONCURRENCY`, which the image's
+uvicorn reads and which neither the Dockerfile nor the k8s manifests set. It needs
+`pip install -r requirements-loadtest.txt` (psutil for the CPU columns; the harness stops
+without it).
 
-Machine: Intel Core i7-10750H (6 cores, 12 threads), 16 GB RAM, Windows 11, Python 3.13,
-uvicorn 0.52 with httptools. Client and server share the laptop, with other work running
-in the background (the files record 14% to 63% machine CPU in the second before each run).
+Every result file records the commit (`86ee9fc`, clean tree), the model file's sha256, the
+server's thread environment, the OpenMP team scikit-learn picks under it (probed in a fresh
+process with the server's environment), the machine, and its CPU load in the second before
+the run. All 12 runs are in `artifacts/loadtest_ab/predict/`;
+`python scripts/loadtest.py --ab-summary artifacts/loadtest_ab/predict` rebuilds
+`summary.json` and the numbers below from them, and `--table` prints every level of every
+run. No run was left out, and none had a failed request.
 
-| server, `POST /predict` | 1 client | 4 clients | 32 clients | 128 clients | server CPU |
+Machine: Intel Core i7-10750H (6 cores, 12 threads), 16 GB RAM, Windows 11, Python 3.13.13,
+uvicorn 0.52.4 with httptools (`requirements.txt` pins 0.51.0; the Linux runs below use the
+pinned image). Client and server share the laptop with other work running; the files record
+2.9% to 65.8% machine CPU in the second before each run.
+
+Median req/s over 3 runs (min to max), median p99:
+
+| server, `POST /predict` | 1 client | 4 clients | 32 clients | 128 clients | server CPU (100 = one core) |
 |---|---|---|---|---|---|
-| 1 worker, default OpenMP (as shipped before) | 250.2 req/s, p99 9.9 ms | 245.6 req/s, p99 29.4 ms | 214.6 req/s, p99 277.3 ms | 205.5 req/s, p99 864.7 ms | 5.3 to 7.6 cores |
-| 1 worker, `OMP_NUM_THREADS=1` | 299.8 req/s, p99 5.3 ms | 284.8 req/s, p99 21.6 ms | 299.4 req/s, p99 133.4 ms | 262.6 req/s, p99 616.7 ms | 1.0 to 1.2 cores |
-| 4 workers, default OpenMP | 288.5 req/s, p99 7.7 ms | 313.3 req/s, p99 51.8 ms | 141.9 req/s, p99 499.8 ms | 157.4 req/s, p99 1,337 ms | 4.2 to 6.8 cores |
-| 4 workers, `OMP_NUM_THREADS=1` | 301.1 req/s, p99 4.5 ms | **1,101.3 req/s, p99 5.1 ms** | 1,168.1 req/s, p99 49.2 ms | 1,042.8 req/s, p99 212.5 ms | 1.0 to 4.5 cores |
+| 1 worker, `OMP_NUM_THREADS=1` (shipped) | 343.0 (277.6 to 349.0), 3.9 ms | 323.7 (286.5 to 324.0), 17.7 ms | 336.4 (299.4 to 337.8), 108.2 ms | 330.8 (302.2 to 333.2), 401.4 ms | 96 to 124 |
+| 1 worker, unset (before) | 314.4 (295.9 to 322.9), 4.4 ms | 266.5 (257.7 to 271.6), 20.4 ms | 242.1 (239.8 to 272.6), 197.4 ms | 230.4 (214.4 to 249.0), 659.0 ms | 590 to 1,052 |
+| 4 workers, `OMP_NUM_THREADS=1` (shipped) | 334.0 (311.3 to 347.3), 4.0 ms | **1,128.6** (785.8 to 1,129.7), **4.2 ms** | 1,181.0 (1,139.3 to 1,192.9), 44.4 ms | 1,215.6 (1,185.9 to 1,225.3), 140.9 ms | 97 to 467 |
+| 4 workers, unset (before) | 318.8 (256.3 to 322.3), 4.3 ms | 404.4 (397.7 to 595.5), 18.8 ms | 578.1 (418.6 to 624.5), 99.6 ms | 519.9 (493.2 to 538.7), 401.8 ms | 561 to 969 |
 
-Zero failed requests in every run.
+**The bottleneck.** With the thread variables unset, one worker used 5.9 to 10.5 of the 12
+logical cores and got less throughput than the shipped arm, which used 1.0 to 1.2. The
+cause: scikit-learn runs every HistGradientBoosting `predict`, a 1-row one included, as an
+OpenMP parallel region. With `OMP_NUM_THREADS` unset its team is the smallest of
+`omp_get_max_threads()`, the physical cores and any cgroup CPU quota
+([`_openmp_effective_n_threads`, scikit-learn 1.9.0](https://github.com/scikit-learn/scikit-learn/blob/1.9.0/sklearn/utils/_openmp_helpers.pyx));
+the probe in every before-arm file records 6 threads here. The OpenMP runtime keeps its
+threads between calls, so the cost per request is the fork/join barrier and threads
+spin-waiting, not thread creation. One row gives that team almost nothing to split, and with
+requests in flight the teams compete with each other and with the request threads. The
+evidence is the CPU accounting and the A/B, not a profile: py-spy's `--gil` view sees only
+threads holding the GIL, and OpenMP worker threads never do. The Dockerfile now sets
+`OMP_NUM_THREADS=1`. One test parses the Dockerfile's ENV lines the way `docker build`
+applies them (a commented-out or overridden pin fails), and another starts a fresh process
+with that environment, runs a real HistGradientBoosting predict, and checks the team is 1
+thread, against an unset control that must fan out.
 
-**The bottleneck.** Run with the Dockerfile's command and no thread setting (outside
-Docker), the service was flat at 205 to 250 req/s from 1 to 128 clients while burning 5.3 to 7.6 of the 12 logical cores. The
-in-process benchmark scores a row in about 1 ms, so one core should do better than that.
-The cause: scikit-learn's HistGradientBoosting opens an OpenMP team (6 threads here) on
-every `predict` call, including a 1-row one. For one row that team is pure overhead, and
-with requests in flight the teams compete with each other and with the request threads.
-Pinning `OMP_NUM_THREADS=1` in the server gave more throughput on about a fifth of the
-CPU, and a single-client p99 of 5.3 ms instead of 9.9 ms. The Dockerfile now sets it, and
-a test pins that.
+**A confound in the before numbers.** In the before arm the machine sat at 96% to 100% CPU
+from 2 clients up, and the load generator shares those cores, so part of the before arm's
+lower throughput is the client being starved, not only the server. The shipped arm left the
+machine at 14% to 78%. The ratios below are ratios on this laptop with the client on it, not
+server-only numbers.
 
-With one thread per process a worker is bound by the GIL at about 300 req/s (py-spy on
-the GIL holder: about 44% of its time in scoring, the rest HTTP, validation, JSON and
-logging), so throughput has to come from processes. With 4 workers the knee is at 4
-clients, one request per worker, where it served 1,101.3 req/s at p99 5.1 ms, inside the
-repo's 10 ms budget; it peaked at 1,201.0 req/s at 64 clients (p99 86.1 ms). The same 4
-workers with default OpenMP never passed 313.3 req/s and fell to 94.6 at 64 clients: 4
-processes times 6 OpenMP threads on 12 logical cores, plus the client. A per-process
-scoring lock, which fixed a GIL convoy in FlowSentry, was tried here too and did not move
-throughput outside run-to-run noise, so it is not added.
+**What it bought.** One worker: the shipped arm's median is 1.21x the before arm's at 4
+clients and 1.44x at 128; the worst case (slowest shipped run over fastest before run) is
+1.05x and 1.21x. At 1 and 2 clients the runs overlap (worst case 0.86x and 0.92x). One
+thread per process leaves a worker bound by the GIL at 310 to 343 req/s (the medians): a py-spy `--gil`
+profile at 4 clients (`artifacts/profiles/profile_predict_w1_omp1_c4.txt`, 841 samples, the
+command is in the JSON next to it) has 49.1% of GIL-holding samples inside the scoring call,
+46.4% in scikit-learn's predict, and 10.8% in logging. Throughput has to come from
+processes. With 4 workers: at 4 clients the median is 1,128.6 against 404.4 req/s (2.79x) at
+a median p99 of 4.2 ms, but one of the three shipped runs got 785.8 req/s at p99 10.8 ms, so
+the worst case is 1.32x. At 32 clients it is 1,181.0 against 578.1 (2.04x, worst case
+1.82x), and at 128 clients 1,215.6 against 519.9 (2.34x, worst case 2.20x).
 
-**Repeats.** Run-to-run noise is large on this machine, so the headline pair was repeated
-(`artifacts/loadtest_repeats/`). At 32 clients on 4 workers: 1,148.8, 1,168.1 and 1,180.2
-req/s with one OpenMP thread against 141.9, 422.6 and 485.5 with the default, so the gain
-is at least 2.3x, not the 8x a single pair of runs suggests. At 4 clients: 827.6, 1,101.3
-and 1,106.5 against 313.3, 453.6 and 467.6, with p99 under 10 ms in 2 of the 3 runs
-(10.5 ms in the other).
+**The batch endpoint.** On `POST /predict/batch` with 100 rows per request and one worker
+(2 rounds per arm, `artifacts/loadtest_ab/batch/`), the shipped arm is faster at every level:
+109.2 against 103.0 req/s at 1 client (1.06x, worst case 1.03x), up to 1.31x at 128 clients,
+on 1.0 to 1.2 cores instead of 5.9 to 10.7. An earlier version of this section said one
+thread was 13% slower here with a single client; with the arms alternated and repeated that
+did not reproduce, so it is withdrawn. Batch serving tops out near 10,900 rows/s (109.2
+req/s of 100 rows), far below the in-process 663k rows/s: the profile at 4 clients
+(`artifacts/profiles/profile_batch_w1_omp1_c4.txt`, 884 samples) has 16.3% of GIL-holding
+samples in JSON decoding, 31.9% in pandas (building a DataFrame from the posted dicts and
+transforming it) and 20.6% in scikit-learn. Building the matrix straight from the dicts is
+the next fix and is not done.
 
-**The trade-off.** On `POST /predict/batch` with 100 rows per request and one worker, one
-OpenMP thread is 13% slower with a single client (72.8 against 83.5 req/s), since a
-100-row batch can use the extra threads. With 2 or more clients it lands at 72.5 to 79.3
-req/s against 58.1 to 74.5, on about 1 core instead of 5.5 to 8.2. Batch serving tops
-out near 8,350 rows/s, far below the in-process 663k rows/s: py-spy puts about 20% of GIL
-time in JSON decoding and about 28% in building a pandas DataFrame from the posted dicts
-and transforming it, against about 20% in the model. Building the matrix straight from
-the dicts is the next fix and is not done.
+**On the real image, on Linux.** `.github/workflows/loadtest-linux.yml` builds the image
+and runs the same A/B against the container on a GitHub-hosted runner (run 36783469204,
+commit `e7fdf24`, `artifacts/loadtest_linux/`): the image's Python 3.12.14, the pinned
+uvicorn 0.51.0, scikit-learn's Linux wheel with libgomp, `docker run --network host` with no
+`--cpus` limit, and workers through `WEB_CONCURRENCY`. The before arm is the same image and
+command with `OMP_NUM_THREADS` unset in the shell before `exec uvicorn`. The runner has 4
+vCPUs (2 physical cores, AMD EPYC 9V74) shared with the client, the model is the synthetic
+fixture (the ULB file is not on the runner), and the probe inside the image records a
+2-thread team for the before arm. 12 runs, 3 per arm and worker count, no failed requests.
+One worker: the shipped arm's median is 1.72x the before arm's at 1 client (510.5 against
+296.3 req/s) and 1.63x to 1.72x from 4 clients up, worst case at least 1.59x. Four workers:
+624.6 against 238.9 req/s at 4 clients (2.61x, worst case 2.16x), 1,020.2 against 393.0 at 32
+clients (2.60x, worst case 1.86x) and 972.7 against 375.7 at 128 clients (2.59x, worst case
+2.39x). At 2 clients the 4-worker runs split into a fast and a slow mode in both arms, cause
+not isolated, so that level has no usable ratio. From 8 clients up the runner sat at 86% to
+100% CPU in both arms, so those columns measure a saturated runner. An earlier run of this
+workflow (36780955572) read the machine's load while the containers were still starting,
+which made its pre-run field wrong; it was replaced by this run and is not committed.
 
-**What these numbers are not.** One laptop with client and server sharing it, under
-synthetic closed-loop load, which understates the tail past saturation. Not production
-traffic. The k6 run on kind in CI (see Deploy) is a separate measurement on a 4-vCPU
-runner. Its pods have a 1-CPU limit, and scikit-learn documents that it sizes the OpenMP
-team from the cgroup quota, so this change is not expected to move those numbers and no
-in-cluster gain is claimed.
+**What these numbers are not.** A laptop and a shared 4-vCPU runner, with the client on the
+same machine as the server, under synthetic closed-loop load in 10 s windows. A closed loop
+understates the tail past saturation, and past about 4 to 8 clients the client competes
+with the server for CPU. Not production traffic. The 4-worker rows are not what ships: the
+image runs one worker unless `WEB_CONCURRENCY` is set, and the k8s pods run one worker under
+a 1-CPU limit, where the cgroup quota already caps scikit-learn's team at 1. So this change
+is not expected to move the in-cluster k6 numbers (see Deploy), and no in-cluster gain is
+claimed.
 
 ## Quickstart
 
@@ -425,7 +471,7 @@ python scripts/verify_repro.py   # FAILS unless the regenerated metrics are byte
 
 python scripts/calibrate.py      # the calibration pipeline -> calibration_<source>.json
 python scripts/bench.py          # the latency/throughput benchmark -> benchmark.json
-python scripts/loadtest.py       # HTTP load test, 1..128 clients -> loadtest_<label>.json
+python scripts/loadtest.py       # HTTP load test, 1..128 clients (pip install -r requirements-loadtest.txt)
 python scripts/bootstrap.py      # 95% CIs on the headline -> bootstrap_<source>.json
 python scripts/compare.py        # feature-set x boosting-config comparison, selected
                                   # on an inner validation slice -> comparison_<source>.json
@@ -701,7 +747,7 @@ src/ledgersentry/
                  cross-check), its own pipeline for the same reason (ADR 007)
   drift.py       per-feature PSI vs the training reference frozen in the artifact
   bench.py       latency/throughput harness -> artifacts/benchmark.json
-  loadtest.py    HTTP load test under concurrent clients -> artifacts/loadtest_*.json
+  loadtest.py    HTTP load test under concurrent clients -> artifacts/loadtest_ab/, profiles/
   service.py     FastAPI: /predict, /predict/batch, /drift, /health, /ready, /curve
   stream.py      timestamp-ordered replay of the held-out test split
 dashboard/app.py Streamlit: review-threshold slider, live coverage/precision, feed
@@ -772,9 +818,11 @@ DEPLOY.md        exact steps and captured CI output for every target
       untouched. Isotonic measured beside it and rejected for damaging PR-AUC
       (ties). Full numbers + the expected-cost tie-in: `docs/model_card.md`
 - [x] Committed latency/throughput benchmark with a regression guard (above)
-- [x] HTTP load test stepped to saturation (`make loadtest`), which found an OpenMP
-      oversubscription bottleneck on the request path, fixed in the Dockerfile (above).
-      Open: the batch endpoint's DataFrame build, and running the sweep in CI
+- [x] HTTP load test stepped to saturation (`make loadtest`, both A/B arms), which found
+      OpenMP oversubscription on the request path, fixed in the Dockerfile (above), and
+      measured on the real image on a GitHub-hosted Linux runner (`loadtest-linux`
+      workflow). CI runs a short smoke of the harness against a real server. Open: the
+      batch endpoint's DataFrame build, and any in-cluster measurement of the change
 - [x] Drift monitoring: per-feature PSI against a training reference frozen into
       the artifact, served at `POST /drift` (marginals + null-spikes; honest
       about what it cannot see - `src/ledgersentry/drift.py`)
