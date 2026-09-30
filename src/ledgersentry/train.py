@@ -16,6 +16,7 @@ import json
 import joblib
 from sklearn.metrics import average_precision_score, roc_auc_score
 
+from . import tracking
 from .config import get_settings
 from .data import (
     build_preprocessor,
@@ -148,6 +149,22 @@ def main(model_name: str | None = None) -> dict:
 
     print(json.dumps(metrics, indent=2))
     print(f"[save ] {artifact_dir / 'ledgersentry.joblib'}")
+
+    # Experiment tracking, after both metrics files are written so it can never
+    # change the bytes verify_repro.py checks. A no-op unless mlflow is installed
+    # and LEDGERSENTRY_MLFLOW is not 0; see tracking.py.
+    if tracking.enabled():
+        run_id, same = tracking.log_training_run(
+            settings=cfg,
+            metrics=metrics,
+            preprocessor=pre,
+            model=model,
+            X_test=test_df,
+            p_fraud_test=p_fraud,
+            metrics_path=artifact_dir / f"metrics_{source}.json",
+        )
+        print(f"[mlflow] run {run_id} -> {tracking.tracking_uri()} "
+              f"(logged model reproduces P(fraud) on the test fold: {same})")
     return metrics
 
 

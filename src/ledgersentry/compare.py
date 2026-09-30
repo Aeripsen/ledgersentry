@@ -44,6 +44,7 @@ import pandas as pd
 import sklearn
 from sklearn.metrics import average_precision_score
 
+from . import tracking
 from .bootstrap import bootstrap_headline
 from .config import get_settings
 from .data import build_preprocessor, engineer_time_features, load, temporal_grouped_split
@@ -340,6 +341,9 @@ def main() -> dict:
     out = cfg.artifact_dir / f"comparison_{source}.json"
     out.write_text(json.dumps(report, indent=2))
     print(f"[save ] {out}")
+    if tracking.enabled():
+        ids = tracking.log_comparison("compare", report, data_dir=cfg.data_dir)
+        print(f"[mlflow] {len(ids)} runs -> {tracking.tracking_uri()}")
     return report
 
 

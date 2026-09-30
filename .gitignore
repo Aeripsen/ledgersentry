@@ -17,3 +17,9 @@ HANDOFF.md
 *.tfstate
 *.tfstate.*
 *.tfplan
+
+# MLflow tracking store (local SQLite + run artifacts); rebuilt by any train or
+# compare run once mlflow is installed, never committed (absolute paths inside)
+mlflow.db
+mlruns/
+mlartifacts/

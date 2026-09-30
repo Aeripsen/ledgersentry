@@ -35,5 +35,8 @@ show_error_codes = true
 # analysis.txt) and ship no stubs; numba is deliberately absent in this
 # environment (shap_report.py stubs it, the why is documented there), so mypy
 # must not require it to exist.
-module = ["sklearn.*", "joblib.*", "pandas.*", "shap.*", "lightgbm.*", "matplotlib.*", "numba.*"]
+module = [
+    "sklearn.*", "joblib.*", "pandas.*", "shap.*", "lightgbm.*", "matplotlib.*", "numba.*",
+    "mlflow.*",
+]
 ignore_missing_imports = true

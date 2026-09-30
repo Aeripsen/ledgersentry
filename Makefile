@@ -3,7 +3,7 @@
 
 PY ?= python
 
-.PHONY: install install-analysis test lint train reproduce bench bootstrap compare compare-boosters shap cost business business-verify demo-data serve dashboard k8s-e2e tf-kind
+.PHONY: install install-analysis test lint train reproduce bench bootstrap compare compare-boosters shap cost business business-verify demo-data serve dashboard k8s-e2e tf-kind install-mlops drift-report mlflow-ui
 
 install:
 	$(PY) -m pip install -r requirements.txt
@@ -90,3 +90,16 @@ k8s-e2e:
 # terraform apply deploy/terraform/kubernetes to kind, re-plan, parity, destroy.
 tf-kind:
 	bash scripts/tf_kind_e2e.sh
+
+# MLflow + Evidently. Once installed, train/compare/compare-boosters log runs to
+# a local store (mlflow.db + mlruns/, gitignored); LEDGERSENTRY_MLFLOW=0 turns it off.
+install-mlops:
+	$(PY) -m pip install -r requirements-mlops.txt
+
+mlflow-ui:
+	$(PY) -m mlflow ui --backend-store-uri sqlite:///mlflow.db
+
+# Evidently drift + classification report, inner-validation window vs the test
+# fold (both time windows of the committed split) -> reports/evidently_<source>.html
+drift-report:
+	$(PY) scripts/evidently_report.py

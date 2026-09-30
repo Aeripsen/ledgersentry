@@ -1,0 +1,111 @@
+{
+  "what": "Evidently data drift + classification quality over two time windows of the committed split; both windows scored out of sample",
+  "data_source": "ulb_creditcard",
+  "is_synthetic": false,
+  "html_report": "reports/evidently_ulb_creditcard.html",
+  "evidently_version": "0.7.23",
+  "reference_window": {
+    "rows": 45569,
+    "fraud": 52,
+    "from": "2013-01-02 10:48:51",
+    "to": "2013-01-02 16:20:48",
+    "hours": 5.53,
+    "scored_by": "model fit on the inner train slice"
+  },
+  "current_window": {
+    "rows": 56961,
+    "fraud": 75,
+    "from": "2013-01-02 16:20:49",
+    "to": "2013-01-02 23:59:52",
+    "hours": 7.65,
+    "scored_by": "shipped model, fit on the whole training window"
+  },
+  "checks_against_committed_artifacts": {
+    "current_pr_auc_equals_metrics_json": true,
+    "reference_pr_auc_equals_comparison_val": true
+  },
+  "data_drift": {
+    "drifted_columns": 2,
+    "n_columns": 31,
+    "drifted_share": 0.0645,
+    "dataset_drift": false,
+    "rule": "dataset drifts if >= 50% of columns drift (Evidently default)",
+    "methods_used": {
+      "Jensen-Shannon distance": 1,
+      "Wasserstein distance (normed)": 30
+    },
+    "drifted": {
+      "hour_of_day": {
+        "method": "Wasserstein distance (normed)",
+        "threshold": 0.1,
+        "score": 3.7664,
+        "drifted": true
+      },
+      "f_V2": {
+        "method": "Wasserstein distance (normed)",
+        "threshold": 0.1,
+        "score": 0.1167,
+        "drifted": true
+      }
+    }
+  },
+  "repo_psi_same_windows": {
+    "watch_or_alert": [
+      "hour_of_day"
+    ],
+    "alerts": 1,
+    "worst_feature": "hour_of_day",
+    "worst_psi": 6.5347,
+    "bands": {
+      "watch": 0.1,
+      "alert": 0.25
+    },
+    "psi_of_evidently_flagged": {
+      "f_V2": 0.02,
+      "hour_of_day": 6.5347
+    },
+    "agreement": {
+      "both_flag": [
+        "hour_of_day"
+      ],
+      "evidently_only": [
+        "f_V2"
+      ],
+      "psi_only": []
+    }
+  },
+  "performance": {
+    "pr_auc": {
+      "reference": 0.7578,
+      "current": 0.7278,
+      "change": -0.03,
+      "current_bootstrap_ci95": [
+        0.6214,
+        0.8232
+      ],
+      "reference_inside_current_ci": true
+    },
+    "at_threshold_0.5_reference": {
+      "accuracy": 0.9981,
+      "precision": 0.3559,
+      "recall": 0.8077,
+      "f1": 0.4941,
+      "roc_auc": 0.9628,
+      "log_loss": 0.0248,
+      "tpr": 0.8077,
+      "fpr": 0.0017,
+      "fnr": 0.1923
+    },
+    "at_threshold_0.5_current": {
+      "accuracy": 0.9971,
+      "precision": 0.2917,
+      "recall": 0.84,
+      "f1": 0.433,
+      "roc_auc": 0.974,
+      "log_loss": 0.0333,
+      "tpr": 0.84,
+      "fpr": 0.0027,
+      "fnr": 0.16
+    }
+  }
+}

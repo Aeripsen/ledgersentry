@@ -44,3 +44,43 @@ jobs:
 
       - name: Business-outcome table on synthetic fallback (smoke test)
         run: python scripts/business_case.py
+
+  # MLflow + Evidently on the REAL ULB data from a clean checkout. The dataset is
+  # public (TensorFlow's hosted copy, no login), cached between runs, and checked
+  # against the sha256 of the file every committed ULB number was measured on.
+  mlops:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install pinned environment + MLflow + Evidently
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-mlops.txt
+      - name: Cache the ULB dataset
+        uses: actions/cache@v4
+        with:
+          path: data/creditcard.csv
+          key: ulb-creditcard-76274b69
+      - name: Fetch and verify ULB (284,807 rows, 492 fraud)
+        run: |
+          [ -f data/creditcard.csv ] || curl -sSfL -o data/creditcard.csv https://storage.googleapis.com/download.tensorflow.org/data/creditcard.csv
+          echo "76274b691b16a6c49d3f159c883398e03ccd6d1ee12d9d8ee38f4b4b98551a89  data/creditcard.csv" | sha256sum -c -
+      - name: Train on ULB (logs a run to the local MLflow store)
+        run: python scripts/train.py
+      - name: Evidently drift + performance report over the two time windows
+        run: python scripts/evidently_report.py
+      - name: Committed ULB metrics and drift summary regenerate exactly
+        run: git diff --exit-code artifacts/metrics_ulb_creditcard.json artifacts/evidently_summary_ulb_creditcard.json
+      - name: Upload the tracking store and the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mlflow-store-and-evidently-report
+          path: |
+            mlflow.db
+            reports/evidently_ulb_creditcard.html
+          retention-days: 30

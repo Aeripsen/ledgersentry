@@ -1,0 +1,6 @@
+# Optional MLOps stack: MLflow experiment tracking (train.py, compare.py and
+# compare_boosters.py log to it once it is installed) and the Evidently drift +
+# performance report (scripts/evidently_report.py). Install on top of
+# requirements.txt. Pinned to the versions the committed report was built with.
+mlflow==3.16.1
+evidently==0.7.23

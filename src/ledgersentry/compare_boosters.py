@@ -45,6 +45,7 @@ import pandas as pd
 import sklearn
 from sklearn.metrics import average_precision_score
 
+from . import tracking
 from .bootstrap import bootstrap_headline
 from .compare import GbdtConfig, _fit_score, paired_delta_bootstrap
 from .config import get_settings
@@ -186,6 +187,9 @@ def main() -> dict:
     out = cfg.artifact_dir / f"comparison_boosters_{source}.json"
     out.write_text(json.dumps(report, indent=2))
     print(f"[save ] {out}")
+    if tracking.enabled():
+        ids = tracking.log_comparison("boosters", report, data_dir=cfg.data_dir)
+        print(f"[mlflow] {len(ids)} runs -> {tracking.tracking_uri()}")
     return report
 
 

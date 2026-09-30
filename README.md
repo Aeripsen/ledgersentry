@@ -341,7 +341,7 @@ pip install -e .                 # optional - scripts/train.py works without it
 
 python scripts/train.py          # no data file present -> synthetic fixture (offline)
                                   # writes artifacts/ledgersentry.joblib + metrics.json
-pytest                           # run the test suite (150 tests)
+pytest                           # run the test suite (163 tests)
 ruff check .                     # lint
 mypy                             # type-check src/
 
@@ -408,6 +408,66 @@ serves whatever `f_*` features that source produced. Missing numeric fields defa
 NaN (which the gradient-boosted model handles natively - not a misleading fake 0.0),
 missing `category` defaults to `"unknown"`, and the response lists any imputed fields
 under `missing_fields`.
+
+## Experiment tracking and drift reports (MLflow, Evidently)
+
+```bash
+pip install -r requirements-mlops.txt       # make install-mlops
+python scripts/train.py                     # logs a run once mlflow is installed
+python scripts/compare.py                   # one run per variant, with its paired delta
+python scripts/evidently_report.py          # make drift-report
+mlflow ui --backend-store-uri sqlite:///mlflow.db   # make mlflow-ui, then http://127.0.0.1:5000
+```
+
+**MLflow** (`src/ledgersentry/tracking.py`, a no-op until mlflow is installed;
+`LEDGERSENTRY_MLFLOW=0` turns it off, `MLFLOW_TRACKING_URI` points it at a server). Runs go to
+a local SQLite store (`mlflow.db`, artifacts in `mlruns/`, both gitignored).
+
+- `train.py` logs every run to experiment `ledgersentry-train`: the training config, PR-AUC
+  and its no-skill baseline, recall, the demoted ROC-AUC and accuracy under a `demoted.` prefix,
+  the review-knob curve as stepped metrics, the bootstrap 95% CI when
+  `bootstrap_<source>.json` was computed on the same predictions, and the fitted
+  preprocessor+model saved with skops against two reviewed trusted types. The logged model is
+  loaded back from the store and must reproduce P(fraud) on all 56,961 test rows; the run is
+  tagged with the result. It logs after the metrics files are written, so `make reproduce` is
+  unaffected.
+- `compare.py` and `compare_boosters.py` log one run per variant to `ledgersentry-compare` as
+  they measure it (8 + 3 runs on ULB): validation and test PR-AUC, recall, the paired-bootstrap
+  delta against the incumbent with its interval, and whether the validation rule selected it.
+- Every run is tagged `data_source` and `is_synthetic`, because CI trains on the synthetic
+  fixture and its PR-AUC of 1.0 is a property of the generator, not a result.
+
+**Evidently** (`scripts/evidently_report.py`). Two time windows of the committed split, each
+scored by a model that did not train on it: reference = the inner validation slice (the last
+20% of the training window, 10:48 to 16:20 on day 2, scored by a model fit on the earlier
+80%, the carve `compare.py` selects on), current = the test fold (16:20 to 23:59 on day 2,
+scored by the shipped model). The script refuses to write unless both windows reproduce the
+committed PR-AUCs. From `artifacts/evidently_summary_ulb_creditcard.json` and
+`reports/evidently_ulb_creditcard.html`:
+
+| | Reference | Current |
+|---|---|---|
+| PR-AUC | 0.7578 | 0.7278 (95% CI 0.6214 to 0.8232) |
+| Precision / recall at threshold 0.5 | 0.3559 / 0.8077 | 0.2917 / 0.8400 |
+| False-positive rate at 0.5 | 0.0017 | 0.0027 |
+
+Drift: Evidently flags 2 of 31 features (normed Wasserstein above 0.1): `hour_of_day` at 3.77
+and `f_V2` at 0.117. The repo's PSI on the same windows flags only `hour_of_day` (PSI 6.53).
+
+How to read it: `hour_of_day` drifting is the clock moving, not the data changing; two
+consecutive windows of one day cannot share hours, so a production monitor would compare
+against the same hours on an earlier day or exclude it. `f_V2` is the only candidate real
+signal and it is weak: 0.117 against a 0.1 threshold, while PSI puts it at 0.02, far under the
+0.10 watch band. The two measure different things (normed Wasserstein: how far the probability
+mass moves, in units of the reference's spread; PSI: the log-ratio of decile proportions), so
+disagreement at the margin is expected rather than a bug in either. The PR-AUC drop of 0.03 sits inside the test fold's own bootstrap interval
+(75 frauds), so this data cannot say drift caused a decay. What it does show is that at the
+default threshold precision fell and the false-positive rate rose by about 60% while recall
+held, which is the kind of change a fraud desk would feel as review load.
+
+The `mlops` CI job downloads ULB from its public URL, checks the file's sha256, trains (logging
+a run), rebuilds the report, fails if `metrics_ulb_creditcard.json` or the drift summary change,
+and uploads `mlflow.db` and the HTML as a build artifact.
 
 ## Deploy
 
@@ -560,6 +620,12 @@ DEPLOY.md        exact steps and captured CI output for every target
 - [x] Drift monitoring: per-feature PSI against a training reference frozen into
       the artifact, served at `POST /drift` (marginals + null-spikes; honest
       about what it cannot see - `src/ledgersentry/drift.py`)
+- [x] MLflow tracking of every train/compare run and an Evidently drift + performance report
+      over two time windows of the real split, run on ULB in CI (see "Experiment tracking")
+- [ ] Model registry: serve by a champion alias and promote on the paired-bootstrap rule. Not
+      done, and the rule matters: `comparison_boosters_ulb_creditcard.json` shows `lgbm_slow`
+      beating the shipped model with a paired interval that excludes zero, so an automated
+      gate would promote a model the service does not ship today
 - [x] Threat model: trust boundaries, the artifact-is-code rule, what is
       deliberately left to deployment - `docs/threat_model.md`
 - [x] 95% confidence intervals on the headline: seeded percentile bootstrap plus
