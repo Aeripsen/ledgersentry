@@ -36,7 +36,7 @@ run_arm() {
     --meta "image_id=$IMAGE_ID" \
     --meta "container_cmd=sh -c '${pre}${CMD}'" \
     --meta "docker_run=--network host -e WEB_CONCURRENCY=$workers (no --cpus)" \
-    --meta "openmp_probe_in_image=$probe" \
+    --meta "server_probe_in_image=$probe" \
     --meta "ab_round=$round"
   docker logs "$cid" 2>&1 | tail -n 3
   docker rm -f "$cid" >/dev/null
