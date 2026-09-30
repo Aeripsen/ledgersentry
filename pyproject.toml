@@ -38,5 +38,6 @@ show_error_codes = true
 module = [
     "sklearn.*", "joblib.*", "pandas.*", "shap.*", "lightgbm.*", "matplotlib.*", "numba.*",
     "mlflow.*",
+    "psutil.*",  # optional in loadtest.py, ships no stubs
 ]
 ignore_missing_imports = true

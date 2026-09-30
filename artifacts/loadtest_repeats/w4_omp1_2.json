@@ -1,0 +1,87 @@
+{
+  "what": "closed-loop HTTP load test against the service process; client-side latency, send to last byte; real held-out rows as payloads",
+  "label": "rep",
+  "endpoint": "/predict",
+  "batch_size": 1,
+  "data_source": "ulb_creditcard",
+  "is_synthetic": false,
+  "warmup_s": 2.0,
+  "measure_s": 8.0,
+  "server_env_overrides": {
+    "OMP_NUM_THREADS": "1"
+  },
+  "environment": {
+    "cpu": "Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz",
+    "physical_cores": 6,
+    "logical_cpus": 12,
+    "ram_gb": 15.9,
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.13",
+    "fastapi": "0.139.2",
+    "uvicorn": "0.52.4",
+    "http_parser": "httptools",
+    "event_loop": "asyncio",
+    "scikit_learn": "1.9.0",
+    "numpy": "2.4.6",
+    "uvicorn_workers": 4,
+    "machine_cpu_percent_idle_before_run": 24.2,
+    "client": "stdlib asyncio keep-alive HTTP/1.1, same machine as the server",
+    "measured_at": "2026-09-30T20:32:25Z"
+  },
+  "levels": [
+    {
+      "concurrency": 4,
+      "client_processes": 4,
+      "requests": 8852,
+      "ok": 8852,
+      "errors": 0,
+      "error_rate": 0.0,
+      "req_per_s": 1106.5,
+      "p50_ms": 3.605,
+      "p95_ms": 4.044,
+      "p99_ms": 4.521,
+      "max_ms": 14.342,
+      "mean_ms": 3.613,
+      "server_cpu_percent": 391.4,
+      "machine_cpu_percent": 69.5
+    },
+    {
+      "concurrency": 32,
+      "client_processes": 4,
+      "requests": 9442,
+      "ok": 9442,
+      "errors": 0,
+      "error_rate": 0.0,
+      "req_per_s": 1180.2,
+      "p50_ms": 26.54,
+      "p95_ms": 33.162,
+      "p99_ms": 40.399,
+      "max_ms": 59.291,
+      "mean_ms": 27.019,
+      "server_cpu_percent": 447.9,
+      "machine_cpu_percent": 80.0
+    }
+  ],
+  "summary": {
+    "peak": {
+      "concurrency": 32,
+      "req_per_s": 1180.2,
+      "p50_ms": 26.54,
+      "p99_ms": 40.399
+    },
+    "knee": {
+      "concurrency": 4,
+      "req_per_s": 1106.5,
+      "p99_ms": 4.521,
+      "next_level_gain": 1.067
+    },
+    "best_with_p99_under_budget": {
+      "concurrency": 4,
+      "req_per_s": 1106.5,
+      "p50_ms": 3.605,
+      "p99_ms": 4.521
+    },
+    "latency_budget_ms": 10.0,
+    "total_errors": 0
+  }
+}

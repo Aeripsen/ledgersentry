@@ -333,6 +333,73 @@ The streaming replay (`python scripts/stream.py --n 0`) replays the held-out tes
 split one row at a time through the same compiled scorer the service uses and prints
 its own measured percentiles.
 
+### Load test: the HTTP service under concurrent clients
+
+`python scripts/loadtest.py` (or `make loadtest`) starts uvicorn the way the Dockerfile
+does and drives `POST /predict` with 1, 2, 4 ... 128 concurrent keep-alive connections
+over real held-out ULB rows. It is a closed loop: each connection sends its next request
+as soon as the last response is read. Each level runs 2 s of warmup and 10 s of
+measurement. Latency is client-side, send to last byte, so unlike `bench.py` it includes
+HTTP parsing, validation and logging. Every level of every run, with the environment,
+is in `artifacts/loadtest_<label>.json`;
+`python scripts/loadtest.py --table "artifacts/loadtest_*.json"` prints them all.
+
+Machine: Intel Core i7-10750H (6 cores, 12 threads), 16 GB RAM, Windows 11, Python 3.13,
+uvicorn 0.52 with httptools. Client and server share the laptop, with other work running
+in the background (the files record 14% to 63% machine CPU in the second before each run).
+
+| server, `POST /predict` | 1 client | 4 clients | 32 clients | 128 clients | server CPU |
+|---|---|---|---|---|---|
+| 1 worker, default OpenMP (as shipped before) | 250.2 req/s, p99 9.9 ms | 245.6 req/s, p99 29.4 ms | 214.6 req/s, p99 277.3 ms | 205.5 req/s, p99 864.7 ms | 5.3 to 7.6 cores |
+| 1 worker, `OMP_NUM_THREADS=1` | 299.8 req/s, p99 5.3 ms | 284.8 req/s, p99 21.6 ms | 299.4 req/s, p99 133.4 ms | 262.6 req/s, p99 616.7 ms | 1.0 to 1.2 cores |
+| 4 workers, default OpenMP | 288.5 req/s, p99 7.7 ms | 313.3 req/s, p99 51.8 ms | 141.9 req/s, p99 499.8 ms | 157.4 req/s, p99 1,337 ms | 4.2 to 6.8 cores |
+| 4 workers, `OMP_NUM_THREADS=1` | 301.1 req/s, p99 4.5 ms | **1,101.3 req/s, p99 5.1 ms** | 1,168.1 req/s, p99 49.2 ms | 1,042.8 req/s, p99 212.5 ms | 1.0 to 4.5 cores |
+
+Zero failed requests in every run.
+
+**The bottleneck.** Run with the Dockerfile's command and no thread setting (outside
+Docker), the service was flat at 205 to 250 req/s from 1 to 128 clients while burning 5.3 to 7.6 of the 12 logical cores. The
+in-process benchmark scores a row in about 1 ms, so one core should do better than that.
+The cause: scikit-learn's HistGradientBoosting opens an OpenMP team (6 threads here) on
+every `predict` call, including a 1-row one. For one row that team is pure overhead, and
+with requests in flight the teams compete with each other and with the request threads.
+Pinning `OMP_NUM_THREADS=1` in the server gave more throughput on about a fifth of the
+CPU, and a single-client p99 of 5.3 ms instead of 9.9 ms. The Dockerfile now sets it, and
+a test pins that.
+
+With one thread per process a worker is bound by the GIL at about 300 req/s (py-spy on
+the GIL holder: about 44% of its time in scoring, the rest HTTP, validation, JSON and
+logging), so throughput has to come from processes. With 4 workers the knee is at 4
+clients, one request per worker, where it served 1,101.3 req/s at p99 5.1 ms, inside the
+repo's 10 ms budget; it peaked at 1,201.0 req/s at 64 clients (p99 86.1 ms). The same 4
+workers with default OpenMP never passed 313.3 req/s and fell to 94.6 at 64 clients: 4
+processes times 6 OpenMP threads on 12 logical cores, plus the client. A per-process
+scoring lock, which fixed a GIL convoy in FlowSentry, was tried here too and did not move
+throughput outside run-to-run noise, so it is not added.
+
+**Repeats.** Run-to-run noise is large on this machine, so the headline pair was repeated
+(`artifacts/loadtest_repeats/`). At 32 clients on 4 workers: 1,148.8, 1,168.1 and 1,180.2
+req/s with one OpenMP thread against 141.9, 422.6 and 485.5 with the default, so the gain
+is at least 2.3x, not the 8x a single pair of runs suggests. At 4 clients: 827.6, 1,101.3
+and 1,106.5 against 313.3, 453.6 and 467.6, with p99 under 10 ms in 2 of the 3 runs
+(10.5 ms in the other).
+
+**The trade-off.** On `POST /predict/batch` with 100 rows per request and one worker, one
+OpenMP thread is 13% slower with a single client (72.8 against 83.5 req/s), since a
+100-row batch can use the extra threads. With 2 or more clients it lands at 72.5 to 79.3
+req/s against 58.1 to 74.5, on about 1 core instead of 5.5 to 8.2. Batch serving tops
+out near 8,350 rows/s, far below the in-process 663k rows/s: py-spy puts about 20% of GIL
+time in JSON decoding and about 28% in building a pandas DataFrame from the posted dicts
+and transforming it, against about 20% in the model. Building the matrix straight from
+the dicts is the next fix and is not done.
+
+**What these numbers are not.** One laptop with client and server sharing it, under
+synthetic closed-loop load, which understates the tail past saturation. Not production
+traffic. The k6 run on kind in CI (see Deploy) is a separate measurement on a 4-vCPU
+runner. Its pods have a 1-CPU limit, and scikit-learn documents that it sizes the OpenMP
+team from the cgroup quota, so this change is not expected to move those numbers and no
+in-cluster gain is claimed.
+
 ## Quickstart
 
 ```bash
@@ -358,6 +425,7 @@ python scripts/verify_repro.py   # FAILS unless the regenerated metrics are byte
 
 python scripts/calibrate.py      # the calibration pipeline -> calibration_<source>.json
 python scripts/bench.py          # the latency/throughput benchmark -> benchmark.json
+python scripts/loadtest.py       # HTTP load test, 1..128 clients -> loadtest_<label>.json
 python scripts/bootstrap.py      # 95% CIs on the headline -> bootstrap_<source>.json
 python scripts/compare.py        # feature-set x boosting-config comparison, selected
                                   # on an inner validation slice -> comparison_<source>.json
@@ -579,11 +647,12 @@ src/ledgersentry/
                  cross-check), its own pipeline for the same reason (ADR 007)
   drift.py       per-feature PSI vs the training reference frozen in the artifact
   bench.py       latency/throughput harness -> artifacts/benchmark.json
+  loadtest.py    HTTP load test under concurrent clients -> artifacts/loadtest_*.json
   service.py     FastAPI: /predict, /predict/batch, /drift, /health, /ready, /curve
   stream.py      timestamp-ordered replay of the held-out test split
 dashboard/app.py Streamlit: review-threshold slider, live coverage/precision, feed
 scripts/         thin CLI entry points (train, stream, calibrate, bootstrap,
-                 compare, compare_boosters, shap_report, cost, bench,
+                 compare, compare_boosters, shap_report, cost, bench, loadtest,
                  verify_repro)
 tests/           determinism, split leakage, reject knob, all four loaders
                  (true-schema fixtures), compiled-vs-reference scoring parity, latency
@@ -649,6 +718,9 @@ DEPLOY.md        exact steps and captured CI output for every target
       untouched. Isotonic measured beside it and rejected for damaging PR-AUC
       (ties). Full numbers + the expected-cost tie-in: `docs/model_card.md`
 - [x] Committed latency/throughput benchmark with a regression guard (above)
+- [x] HTTP load test stepped to saturation (`make loadtest`), which found an OpenMP
+      oversubscription bottleneck on the request path, fixed in the Dockerfile (above).
+      Open: the batch endpoint's DataFrame build, and running the sweep in CI
 - [x] Drift monitoring: per-feature PSI against a training reference frozen into
       the artifact, served at `POST /drift` (marginals + null-spikes; honest
       about what it cannot see - `src/ledgersentry/drift.py`)

@@ -134,3 +134,10 @@ def test_kind_overlay_changes_max_batch_so_ci_can_prove_the_wiring() -> None:
     overlay = yaml.safe_load(text)
     value = yaml.safe_load(overlay["patches"][0]["patch"])[0]["value"]
     assert value != _k8s_docs()["ConfigMap"]["data"]["LEDGERSENTRY_MAX_BATCH"]
+
+
+def test_dockerfile_pins_one_openmp_thread() -> None:
+    # The load test (README "Load test") measured default OpenMP threading
+    # costing about 5x the CPU for less throughput on the /predict path.
+    df = (REPO / "Dockerfile").read_text()
+    assert "ENV OMP_NUM_THREADS=1" in df

@@ -3,7 +3,7 @@
 
 PY ?= python
 
-.PHONY: install install-analysis test lint train reproduce bench bootstrap compare compare-boosters shap cost business business-verify demo-data demo-verify site-check serve dashboard k8s-e2e tf-kind install-mlops drift-report mlflow-ui k8s-schema compose-smoke
+.PHONY: install install-analysis test lint train reproduce bench loadtest bootstrap compare compare-boosters shap cost business business-verify demo-data demo-verify site-check serve dashboard k8s-e2e tf-kind install-mlops drift-report mlflow-ui k8s-schema compose-smoke
 
 install:
 	$(PY) -m pip install -r requirements.txt
@@ -33,6 +33,12 @@ reproduce:
 
 bench:
 	$(PY) scripts/bench.py
+
+# HTTP load test: starts the service the way the Dockerfile does (including its
+# OMP_NUM_THREADS=1), steps concurrency 1..128, writes artifacts/loadtest_<label>.json.
+loadtest:
+	$(PY) scripts/loadtest.py --env OMP_NUM_THREADS=1 --label predict_w1_omp1
+	$(PY) scripts/loadtest.py --env OMP_NUM_THREADS=1 --workers 4 --label predict_w4_omp1
 
 # 95% confidence intervals on the headline, so the four decimals it prints get
 # read with the uncertainty they actually carry.
