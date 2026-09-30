@@ -23,7 +23,16 @@ time-ordered), and both are scored by a model that never trained on them:
 
 On ULB that is roughly day-2 afternoon (reference) against the final hours of
 day 2 (current). The two scoring models differ in training size (80% vs 100% of
-the training window); the report says so rather than hiding it.
+the training window); the report says so rather than hiding it. It also means a
+PR-AUC change between the windows mixes a model difference with a window
+difference, so it cannot be read as the effect of drift alone.
+
+## Refusing to write
+
+The committed metrics_<source>.json, comparison_<source>.json and
+bootstrap_<source>.json must all exist, and both windows must land exactly on
+them (current PR-AUC and its bootstrap CI, reference PR-AUC). A missing file is
+a failure, not a skipped check: run train.py, compare.py and bootstrap.py first.
 
 ## Stattests, and why they differ from drift.py
 
@@ -47,6 +56,7 @@ from sklearn.metrics import average_precision_score
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from ledgersentry.bootstrap import bootstrap_headline  # noqa: E402
 from ledgersentry.config import get_settings  # noqa: E402
 from ledgersentry.data import (  # noqa: E402
     build_preprocessor,
@@ -89,6 +99,31 @@ def window_span(df: pd.DataFrame) -> dict[str, Any]:
             "hours": round((t.max() - t.min()).total_seconds() / 3600, 2)}
 
 
+def evidently_dataset_drift(cur_ds: Any, ref_ds: Any, columns: list[str]) -> dict[str, Any]:
+    """Evidently's own dataset-level verdict: the default test DriftedColumnsCount
+    attaches (share of drifted columns must stay below drift_share). Read from the
+    test result, not recomputed here."""
+    from evidently import Report
+    from evidently.metrics import DriftedColumnsCount
+
+    snap = Report([DriftedColumnsCount(columns=columns)], include_tests=True).run(
+        current_data=cur_ds, reference_data=ref_ds)
+    d = snap.dict()
+    (test,) = [t for t in d["tests"]
+               if t["metric_config"]["params"]["type"].endswith(":DriftedColumnsCount")]
+    status = str(getattr(test["status"], "value", test["status"]))
+    return {"dataset_drift": status == "FAIL", "evidently_test": test["name"],
+            "evidently_test_status": status,
+            "drift_share": float(test["metric_config"]["params"]["drift_share"]),
+            "share": float(d["metrics"][0]["value"]["share"])}
+
+
+def ci95(y: np.ndarray, p: np.ndarray, cfg: Any) -> list[float]:
+    """The repo's percentile bootstrap (bootstrap.py), same resamples and seed."""
+    b = bootstrap_headline(y, p, n_resamples=cfg.bootstrap_resamples, seed=cfg.random_state)
+    return [b["pr_auc"]["ci_lower"], b["pr_auc"]["ci_upper"]]
+
+
 def main() -> int:
     from evidently import BinaryClassification, DataDefinition, Dataset, Report
     from evidently.presets import ClassificationPreset, DataDriftPreset
@@ -110,18 +145,27 @@ def main() -> int:
     prauc_ref = round(float(average_precision_score(y_ref, p_ref)), 4)
     prauc_cur = round(float(average_precision_score(y_cur, p_cur)), 4)
 
-    # both windows must be the numbers the repo already publishes
-    checks: dict[str, Any] = {}
-    mfile = cfg.artifact_dir / f"metrics_{source}.json"
-    if mfile.exists():
-        want = json.loads(mfile.read_text())["pr_auc"]
-        checks["current_pr_auc_equals_metrics_json"] = prauc_cur == want
-    cfile = cfg.artifact_dir / f"comparison_{source}.json"
-    if cfile.exists():
-        comp = json.loads(cfile.read_text())
-        inc = next(r for r in comp["results"]
-                   if f"{r['feature_set']}|{r['config']}" == comp["incumbent"])
-        checks["reference_pr_auc_equals_comparison_val"] = prauc_ref == inc["val_pr_auc"]
+    ci_cur, ci_ref = ci95(y_cur, p_cur, cfg), ci95(y_ref, p_ref, cfg)
+
+    # both windows must be the numbers the repo already publishes; every committed
+    # file is required, so a missing one fails instead of skipping its check
+    need = {k: cfg.artifact_dir / f"{k}_{source}.json"
+            for k in ("metrics", "comparison", "bootstrap")}
+    missing = [f.name for f in need.values() if not f.exists()]
+    if missing:
+        print(f"[check] FAIL: committed file(s) missing: {missing}. Run train.py, "
+              "compare.py and bootstrap.py first; nothing is written without them.")
+        return 1
+    comp = json.loads(need["comparison"].read_text())
+    inc = next(r for r in comp["results"]
+               if f"{r['feature_set']}|{r['config']}" == comp["incumbent"])
+    boot = json.loads(need["bootstrap"].read_text())["pr_auc"]
+    checks: dict[str, bool] = {
+        "current_pr_auc_equals_metrics_json":
+            prauc_cur == json.loads(need["metrics"].read_text())["pr_auc"],
+        "current_ci_equals_bootstrap_json": ci_cur == [boot["ci_lower"], boot["ci_upper"]],
+        "reference_pr_auc_equals_comparison_val": prauc_ref == inc["val_pr_auc"],
+    }
     for k, ok in checks.items():
         print(f"[check] {k}: {ok}")
     if not all(checks.values()):
@@ -149,6 +193,7 @@ def main() -> int:
     html = ROOT / "reports" / f"evidently_{source}.html"
     html.parent.mkdir(parents=True, exist_ok=True)
     snapshot.save_html(str(html))
+    verdict = evidently_dataset_drift(cur_ds, ref_ds, numeric)
     ref_only = Report([ClassificationPreset()]).run(current_data=ref_ds)
 
     per_column: dict[str, dict[str, Any]] = {}
@@ -172,12 +217,9 @@ def main() -> int:
     for r in per_column.values():
         methods[r["method"]] = methods.get(r["method"], 0) + 1
 
-    boot = cfg.artifact_dir / f"bootstrap_{source}.json"
-    ci = None
-    if boot.exists():
-        b = json.loads(boot.read_text())
-        if b["pr_auc"]["point_estimate"] == prauc_cur:
-            ci = [b["pr_auc"]["ci_lower"], b["pr_auc"]["ci_upper"]]
+    if share is None or round(float(share), 6) != round(verdict["share"], 6):
+        print("[check] FAIL: the dataset-drift test saw a different share than the report")
+        return 1
 
     summary = {
         "what": ("Evidently data drift + classification quality over two time windows "
@@ -195,8 +237,11 @@ def main() -> int:
             "drifted_columns": int(drifted) if drifted is not None else None,
             "n_columns": len(numeric),
             "drifted_share": round(float(share), 4) if share is not None else None,
-            "dataset_drift": bool(share is not None and share >= 0.5),
-            "rule": "dataset drifts if >= 50% of columns drift (Evidently default)",
+            "dataset_drift": verdict["dataset_drift"],
+            "dataset_drift_source": (
+                f"Evidently's own test on DriftedColumnsCount: \"{verdict['evidently_test']}\" "
+                f"-> {verdict['evidently_test_status']} (FAIL means dataset drift)"),
+            "drift_share_threshold": verdict["drift_share"],
             "methods_used": dict(sorted(methods.items())),
             "drifted": {f: per_column[f] for f in sorted(ev_flag,
                                                         key=lambda f: -per_column[f]["score"])},
@@ -216,9 +261,15 @@ def main() -> int:
         "performance": {
             "pr_auc": {"reference": prauc_ref, "current": prauc_cur,
                        "change": round(prauc_cur - prauc_ref, 4),
-                       "current_bootstrap_ci95": ci,
-                       "reference_inside_current_ci": (ci[0] <= prauc_ref <= ci[1])
-                       if ci else None},
+                       "reference_bootstrap_ci95": ci_ref,
+                       "current_bootstrap_ci95": ci_cur,
+                       "bootstrap": (f"percentile, {cfg.bootstrap_resamples} resamples of "
+                                     f"each window, seed {cfg.random_state} (bootstrap.py)"),
+                       "reference_inside_current_ci": ci_cur[0] <= prauc_ref <= ci_cur[1],
+                       "current_inside_reference_ci": ci_ref[0] <= prauc_cur <= ci_ref[1],
+                       "caveat": ("the two windows are scored by different models (fit on "
+                                  "80% vs 100% of the training window), so this change "
+                                  "mixes a model difference with a window difference")},
             "at_threshold_0.5_reference": classification_numbers(ref_only),
             "at_threshold_0.5_current": classification_numbers(snapshot),
         },
@@ -228,8 +279,8 @@ def main() -> int:
     d, p = summary["data_drift"], summary["performance"]["pr_auc"]
     print(f"[drift] Evidently {d['drifted_columns']}/{d['n_columns']} columns drifted "
           f"({sorted(ev_flag)}); PSI watch/alert: {sorted(psi_flag)}")
-    print(f"[perf ] PR-AUC reference {p['reference']} -> current {p['current']} "
-          f"(test CI {ci})")
+    print(f"[perf ] PR-AUC reference {p['reference']} (CI {ci_ref}) -> current "
+          f"{p['current']} (CI {ci_cur})")
     print(f"[save ] {html}\n[save ] {out}")
     return 0
 

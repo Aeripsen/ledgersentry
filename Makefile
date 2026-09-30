@@ -129,6 +129,7 @@ mlflow-ui:
 # fold (both time windows of the committed split) -> reports/evidently_<source>.html
 drift-report:
 	$(PY) scripts/evidently_report.py
+	$(PY) scripts/check_evidently_html.py
 
 # kubeconform -strict on the rendered base, kind overlay and k6 Job (needs kubectl).
 k8s-schema:

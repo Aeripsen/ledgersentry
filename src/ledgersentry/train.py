@@ -163,8 +163,10 @@ def main(model_name: str | None = None) -> dict:
             p_fraud_test=p_fraud,
             metrics_path=artifact_dir / f"metrics_{source}.json",
         )
-        print(f"[mlflow] run {run_id} -> {tracking.tracking_uri()} "
-              f"(logged model reproduces P(fraud) on the test fold: {same})")
+        # log_training_run raises RoundTripError (non-zero exit) if the model read
+        # back from the store does not reproduce P(fraud) exactly, so same is True here
+        print(f"[mlflow] run {run_id} -> {tracking.tracking_uri()} (reloaded from the "
+              f"store: identical P(fraud) on all {len(test_df)} test rows: {same})")
     return metrics
 
 

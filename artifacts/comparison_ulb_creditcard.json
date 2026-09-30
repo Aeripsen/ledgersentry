@@ -1,12 +1,12 @@
 {
   "data_source": "ulb_creditcard",
   "is_synthetic": false,
-  "measured_at": "2026-07-21T08:00:20Z",
+  "measured_at": "2026-09-30T21:44:32Z",
   "environment": {
     "python": "3.13.13",
     "sklearn": "1.9.0",
     "pandas": "3.0.3",
-    "numpy": "2.4.6"
+    "numpy": "2.5.1"
   },
   "split": {
     "n_train": 227846,
@@ -34,7 +34,7 @@
       "test_pr_auc": 0.7278,
       "test_recall_at_full_coverage": 0.84,
       "test_fraud_caught": 63,
-      "fit_seconds": 1.8
+      "fit_seconds": 1.9
     },
     {
       "feature_set": "base",
@@ -46,7 +46,7 @@
       "test_pr_auc": 0.7224,
       "test_recall_at_full_coverage": 0.84,
       "test_fraud_caught": 63,
-      "fit_seconds": 2.1
+      "fit_seconds": 2.4
     },
     {
       "feature_set": "base",
@@ -58,7 +58,7 @@
       "test_pr_auc": 0.7475,
       "test_recall_at_full_coverage": 0.8533,
       "test_fraud_caught": 64,
-      "fit_seconds": 2.3
+      "fit_seconds": 2.4
     },
     {
       "feature_set": "base",
@@ -70,7 +70,7 @@
       "test_pr_auc": 0.7139,
       "test_recall_at_full_coverage": 0.7467,
       "test_fraud_caught": 56,
-      "fit_seconds": 1.8
+      "fit_seconds": 3.0
     },
     {
       "feature_set": "base+velocity",
@@ -82,7 +82,7 @@
       "test_pr_auc": 0.7159,
       "test_recall_at_full_coverage": 0.8,
       "test_fraud_caught": 60,
-      "fit_seconds": 2.0
+      "fit_seconds": 2.2
     },
     {
       "feature_set": "base+velocity",
@@ -94,7 +94,7 @@
       "test_pr_auc": 0.7111,
       "test_recall_at_full_coverage": 0.8,
       "test_fraud_caught": 60,
-      "fit_seconds": 2.8
+      "fit_seconds": 3.0
     },
     {
       "feature_set": "base+velocity",
@@ -106,7 +106,7 @@
       "test_pr_auc": 0.7614,
       "test_recall_at_full_coverage": 0.8667,
       "test_fraud_caught": 65,
-      "fit_seconds": 3.2
+      "fit_seconds": 3.9
     },
     {
       "feature_set": "base+velocity",
@@ -118,7 +118,7 @@
       "test_pr_auc": 0.7182,
       "test_recall_at_full_coverage": 0.7333,
       "test_fraud_caught": 55,
-      "fit_seconds": 2.2
+      "fit_seconds": 2.6
     }
   ],
   "paired_deltas_vs_incumbent": {

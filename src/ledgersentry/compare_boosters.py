@@ -188,8 +188,11 @@ def main() -> dict:
     out.write_text(json.dumps(report, indent=2))
     print(f"[save ] {out}")
     if tracking.enabled():
-        ids = tracking.log_comparison("boosters", report, data_dir=cfg.data_dir)
-        print(f"[mlflow] {len(ids)} runs -> {tracking.tracking_uri()}")
+        readback = cfg.artifact_dir / f"mlflow_comparison_boosters_{source}.json"
+        ids = tracking.log_comparison("boosters", report, data_dir=cfg.data_dir,
+                                      readback_path=readback)
+        print(f"[mlflow] {len(ids)} runs -> {tracking.tracking_uri()}; read back from "
+              f"the store, every value equal to this report -> {readback.name}")
     return report
 
 

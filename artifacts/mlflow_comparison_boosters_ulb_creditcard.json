@@ -1,0 +1,83 @@
+{
+  "what": "the boosters comparison as MLflow runs, read back from the tracking store with mlflow.search_runs and checked value by value against the report the script computed; fit_seconds is logged but left out here because it is wall-clock time",
+  "experiment": "ledgersentry-compare",
+  "data_source": "ulb_creditcard",
+  "is_synthetic": false,
+  "n_runs": 3,
+  "n_runs_with_paired_delta": 2,
+  "incumbent": "gbdt_default",
+  "selected_by_validation": "lgbm_slow",
+  "runs": {
+    "gbdt_default": {
+      "params": {
+        "config": "gbdt_default",
+        "learning_rate": "0.1",
+        "max_iter": "200",
+        "model": "hist_gbdt",
+        "split.n_inner_train": "182277",
+        "split.n_inner_val": "45569",
+        "split.n_inner_val_fraud": "52",
+        "split.n_test": "56961",
+        "split.n_test_fraud": "75",
+        "split.n_train": "227846"
+      },
+      "metrics": {
+        "test_pr_auc": 0.7278,
+        "val_pr_auc": 0.7578
+      },
+      "is_incumbent": true,
+      "selected_by_validation": false,
+      "has_paired_delta": false
+    },
+    "lgbm_default": {
+      "params": {
+        "config": "lgbm_default",
+        "learning_rate": "0.1",
+        "max_iter": "200",
+        "model": "lgbm",
+        "split.n_inner_train": "182277",
+        "split.n_inner_val": "45569",
+        "split.n_inner_val_fraud": "52",
+        "split.n_test": "56961",
+        "split.n_test_fraud": "75",
+        "split.n_train": "227846"
+      },
+      "metrics": {
+        "paired_delta_vs_incumbent.ci_lower": -0.0003,
+        "paired_delta_vs_incumbent.ci_upper": 0.124,
+        "paired_delta_vs_incumbent.delta_pr_auc": 0.0635,
+        "paired_delta_vs_incumbent.share_of_resamples_challenger_wins": 0.974,
+        "test_pr_auc": 0.7913,
+        "val_pr_auc": 0.7647
+      },
+      "is_incumbent": false,
+      "selected_by_validation": false,
+      "has_paired_delta": true
+    },
+    "lgbm_slow": {
+      "params": {
+        "config": "lgbm_slow",
+        "learning_rate": "0.05",
+        "max_iter": "400",
+        "model": "lgbm",
+        "split.n_inner_train": "182277",
+        "split.n_inner_val": "45569",
+        "split.n_inner_val_fraud": "52",
+        "split.n_test": "56961",
+        "split.n_test_fraud": "75",
+        "split.n_train": "227846"
+      },
+      "metrics": {
+        "paired_delta_vs_incumbent.ci_lower": 0.0239,
+        "paired_delta_vs_incumbent.ci_upper": 0.1379,
+        "paired_delta_vs_incumbent.delta_pr_auc": 0.0804,
+        "paired_delta_vs_incumbent.share_of_resamples_challenger_wins": 0.998,
+        "test_pr_auc": 0.8081,
+        "val_pr_auc": 0.7745
+      },
+      "is_incumbent": false,
+      "selected_by_validation": true,
+      "has_paired_delta": true
+    }
+  }
+}

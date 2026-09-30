@@ -66,10 +66,18 @@ jobs:
         with:
           python-version: "3.13"
           cache: pip
-      - name: Install pinned environment + MLflow + Evidently
+      - name: Install pinned environment + MLflow + Evidently (+ LightGBM for the booster comparison)
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt -r requirements-mlops.txt
+          pip install -r requirements.txt -r requirements-mlops.txt "lightgbm==4.7.0"
+      # real MLflow against a throwaway store: runs logged, read back, models
+      # reloaded, and a disagreement shown to stop the run
+      - name: MLflow round-trip tests
+        run: pytest -q tests/test_mlflow_roundtrip.py tests/test_evidently_html.py
+      # the HTML Pages serves is not byte-reproducible (random widget ids), so its
+      # embedded report data is checked value by value against the summary
+      - name: Served Evidently page matches the committed summary
+        run: python scripts/check_evidently_html.py
       - name: Cache the ULB dataset
         uses: actions/cache@v4
         with:
@@ -79,12 +87,41 @@ jobs:
         run: |
           [ -f data/creditcard.csv ] || curl -sSfL -o data/creditcard.csv https://storage.googleapis.com/download.tensorflow.org/data/creditcard.csv
           echo "76274b691b16a6c49d3f159c883398e03ccd6d1ee12d9d8ee38f4b4b98551a89  data/creditcard.csv" | sha256sum -c -
+      # exits non-zero if the model reloaded from the store does not reproduce
+      # P(fraud) exactly on every test row
       - name: Train on ULB (logs a run to the local MLflow store)
         run: python scripts/train.py
+      # one run per variant (8 + 3), read back from the store and checked against
+      # the report each script computed; exits non-zero on any disagreement
+      - name: Feature-set comparison, logged to MLflow
+        run: python scripts/compare.py
+      - name: Booster comparison, logged to MLflow
+        run: python scripts/compare_boosters.py
+      - name: Comparison reports reproduce (every field except wall-clock time)
+        run: python scripts/same_json.py artifacts/comparison_ulb_creditcard.json artifacts/comparison_boosters_ulb_creditcard.json
       - name: Evidently drift + performance report over the two time windows
         run: python scripts/evidently_report.py
-      - name: Committed ULB metrics and drift summary regenerate exactly
-        run: git diff --exit-code artifacts/metrics_ulb_creditcard.json artifacts/evidently_summary_ulb_creditcard.json
+      - name: Regenerated Evidently page matches the regenerated summary
+        run: python scripts/check_evidently_html.py
+      - name: The store holds the training run and all 11 comparison runs
+        run: |
+          python - <<'EOF'
+          import sys
+          sys.path.insert(0, "src")
+          import mlflow
+          from ledgersentry import tracking
+          mlflow.set_tracking_uri(tracking.tracking_uri())
+          train = mlflow.search_runs(experiment_names=["ledgersentry-train"], output_format="list")
+          comp = mlflow.search_runs(experiment_names=["ledgersentry-compare"], output_format="list")
+          assert len(train) == 1, train
+          assert train[0].data.tags["roundtrip_predictions_identical"] == "True"
+          assert train[0].data.tags["model_serialization"] == "skops"
+          n = {s: sum(r.data.tags["comparison"] == s for r in comp) for s in ("compare", "boosters")}
+          assert n == {"compare": 8, "boosters": 3}, n
+          print(f"store: 1 training run (skops, reloaded identically), {n} comparison runs")
+          EOF
+      - name: Committed ULB metrics, drift summary and MLflow read-backs regenerate exactly
+        run: git diff --exit-code artifacts/metrics_ulb_creditcard.json artifacts/evidently_summary_ulb_creditcard.json artifacts/mlflow_comparison_ulb_creditcard.json artifacts/mlflow_comparison_boosters_ulb_creditcard.json
       - name: Upload the tracking store and the report
         if: always()
         uses: actions/upload-artifact@v4

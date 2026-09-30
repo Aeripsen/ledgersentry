@@ -1,7 +1,7 @@
 {
   "data_source": "ulb_creditcard",
   "is_synthetic": false,
-  "measured_at": "2026-07-21T15:35:06Z",
+  "measured_at": "2026-09-30T21:47:33Z",
   "environment": {
     "python": "3.13.13",
     "sklearn": "1.9.0",
@@ -31,7 +31,7 @@
       "learning_rate": 0.1,
       "val_pr_auc": 0.7578,
       "test_pr_auc": 0.7278,
-      "fit_seconds": 2.0
+      "fit_seconds": 2.9
     },
     {
       "config": "lgbm_default",
@@ -40,7 +40,7 @@
       "learning_rate": 0.1,
       "val_pr_auc": 0.7647,
       "test_pr_auc": 0.7913,
-      "fit_seconds": 4.2
+      "fit_seconds": 4.0
     },
     {
       "config": "lgbm_slow",
@@ -49,7 +49,7 @@
       "learning_rate": 0.05,
       "val_pr_auc": 0.7745,
       "test_pr_auc": 0.8081,
-      "fit_seconds": 7.8
+      "fit_seconds": 9.8
     }
   ],
   "paired_deltas_vs_incumbent": {

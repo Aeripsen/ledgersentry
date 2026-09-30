@@ -22,6 +22,7 @@
   },
   "checks_against_committed_artifacts": {
     "current_pr_auc_equals_metrics_json": true,
+    "current_ci_equals_bootstrap_json": true,
     "reference_pr_auc_equals_comparison_val": true
   },
   "data_drift": {
@@ -29,7 +30,8 @@
     "n_columns": 31,
     "drifted_share": 0.0645,
     "dataset_drift": false,
-    "rule": "dataset drifts if >= 50% of columns drift (Evidently default)",
+    "dataset_drift_source": "Evidently's own test on DriftedColumnsCount: \"Share of Drifted Columns: Less 0.500\" -> SUCCESS (FAIL means dataset drift)",
+    "drift_share_threshold": 0.5,
     "methods_used": {
       "Jensen-Shannon distance": 1,
       "Wasserstein distance (normed)": 30
@@ -79,11 +81,18 @@
       "reference": 0.7578,
       "current": 0.7278,
       "change": -0.03,
+      "reference_bootstrap_ci95": [
+        0.6436,
+        0.8701
+      ],
       "current_bootstrap_ci95": [
         0.6214,
         0.8232
       ],
-      "reference_inside_current_ci": true
+      "bootstrap": "percentile, 1000 resamples of each window, seed 42 (bootstrap.py)",
+      "reference_inside_current_ci": true,
+      "current_inside_reference_ci": true,
+      "caveat": "the two windows are scored by different models (fit on 80% vs 100% of the training window), so this change mixes a model difference with a window difference"
     },
     "at_threshold_0.5_reference": {
       "accuracy": 0.9981,

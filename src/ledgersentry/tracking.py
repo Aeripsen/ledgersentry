@@ -7,12 +7,19 @@ What gets logged, once mlflow is installed (pip install -r requirements-mlops.tx
     whole training config), the headline metrics, the demoted ones under a
     `demoted.` prefix, the review-knob curve as stepped metrics, the bootstrap CI
     when artifacts/bootstrap_<source>.json matches this run, metrics.json, and the
-    fitted preprocessor+model saved with skops. The logged model is loaded back
-    and must reproduce P(fraud) on every test row, or the run is tagged failed.
+    fitted preprocessor+model (skops for sklearn-native models such as the default
+    hist_gbdt; cloudpickle only for a LightGBM booster, which skops cannot walk).
+    The logged model is loaded back and must reproduce P(fraud) on every test row
+    exactly, or RoundTripError is raised and train.py exits non-zero. It is logged
+    in MLflow's sklearn flavor only: FraudDetector has no predict(), so MLflow
+    adds no python_function flavor and `mlflow models serve` does not apply.
   * compare.py / compare_boosters.py: one run per variant as the script measures
     it, experiment `ledgersentry-compare`, with its validation and test PR-AUC,
-    the paired-bootstrap delta against the incumbent, and which variant the
-    validation rule selected.
+    which variant the validation rule selected, and, for the variants the report
+    pairs against the incumbent, the paired-bootstrap delta. The runs are then
+    read back from the store, every logged value is compared with the report the
+    script computed (mismatch raises), and the read-back is written to
+    artifacts/mlflow_<comparison>_<source>.json, which CI diffs.
 
 Every run carries data_source and is_synthetic tags, because CI trains on the
 synthetic fixture and a synthetic PR-AUC of 1.0 must never be read as a result.
@@ -130,6 +137,25 @@ def _scalars(d: Mapping[str, Any], prefix: str = "") -> dict[str, float]:
     }
 
 
+class RoundTripError(RuntimeError):
+    """The model read back from the tracking store scores differently from the
+    model that was logged."""
+
+
+class ReadBackError(RuntimeError):
+    """A run read back from the tracking store disagrees with what was logged."""
+
+
+def serialization_for(model: Any) -> str:
+    """skops for sklearn-native estimators (the default hist_gbdt and the logreg
+    baseline); cloudpickle only for a LightGBM booster, which skops cannot walk.
+    Chosen by type up front, so a skops failure on a sklearn model is an error,
+    never a silent fall back to pickle."""
+    inner = getattr(model, "model_", model)
+    final = inner.steps[-1][1] if hasattr(inner, "steps") else inner
+    return "cloudpickle" if type(final).__module__.split(".")[0] == "lightgbm" else "skops"
+
+
 def log_training_run(
     *,
     settings: Any,
@@ -182,30 +208,48 @@ def log_training_run(
         mlflow.log_artifact(str(metrics_path))
 
         pipe = Pipeline([("pre", preprocessor), ("model", model)])
-        try:
-            info = mlflow.sklearn.log_model(
-                pipe, name="model", pip_requirements=pip_requirements(),
-                code_paths=[str(REPO_ROOT / "src" / "ledgersentry")],
-                skops_trusted_types=SKOPS_TRUSTED_TYPES)
+        fmt = serialization_for(model)
+        common = {"name": "model", "pip_requirements": pip_requirements(),
+                  "code_paths": [str(REPO_ROOT / "src" / "ledgersentry")]}
+        if fmt == "skops":
+            info = mlflow.sklearn.log_model(pipe, skops_trusted_types=SKOPS_TRUSTED_TYPES,
+                                            **common)
             mlflow.set_tag("model_serialization", "skops")
-        except Exception as exc:  # e.g. lgbm: skops cannot walk a compiled booster
-            info = mlflow.sklearn.log_model(
-                pipe, name="model", serialization_format="cloudpickle",
-                pip_requirements=pip_requirements(),
-                code_paths=[str(REPO_ROOT / "src" / "ledgersentry")])
-            mlflow.set_tag("model_serialization", f"cloudpickle ({type(exc).__name__})")
+        else:
+            info = mlflow.sklearn.log_model(pipe, serialization_format="cloudpickle", **common)
+            mlflow.set_tag("model_serialization",
+                           "cloudpickle (LightGBM booster; load only from a store you wrote)")
         # round trip: what the store holds must score the test fold identically
         loaded = mlflow.sklearn.load_model(info.model_uri)
-        p_back = loaded[-1].predict_proba_fraud(loaded[:-1].transform(X_test))
-        same = bool(np.array_equal(p_back, p_fraud_test))
+        p_back = np.asarray(loaded[-1].predict_proba_fraud(loaded[:-1].transform(X_test)))
+        same = bool(p_back.shape == np.shape(p_fraud_test)
+                    and np.array_equal(p_back, p_fraud_test))
         mlflow.set_tag("roundtrip_predictions_identical", str(same))
+        mlflow.log_metric("roundtrip.n_rows", len(p_back))
+        if not same:
+            raise RoundTripError(
+                f"logged model {info.model_uri} does not reproduce P(fraud) on the "
+                f"{len(p_back)} test rows")
         return str(run.info.run_id), same
 
 
+def _variant(row: Mapping[str, Any]) -> str:
+    return (f"{row['feature_set']}|{row['config']}" if "feature_set" in row
+            else str(row["config"]))
+
+
+# fit time is wall clock, so it is logged but kept out of the read-back file CI diffs
+NOT_DETERMINISTIC = ("fit_seconds",)
+
+
 def log_comparison(experiment_suffix: str, report: Mapping[str, Any], *,
-                   data_dir: Path) -> list[str]:
+                   data_dir: Path, readback_path: Path | None = None) -> list[str]:
     """One run per variant of a compare.py / compare_boosters.py report, logged
-    from the report the script just computed (not from a file on disk)."""
+    from the report the script just computed (not from a file on disk). Then the
+    runs are read back from the store and checked against the report; with
+    readback_path set, the deterministic part of the read-back is written there."""
+    import uuid
+
     import mlflow
 
     source = str(report["data_source"])
@@ -214,13 +258,14 @@ def log_comparison(experiment_suffix: str, report: Mapping[str, Any], *,
     for key, d in report.get("paired_deltas_vs_incumbent", {}).items():
         deltas[str(d.get("variant", key))] = d
     tags = data_tags(source, data_dir)
+    batch = uuid.uuid4().hex[:12]
     ids = []
     for row in report["results"]:
-        variant = (f"{row['feature_set']}|{row['config']}" if "feature_set" in row
-                   else str(row["config"]))
+        variant = _variant(row)
         with mlflow.start_run(run_name=f"{experiment_suffix}:{variant}") as run:
             mlflow.set_tags({
                 **tags, "comparison": experiment_suffix, "variant": variant,
+                "comparison_batch": batch,
                 "incumbent": str(report["incumbent"]),
                 "is_incumbent": str(variant == report["incumbent"]),
                 "selected_by_validation": str(variant == report["selected_by_validation"]),
@@ -242,4 +287,75 @@ def log_comparison(experiment_suffix: str, report: Mapping[str, Any], *,
                                str(d.get("interval_excludes_zero")))
             mlflow.log_dict(dict(report), f"{experiment_suffix}_report.json")
             ids.append(str(run.info.run_id))
+    readback = read_back_comparison(experiment_suffix, batch, report)
+    if readback_path is not None:
+        import json
+
+        readback_path.write_text(json.dumps(readback, indent=2) + "\n")
     return ids
+
+
+def read_back_comparison(experiment_suffix: str, batch: str,
+                         report: Mapping[str, Any]) -> dict[str, Any]:
+    """Read one comparison batch back from the store with mlflow.search_runs and
+    require every logged metric and the selection tags to equal the report the
+    script computed. Returns the deterministic part (no run ids, no fit times)."""
+    import mlflow
+
+    runs = mlflow.search_runs(experiment_names=["ledgersentry-compare"],
+                              filter_string=f"tags.comparison_batch = '{batch}'",
+                              output_format="list")
+    by_variant = {r.data.tags["variant"]: r for r in runs}
+    expected = {_variant(row): row for row in report["results"]}
+    deltas = {str(d.get("variant", k)): d
+              for k, d in report.get("paired_deltas_vs_incumbent", {}).items()}
+    problems: list[str] = []
+    if sorted(by_variant) != sorted(expected) or len(runs) != len(expected):
+        problems.append(f"runs in store {sorted(by_variant)} != report {sorted(expected)}")
+    out: dict[str, Any] = {}
+    for variant in sorted(expected):
+        r = by_variant.get(variant)
+        if r is None:
+            continue
+        row = expected[variant]
+        want = _scalars({k: v for k, v in row.items() if k not in ("max_iter", "learning_rate")})
+        if variant in deltas:
+            want.update(_scalars({k: v for k, v in deltas[variant].items()
+                                  if k != "interval_excludes_zero"},
+                                 "paired_delta_vs_incumbent."))
+        got = dict(r.data.metrics)
+        for k, v in want.items():
+            if got.get(k) != v:
+                problems.append(f"{variant} {k}: store {got.get(k)!r}, report {v!r}")
+        extra = sorted(set(got) - set(want))
+        if extra:
+            problems.append(f"{variant}: store has metrics the report does not: {extra}")
+        for tag, want_tag in (("is_incumbent", str(variant == report["incumbent"])),
+                              ("selected_by_validation",
+                               str(variant == report["selected_by_validation"]))):
+            if r.data.tags.get(tag) != want_tag:
+                problems.append(f"{variant} tag {tag}: {r.data.tags.get(tag)!r}")
+        out[variant] = {
+            "params": dict(sorted(r.data.params.items())),
+            "metrics": {k: v for k, v in sorted(got.items())
+                        if k not in NOT_DETERMINISTIC},
+            "is_incumbent": r.data.tags["is_incumbent"] == "True",
+            "selected_by_validation": r.data.tags["selected_by_validation"] == "True",
+            "has_paired_delta": "paired_delta_excludes_zero" in r.data.tags,
+        }
+    if problems:
+        raise ReadBackError("; ".join(problems))
+    return {
+        "what": (f"the {experiment_suffix} comparison as MLflow runs, read back from the "
+                 "tracking store with mlflow.search_runs and checked value by value "
+                 "against the report the script computed; fit_seconds is logged but "
+                 "left out here because it is wall-clock time"),
+        "experiment": "ledgersentry-compare",
+        "data_source": str(report["data_source"]),
+        "is_synthetic": bool(report["is_synthetic"]),
+        "n_runs": len(runs),
+        "n_runs_with_paired_delta": sum(v["has_paired_delta"] for v in out.values()),
+        "incumbent": str(report["incumbent"]),
+        "selected_by_validation": str(report["selected_by_validation"]),
+        "runs": out,
+    }

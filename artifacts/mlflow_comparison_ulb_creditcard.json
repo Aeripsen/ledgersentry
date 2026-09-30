@@ -1,0 +1,212 @@
+{
+  "what": "the compare comparison as MLflow runs, read back from the tracking store with mlflow.search_runs and checked value by value against the report the script computed; fit_seconds is logged but left out here because it is wall-clock time",
+  "experiment": "ledgersentry-compare",
+  "data_source": "ulb_creditcard",
+  "is_synthetic": false,
+  "n_runs": 8,
+  "n_runs_with_paired_delta": 2,
+  "incumbent": "base|gbdt_default",
+  "selected_by_validation": "base|gbdt_default",
+  "runs": {
+    "base+velocity|gbdt_deep": {
+      "params": {
+        "config": "gbdt_deep",
+        "feature_set": "base+velocity",
+        "learning_rate": "0.1",
+        "max_iter": "200",
+        "model": "hist_gbdt_deep",
+        "split.n_inner_train": "182277",
+        "split.n_inner_val": "45569",
+        "split.n_inner_val_fraud": "52",
+        "split.n_test": "56961",
+        "split.n_test_fraud": "75",
+        "split.n_train": "227846"
+      },
+      "metrics": {
+        "test_fraud_caught": 55.0,
+        "test_pr_auc": 0.7182,
+        "test_recall_at_full_coverage": 0.7333,
+        "val_pr_auc": 0.7298
+      },
+      "is_incumbent": false,
+      "selected_by_validation": false,
+      "has_paired_delta": false
+    },
+    "base+velocity|gbdt_default": {
+      "params": {
+        "config": "gbdt_default",
+        "feature_set": "base+velocity",
+        "learning_rate": "0.1",
+        "max_iter": "200",
+        "model": "hist_gbdt",
+        "split.n_inner_train": "182277",
+        "split.n_inner_val": "45569",
+        "split.n_inner_val_fraud": "52",
+        "split.n_test": "56961",
+        "split.n_test_fraud": "75",
+        "split.n_train": "227846"
+      },
+      "metrics": {
+        "paired_delta_vs_incumbent.ci_lower": -0.0251,
+        "paired_delta_vs_incumbent.ci_upper": -0.0001,
+        "paired_delta_vs_incumbent.delta_pr_auc": -0.0119,
+        "paired_delta_vs_incumbent.share_of_resamples_challenger_wins": 0.025,
+        "test_fraud_caught": 60.0,
+        "test_pr_auc": 0.7159,
+        "test_recall_at_full_coverage": 0.8,
+        "val_pr_auc": 0.7565
+      },
+      "is_incumbent": false,
+      "selected_by_validation": false,
+      "has_paired_delta": true
+    },
+    "base+velocity|gbdt_shallow": {
+      "params": {
+        "config": "gbdt_shallow",
+        "feature_set": "base+velocity",
+        "learning_rate": "0.05",
+        "max_iter": "400",
+        "model": "hist_gbdt_shallow",
+        "split.n_inner_train": "182277",
+        "split.n_inner_val": "45569",
+        "split.n_inner_val_fraud": "52",
+        "split.n_test": "56961",
+        "split.n_test_fraud": "75",
+        "split.n_train": "227846"
+      },
+      "metrics": {
+        "paired_delta_vs_incumbent.ci_lower": -0.0146,
+        "paired_delta_vs_incumbent.ci_upper": 0.0857,
+        "paired_delta_vs_incumbent.delta_pr_auc": 0.0337,
+        "paired_delta_vs_incumbent.share_of_resamples_challenger_wins": 0.905,
+        "test_fraud_caught": 65.0,
+        "test_pr_auc": 0.7614,
+        "test_recall_at_full_coverage": 0.8667,
+        "val_pr_auc": 0.745
+      },
+      "is_incumbent": false,
+      "selected_by_validation": false,
+      "has_paired_delta": true
+    },
+    "base+velocity|gbdt_slow": {
+      "params": {
+        "config": "gbdt_slow",
+        "feature_set": "base+velocity",
+        "learning_rate": "0.05",
+        "max_iter": "400",
+        "model": "hist_gbdt",
+        "split.n_inner_train": "182277",
+        "split.n_inner_val": "45569",
+        "split.n_inner_val_fraud": "52",
+        "split.n_test": "56961",
+        "split.n_test_fraud": "75",
+        "split.n_train": "227846"
+      },
+      "metrics": {
+        "test_fraud_caught": 60.0,
+        "test_pr_auc": 0.7111,
+        "test_recall_at_full_coverage": 0.8,
+        "val_pr_auc": 0.7492
+      },
+      "is_incumbent": false,
+      "selected_by_validation": false,
+      "has_paired_delta": false
+    },
+    "base|gbdt_deep": {
+      "params": {
+        "config": "gbdt_deep",
+        "feature_set": "base",
+        "learning_rate": "0.1",
+        "max_iter": "200",
+        "model": "hist_gbdt_deep",
+        "split.n_inner_train": "182277",
+        "split.n_inner_val": "45569",
+        "split.n_inner_val_fraud": "52",
+        "split.n_test": "56961",
+        "split.n_test_fraud": "75",
+        "split.n_train": "227846"
+      },
+      "metrics": {
+        "test_fraud_caught": 56.0,
+        "test_pr_auc": 0.7139,
+        "test_recall_at_full_coverage": 0.7467,
+        "val_pr_auc": 0.7293
+      },
+      "is_incumbent": false,
+      "selected_by_validation": false,
+      "has_paired_delta": false
+    },
+    "base|gbdt_default": {
+      "params": {
+        "config": "gbdt_default",
+        "feature_set": "base",
+        "learning_rate": "0.1",
+        "max_iter": "200",
+        "model": "hist_gbdt",
+        "split.n_inner_train": "182277",
+        "split.n_inner_val": "45569",
+        "split.n_inner_val_fraud": "52",
+        "split.n_test": "56961",
+        "split.n_test_fraud": "75",
+        "split.n_train": "227846"
+      },
+      "metrics": {
+        "test_fraud_caught": 63.0,
+        "test_pr_auc": 0.7278,
+        "test_recall_at_full_coverage": 0.84,
+        "val_pr_auc": 0.7578
+      },
+      "is_incumbent": true,
+      "selected_by_validation": true,
+      "has_paired_delta": false
+    },
+    "base|gbdt_shallow": {
+      "params": {
+        "config": "gbdt_shallow",
+        "feature_set": "base",
+        "learning_rate": "0.05",
+        "max_iter": "400",
+        "model": "hist_gbdt_shallow",
+        "split.n_inner_train": "182277",
+        "split.n_inner_val": "45569",
+        "split.n_inner_val_fraud": "52",
+        "split.n_test": "56961",
+        "split.n_test_fraud": "75",
+        "split.n_train": "227846"
+      },
+      "metrics": {
+        "test_fraud_caught": 64.0,
+        "test_pr_auc": 0.7475,
+        "test_recall_at_full_coverage": 0.8533,
+        "val_pr_auc": 0.734
+      },
+      "is_incumbent": false,
+      "selected_by_validation": false,
+      "has_paired_delta": false
+    },
+    "base|gbdt_slow": {
+      "params": {
+        "config": "gbdt_slow",
+        "feature_set": "base",
+        "learning_rate": "0.05",
+        "max_iter": "400",
+        "model": "hist_gbdt",
+        "split.n_inner_train": "182277",
+        "split.n_inner_val": "45569",
+        "split.n_inner_val_fraud": "52",
+        "split.n_test": "56961",
+        "split.n_test_fraud": "75",
+        "split.n_train": "227846"
+      },
+      "metrics": {
+        "test_fraud_caught": 63.0,
+        "test_pr_auc": 0.7224,
+        "test_recall_at_full_coverage": 0.84,
+        "val_pr_auc": 0.757
+      },
+      "is_incumbent": false,
+      "selected_by_validation": false,
+      "has_paired_delta": false
+    }
+  }
+}
