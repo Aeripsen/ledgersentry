@@ -1,30 +1,41 @@
 """
 The per-transaction export behind the live demo page
-(https://aeripsen.github.io/ledgersentry/), and the check that keeps the page
-from drifting away from the committed artifacts.
+(https://aeripsen.github.io/ledgersentry/), and the checks that tie the page to
+the committed code.
 
 What it writes: artifacts/demo_scores_<source>.json, every held-out row of the
-headline fold with the shipped model's raw P(fraud), the true label and the
-dataset's own Amount. The page counts the knob's lanes from these rows in the
-browser; it never runs the model and never invents a row.
+headline fold with the model's raw P(fraud), the true label and the dataset's
+own Amount. No model file is committed (artifacts/*.joblib is gitignored): the
+scores come from the model retrained deterministically by the committed code
+(`make reproduce`), exactly as train.py fits it. The page counts the knob's
+lanes from these rows in the browser; it never runs the model and never invents
+a row.
 
-Why it can be trusted: check_export() rebuilds, from the exported rows alone,
-  1. the committed knob table and PR-AUC in metrics_<source>.json, and
-  2. the whole policies / sweep / bootstrap block of business_case_<source>.json
-     (business.py's own functions, called on these rows), and the headline and
-     resume sentences built from them.
-CI runs it offline through tests/test_demo_data.py before pages.yml deploys,
-and scripts/verify_repro.py runs it after a real-data retrain. The business
-numbers stay in ONE artifact (business.py); this module only ships the rows.
+Two checks, and where each runs:
+  1. Consistency, check_export(): the exported rows alone rebuild the committed
+     knob table and PR-AUC in metrics_<source>.json, and the policies, 50-row
+     sweep and bootstrap blocks of business_case_<source>.json (business.py's
+     own functions, called on these rows), plus the headline and resume
+     sentences built from them. Offline, in CI via tests/test_demo_data.py.
+     Other keys of the business case (fold, consistency_check, ...) are not
+     rebuilt here.
+  2. Provenance, build_export() compared to the committed file: retrain on the
+     real data and require the same bytes. The ci `demo` job fetches the
+     sha256-checked public ULB file to run it; locally it is step 3 of
+     `make reproduce` (scripts/verify_repro.py) or `make demo-verify`.
 
 Scores are rounded to 8 decimals to keep the file under 1 MB. The check runs on
 the rounded values, so rounding that flipped any count would fail it.
 
-Run: python scripts/demo_data.py   (needs data/creditcard.csv; `make demo-data`)
+Run: python scripts/demo_data.py            write   (make demo-data)
+     python scripts/demo_data.py --verify   compare (make demo-verify)
+Both need data/creditcard.csv.
 """
 from __future__ import annotations
 
+import argparse
 import json
+import sys
 from typing import Any
 
 import numpy as np
@@ -59,8 +70,11 @@ def rows_from_export(demo: dict[str, Any]) -> tuple[np.ndarray, np.ndarray, np.n
 def check_export(
     demo: dict[str, Any], metrics: dict[str, Any], business: dict[str, Any] | None = None
 ) -> list[str]:
-    """Mismatches between what the exported rows imply and what is committed.
-    Empty list = every number the page shows traces to a committed artifact."""
+    """Mismatches between what the exported rows imply and what is committed:
+    the knob table, PR-AUC, and the business case's policies, sweep and
+    bootstrap blocks and the sentences built from them. Empty list = consistent.
+    Says nothing about whether the rows came from the committed code; that is
+    build_export()'s job."""
     errors: list[str] = []
     p, y, amount = rows_from_export(demo)
     if len(p) != metrics["n_test"] or int(y.sum()) != metrics["n_test_fraud"]:
@@ -91,7 +105,9 @@ def check_export(
     return errors
 
 
-def main() -> dict[str, Any]:
+def build_export() -> tuple[str, dict[str, Any]]:
+    """(source, export) from a fresh retrain on the local data, exactly as
+    train.py fits it. Fails unless the rows rebuild the committed artifacts."""
     cfg = get_settings()
     source, test_df, p_raw = holdout_fold(cfg)
     p = np.round(p_raw, SCORE_DECIMALS)
@@ -105,11 +121,12 @@ def main() -> dict[str, Any]:
         "data_source": source,
         "is_synthetic": source == "synthetic",
         "what": (
-            "Every held-out transaction of the temporal test fold: the shipped model's "
-            "raw P(fraud) (8 decimals), the true label, and the dataset's own Amount "
-            "(ULB states no currency). The demo page counts the knob's lanes from these "
-            "rows; tests/test_demo_data.py rebuilds the committed metrics and business "
-            "case from them."
+            "Every held-out transaction of the temporal test fold: the model's raw "
+            "P(fraud) (8 decimals), the true label, and the dataset's own Amount (ULB "
+            "states no currency). No model file is committed; the scores come from the "
+            "model the committed code retrains deterministically (make reproduce). The "
+            "demo page counts the knob's lanes from these rows; tests/test_demo_data.py "
+            "rebuilds the committed metrics and business case from them."
         ),
         "rebuild": "make reproduce && make demo-data (needs data/creditcard.csv)",
         "n": int(len(p)),
@@ -128,8 +145,38 @@ def main() -> dict[str, Any]:
     errors = check_export(demo, metrics, business)
     if errors:
         raise SystemExit("FAIL: " + "; ".join(errors))
-    out = cfg.artifact_dir / f"demo_scores_{source}.json"
-    out.write_text(json.dumps(demo, separators=(",", ":")), newline="\n")
+    return source, demo
+
+
+def serialize(demo: dict[str, Any]) -> str:
+    return json.dumps(demo, separators=(",", ":"))
+
+
+def verify_committed(source: str, demo: dict[str, Any]) -> list[str]:
+    """Provenance: the fresh export must equal the committed file byte for byte."""
+    path = get_settings().artifact_dir / f"demo_scores_{source}.json"
+    if not path.exists():
+        return [f"{path.name} is not committed"]
+    if path.read_text().replace("\r\n", "\n") != serialize(demo):
+        return [f"a fresh export differs from the committed {path.name}"]
+    return []
+
+
+def main(argv: list[str] | None = None) -> dict[str, Any]:
+    ap = argparse.ArgumentParser(description="Export or verify the demo's per-row scores.")
+    ap.add_argument("--verify", action="store_true",
+                    help="rebuild the export and require the committed file byte for byte")
+    args = ap.parse_args(argv)
+    source, demo = build_export()
+    if args.verify:
+        errors = verify_committed(source, demo)
+        if errors:
+            sys.exit("FAIL: " + "; ".join(errors))
+        print("PASS: a fresh export from the retrained model equals the committed file "
+              "byte for byte")
+        return demo
+    out = get_settings().artifact_dir / f"demo_scores_{source}.json"
+    out.write_text(serialize(demo), newline="\n")
     print(f"[save ] {out} ({out.stat().st_size / 1e6:.2f} MB), rebuilds metrics + business case")
     return demo
 

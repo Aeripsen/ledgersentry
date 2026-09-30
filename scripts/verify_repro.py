@@ -5,7 +5,7 @@ Run AFTER `python scripts/train.py` with data/creditcard.csv present:
 
     python scripts/train.py && python scripts/verify_repro.py
 
-Two checks, strictest first:
+Three checks, strictest first:
   1. Byte-identical: the regenerated artifacts/metrics_ulb_creditcard.json must
      match the committed copy (via `git show HEAD:...`). This is the real
      reproducibility claim - same data, same pinned deps, same file, byte for byte.
@@ -14,6 +14,10 @@ Two checks, strictest first:
      numbers (a fallback check that still works outside a git clone). Demoted
      does not mean unpinned: if this repo prints a number anywhere, that number
      reproduces.
+  3. The live demo's export: a fresh per-transaction export (another retrain,
+     src/ledgersentry/demo.py) must equal the committed
+     artifacts/demo_scores_ulb_creditcard.json byte for byte. A missing file
+     fails. This is local-only, because the data file is not in CI.
 """
 from __future__ import annotations
 
@@ -88,22 +92,23 @@ def main() -> int:
     print(f"PASS: PR-AUC {got['pr_auc']} / recall {got['recall_at_full_coverage']} "
           f"on {got['n_test']} held-out rows ({got['n_test_fraud']} fraud) all match")
 
-    # 3. the live demo's per-transaction export (make demo-data) must rebuild
-    # these metrics and the committed business case, so the page is held to the
-    # same contract as the headline.
-    demo_path = REPO / "artifacts" / "demo_scores_ulb_creditcard.json"
-    business_path = REPO / "artifacts" / "business_case_ulb_creditcard.json"
-    if demo_path.exists():
-        sys.path.insert(0, str(REPO / "src"))
-        from ledgersentry.demo import check_export
+    # 3. the live demo's per-transaction export. A fresh export is rebuilt from
+    # another retrain (demo.build_export, which also requires it to rebuild the
+    # committed metrics and business case) and must equal the committed
+    # artifacts/demo_scores_ulb_creditcard.json byte for byte. This is the only
+    # provenance check the page has: CI has no ULB data, so CI can only check
+    # that the committed export is consistent with the committed metrics.
+    sys.path.insert(0, str(REPO / "src"))
+    from ledgersentry.demo import build_export, verify_committed
 
-        business = json.loads(business_path.read_text()) if business_path.exists() else None
-        errors = check_export(json.loads(demo_path.read_text()), got, business)
-        if errors:
-            for e in errors:
-                print(f"FAIL: {e}")
-            return 1
-        print("PASS: the demo export rebuilds these metrics and the business case")
+    source, demo = build_export()
+    errors = verify_committed(source, demo)
+    if errors:
+        for e in errors:
+            print(f"FAIL: {e}")
+        return 1
+    print("PASS: a fresh demo export equals the committed file byte for byte, and it "
+          "rebuilds these metrics and the business case")
     return 0
 
 

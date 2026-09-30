@@ -17,8 +17,11 @@ on its own at the default 0.5 cut:
 - **The price is stated:** 709 of every 10,000 transactions go to a human reviewer (7.1%), and 16 of those 4,039 are fraud. Whether reviewers catch them is not measured.
 
 Every figure comes from `artifacts/business_case_ulb_creditcard.json` (`make business`,
-details [below](#in-operations-terms-alerts-review-load-fraud-caught)). CI rebuilds it from the
-committed per-transaction scores the demo runs on before the page can deploy.
+details [below](#in-operations-terms-alerts-review-load-fraud-caught)). One fold and 75 frauds:
+the intervals are wide, and they are a floor, because fraud comes in bursts. No model file is
+committed; the scores come from the model the committed code retrains deterministically
+(`make reproduce`). What CI checks about the live page is
+[here](#the-live-demo-and-what-ci-checks).
 
 Real-time financial-transaction fraud detection with a tunable reject-to-review option.
 A gradient-boosted classifier that scores each transaction and, when it isn't confident
@@ -240,13 +243,14 @@ published: the fold is 7.65 hours of a two-day 2013 dataset, which says nothing 
 real desk's hourly volume. Intervals are a seeded 1000-resample bootstrap with the same
 limits as `bootstrap.py` (sampling noise only, one fold).
 
-What checks what. CI (`tests/test_demo_data.py`, also the gate in front of the Pages
-deploy) rebuilds every policy, sweep row, interval and sentence in the artifact from the
-committed per-transaction scores. The step before that, retraining from
-`data/creditcard.csv` and getting those same scores, is checked by `make business-verify`,
-which regenerates the file and requires a byte match. It needs the 151 MB data file, so it
-runs locally (last run on CPython 3.13.13 with the pinned `requirements.txt`), not in CI.
-The artifact records no interpreter version, only the pinned library versions.
+What checks what. CI (`tests/test_demo_data.py`) rebuilds every policy, sweep row,
+interval and sentence in the artifact from the committed per-transaction scores. The step
+before that, retraining from `data/creditcard.csv` and getting those same scores, is
+checked in CI by the `demo` job, which fetches the sha256-checked public ULB file, retrains,
+and requires the committed scores file back byte for byte (`scripts/demo_data.py --verify`).
+`make business-verify`, which regenerates the whole business file and requires a byte match,
+runs locally (last run on CPython 3.13.13 with the pinned `requirements.txt`). The artifact
+records no interpreter version, only the pinned library versions.
 
 ### Synthetic fixture (offline CI baseline, labeled synthetic)
 
@@ -468,6 +472,34 @@ held, which is the kind of change a fraud desk would feel as review load.
 The `mlops` CI job downloads ULB from its public URL, checks the file's sha256, trains (logging
 a run), rebuilds the report, fails if `metrics_ulb_creditcard.json` or the drift summary change,
 and uploads `mlflow.db` and the HTML as a build artifact.
+
+## The live demo, and what CI checks
+
+[aeripsen.github.io/ledgersentry](https://aeripsen.github.io/ledgersentry/) is a static page: an
+interactive counter over committed held-out scores. No server, and no model runs anywhere for it.
+It reads two committed files: `artifacts/demo_scores_ulb_creditcard.json` (one row per held-out
+transaction: raw score, label, Amount) and `artifacts/business_case_ulb_creditcard.json`
+(aggregates; the headline tiles and their intervals are read from it as committed).
+
+`pages.yml` deploys only after the whole `ci` workflow has passed on the same commit. Inside `ci`:
+
+- **Provenance** (`demo` job): fetch the sha256-checked public ULB file, retrain exactly as
+  `train.py` does, rebuild the export, and require `demo_scores_ulb_creditcard.json` back byte
+  for byte (`python scripts/demo_data.py --verify`; locally, step 3 of `make reproduce`).
+- **Consistency** (`tests/test_demo_data.py`): the committed rows rebuild the committed knob
+  table, the PR-AUC of 0.7278, and the business case's policies, 50-row sweep, bootstrap blocks
+  and generated sentences, using business.py's own functions. A missing artifact fails the test;
+  it does not skip.
+- **The page itself** (`site` job): `python scripts/check_site.py` serves the site as
+  `pages.yml` assembles it, loads it in headless Chromium, moves the knob to every committed
+  threshold (0.5 to 1.0) and checks the counts it shows against the committed table, checks the
+  split-cut mode against the same table at (t, 1 - t), checks the headline against the business
+  case, and fails on a JavaScript error or on horizontal scroll at a 390 px phone width.
+
+The split-cut mode works on raw scores, which rank but are not probabilities. ADR 008's decoupled
+cuts use calibrated scores for exactly that reason, and the page says so beside the toggle. The
+analyst-minutes box multiplies the review count by the viewer's own assumption; the repo measures
+counts only.
 
 ## Deploy
 

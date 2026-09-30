@@ -3,7 +3,7 @@
 
 PY ?= python
 
-.PHONY: install install-analysis test lint train reproduce bench bootstrap compare compare-boosters shap cost business business-verify demo-data serve dashboard k8s-e2e tf-kind install-mlops drift-report mlflow-ui
+.PHONY: install install-analysis test lint train reproduce bench bootstrap compare compare-boosters shap cost business business-verify demo-data demo-verify site-check serve dashboard k8s-e2e tf-kind install-mlops drift-report mlflow-ui
 
 install:
 	$(PY) -m pip install -r requirements.txt
@@ -75,6 +75,17 @@ business-verify:
 # data/creditcard.csv.
 demo-data:
 	$(PY) scripts/demo_data.py
+
+# Provenance of the demo export: retrain on the real data and require the
+# committed file byte for byte (also step 3 of `make reproduce`). Needs
+# data/creditcard.csv.
+demo-verify:
+	$(PY) scripts/demo_data.py --verify
+
+# Load the demo page in headless Chromium and check what it displays against
+# the committed artifacts. Needs playwright + `python -m playwright install chromium`.
+site-check:
+	$(PY) scripts/check_site.py
 
 serve:
 	$(PY) -m uvicorn ledgersentry.service:app --app-dir src

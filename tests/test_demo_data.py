@@ -1,15 +1,19 @@
-"""The live demo page cannot drift from the committed artifacts.
+"""The live demo page's DATA stays consistent with the committed artifacts.
 
-Runs offline in CI (no data/creditcard.csv needed). The committed
-per-transaction export must rebuild the committed knob table and PR-AUC in
-metrics_ulb_creditcard.json and the whole business_case_ulb_creditcard.json
-(policies, 50-row sweep, bootstrap intervals), using business.py's own
-functions. The page reads those same files, so if this passes, every number on
-it traces to a committed artifact. pages.yml runs this before deploying."""
+Runs offline (no data/creditcard.csv needed). The committed per-transaction
+export must rebuild the committed knob table and PR-AUC in
+metrics_ulb_creditcard.json and the policies, 50-row sweep, bootstrap blocks
+and generated sentences of business_case_ulb_creditcard.json, using
+business.py's own functions. A missing artifact is a failure, not a skip: the
+page would deploy without it.
+
+What this file does not do: prove the rows came from the committed code (the
+ci `demo` job retrains on the real data and runs `scripts/demo_data.py
+--verify`), or run the page's JavaScript (the ci `site` job drives it in
+headless Chromium with scripts/check_site.py). The README tests below pin
+prose to the artifact; they do not test behavior."""
 import json
 from pathlib import Path
-
-import pytest
 
 from ledgersentry.demo import check_export
 
@@ -18,8 +22,7 @@ ART = Path(__file__).resolve().parents[1] / "artifacts"
 
 def _load(name):
     path = ART / name
-    if not path.exists():
-        pytest.skip(f"{name} not committed")
+    assert path.exists(), f"{name} is missing; the demo page needs it committed"
     return json.loads(path.read_text())
 
 

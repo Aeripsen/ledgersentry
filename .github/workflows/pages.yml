@@ -1,14 +1,23 @@
 name: pages
 
 # Publishes the static demo in site/ to https://aeripsen.github.io/ledgersentry/.
-# The page reads two committed artifacts, and it only deploys after
-# tests/test_demo_data.py proves the exported rows rebuild the committed knob
-# table, PR-AUC and business case. A drifted number blocks the deploy.
+#
+# It runs only after the whole `ci` workflow has succeeded for a push to
+# master, and it deploys exactly the commit that ci tested. That run has
+# already checked CONSISTENCY: tests/test_demo_data.py rebuilds the committed
+# knob table, PR-AUC and the business case's policies, sweep and bootstrap
+# blocks from the committed per-transaction export, and the `site` job loads
+# the assembled page in headless Chromium and checks what it displays.
+#
+# It does not check PROVENANCE. The ULB data file is not in the repo or in CI,
+# so nothing here can regenerate the scores; `make reproduce` does that locally
+# (scripts/verify_repro.py step 3 requires a fresh export byte for byte).
 
 on:
-  push:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
     branches: [master]
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -21,28 +30,19 @@ concurrency:
 
 jobs:
   build:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: pip
 
-      - name: Install pinned dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: The page's data must regenerate the committed numbers
-        run: pytest -q tests/test_demo_data.py
-
-      - name: Assemble the site from committed artifacts
-        run: |
-          mkdir -p _site/data
-          cp site/index.html _site/
-          cp artifacts/demo_scores_ulb_creditcard.json artifacts/business_case_ulb_creditcard.json _site/data/
+      - name: Assemble the site from the committed artifacts (same code the site job checked)
+        run: python scripts/check_site.py --build _site
 
       - uses: actions/upload-pages-artifact@v3
         with:

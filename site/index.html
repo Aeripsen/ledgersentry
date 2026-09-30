@@ -92,10 +92,12 @@ footer { padding: 1.4rem 0 2.4rem; color: var(--faint); font-size: .85rem; }
     <span class="eyebrow">LedgerSentry, live demo</span>
     <h1>Drag the review knob. See what a fraud desk gets.</h1>
     <p class="lede">A fraud model that does not have to guess. When it is unsure it sends the
-    transaction to a human instead of blocking or approving it. Every number below is computed in
-    your browser from <strong><span data-n>56,961</span> real card transactions the model never
+    transaction to a human instead of blocking or approving it. The knob below is counted in your
+    browser from <strong><span data-n>56,961</span> real card transactions the model never
     saw in training</strong> (the last <span data-hours>7.65</span> hours of the public ULB
-    dataset, <span data-nfraud>75</span> of them fraud). Nothing is simulated.</p>
+    dataset, <span data-nfraud>75</span> of them fraud). The headline tiles read the committed
+    business-case file. Nothing is simulated, and no model runs here: the scores come from the
+    model the repo's committed code retrains deterministically.</p>
     <div class="links">
       <a href="https://github.com/Aeripsen/ledgersentry">github.com/Aeripsen/ledgersentry</a>
       <a href="data/business_case_ulb_creditcard.json">business case JSON</a>
@@ -110,16 +112,17 @@ footer { padding: 1.4rem 0 2.4rem; color: var(--faint); font-size: .85rem; }
   <div class="wrap">
     <h2>Measured outcome</h2>
     <div class="tiles" id="headline">
-      <div class="tile"><span class="num v-signal" id="h-fa">...</span><span class="lbl">False fraud alerts per 10,000 transactions, from raising the auto-flag bar (the queue does not change this)</span><span class="ci" id="h-fa-ci"></span></div>
-      <div class="tile"><span class="num v-signal" id="h-miss">...</span><span class="lbl">Frauds cleared with no human look, out of <span data-nfraud>75</span></span><span class="ci" id="h-miss-ci"></span></div>
+      <div class="tile"><span class="num v-signal" id="h-fa">...</span><span class="lbl">False fraud alerts per 10,000 transactions, when the auto-block cut rises from 0.5 to 0.95 (the review queue does not change this)</span><span class="ci" id="h-fa-ci"></span></div>
+      <div class="tile"><span class="num v-signal" id="h-miss">...</span><span class="lbl">Frauds cleared with no human look, out of <span data-nfraud>75</span>: cut at 0.5, cut at 0.95 alone, cut at 0.95 plus the review band</span><span class="ci" id="h-miss-ci"></span></div>
       <div class="tile"><span class="num v-accent" id="h-cost">...</span><span class="lbl">The price: transactions per 10,000 sent to a human reviewer</span><span class="ci" id="h-cost-ci"></span></div>
     </div>
-    <p class="caption">Baseline: one cut at 0.5, every transaction decided automatically. With the
-    knob: review threshold 0.95. The false-alert cut comes from the higher auto-flag bar; a
-    plain 0.95 cut with no review raises the same alerts. What the review queue adds is the
-    frauds it keeps from being cleared unseen; whether a reviewer catches them is not measured. Both are rows of the committed table in
-    <code>artifacts/metrics_ulb_creditcard.json</code>; the figures come from
-    <code>artifacts/business_case_ulb_creditcard.json</code>. Brackets are 95% bootstrap intervals.</p>
+    <p class="caption">Three policies on the same held-out transactions: A decides everything with
+    one cut at 0.5; B raises that cut to 0.95 and still decides everything; C is B plus a review
+    band for the uncertain middle. The false-alert drop is all B's doing (C has the same alerts);
+    what the review band adds is the frauds it keeps from being cleared unseen. Whether a reviewer
+    then catches them is not measured. Figures from
+    <code>artifacts/business_case_ulb_creditcard.json</code>; brackets are 95% bootstrap intervals,
+    and with 75 frauds in one fold they are a floor on the uncertainty.</p>
   </div>
 </section>
 
@@ -129,19 +132,20 @@ footer { padding: 1.4rem 0 2.4rem; color: var(--faint); font-size: .85rem; }
     <div class="knob">
       <div class="knob-row" id="row-t">
         <label for="t">Decide automatically only when at least this confident <output id="t-out">0.950</output></label>
-        <input id="t" type="range" min="0.5" max="0.985" step="0.001" value="0.95" list="committed">
+        <input id="t" type="range" min="0.5" max="1" step="0.001" value="0.95" list="committed">
         <datalist id="committed"></datalist>
-        <span class="hint">0.500 = decide everything (the baseline). Higher = more goes to a human. Tick marks are the committed table's rows, where this page matches it exactly.</span>
+        <span class="hint">0.500 = decide everything (the baseline). Higher = more goes to a human. Tick marks are the committed table's rows (0.5 to 1.0); CI checks that the page's counts equal the table at every one. Above 0.95 almost everything goes to review.</span>
       </div>
       <div class="knob-row" id="row-flag" hidden>
         <label for="flag">Auto-block when fraud score is at least <output id="flag-out">0.950</output></label>
-        <input id="flag" type="range" min="0.5" max="0.985" step="0.001" value="0.95">
+        <input id="flag" type="range" min="0.5" max="1" step="0.001" value="0.95">
       </div>
       <div class="knob-row" id="row-clear" hidden>
         <label for="clear">Auto-approve when fraud score is at most <output id="clear-out">0.050</output></label>
-        <input id="clear" type="range" min="0.01" max="0.5" step="0.001" value="0.05">
+        <input id="clear" type="range" min="0" max="0.499" step="0.001" value="0.05">
       </div>
-      <label class="toggle"><input type="checkbox" id="split"> Set the block and approve cuts separately (ADR 008)</label>
+      <label class="toggle"><input type="checkbox" id="split"> Set the block and approve cuts separately (raw score)</label>
+      <p class="hint" id="split-note" hidden>These cuts are on the model's raw score, which ranks transactions but is not a probability: a cut at 0.9 does not mean "90% likely fraud". The repo's own decoupled-cut analysis (ADR 008) uses calibrated scores for that reason; this view does not. The approve cut stops below the block cut's lowest setting, so no transaction can be in both lanes. With the approve cut at 1 minus the block cut, the counts equal the single knob.</p>
     </div>
 
     <div class="lanes" aria-label="share of transactions in each lane">
@@ -166,7 +170,7 @@ footer { padding: 1.4rem 0 2.4rem; color: var(--faint); font-size: .85rem; }
       <div class="tile"><span class="num v-signal" id="m-prec"></span><span class="lbl">Of the transactions it blocks, share that are really fraud</span></div>
       <div class="tile"><span class="num v-muted" id="m-rev"></span><span class="lbl">Sent to a human, per 10,000</span></div>
       <div class="tile"><span class="num v-warn" id="m-miss"></span><span class="lbl">Frauds approved silently</span></div>
-      <div class="tile"><span class="num v-signal" id="m-amt"></span><span class="lbl">Fraud amount stopped: blocked + caught in review</span></div>
+      <div class="tile"><span class="num v-signal" id="m-amt"></span><span class="lbl">Fraud amount stopped: blocked + caught in review. A few large frauds carry much of the total, so this share swings widely.</span></div>
       <div class="tile"><span class="num v-warn" id="m-amt-miss"></span><span class="lbl">Fraud amount approved silently</span></div>
     </div>
 
@@ -185,7 +189,7 @@ footer { padding: 1.4rem 0 2.4rem; color: var(--faint); font-size: .85rem; }
       <div class="chart">
         <h3 style="margin-bottom:.5rem">The trade-off curve</h3>
         <svg id="chart" viewBox="0 0 420 300" role="img" aria-label="false alerts and silent misses against the share sent to review"></svg>
-        <div class="legend"><span><i class="sw" style="background:var(--accent)"></i>your setting (the curve is the single-knob mode)</span></div>
+        <div class="legend"><span><i class="sw" style="background:var(--accent)"></i>your setting (the curve is the single-knob mode; the axis stops at 13% sent to review)</span></div>
       </div>
     </div>
 
@@ -211,9 +215,8 @@ footer { padding: 1.4rem 0 2.4rem; color: var(--faint); font-size: .85rem; }
   <div class="wrap">
     <h2>How you can check this</h2>
     <ul class="check">
-      <li>The scores are the shipped model's raw fraud scores on a strictly temporal holdout: trained on the first ~40 hours, tested on the last 7.65 (the last training transaction is one second before the first test one; no second is shared). They were computed once by <code>make reproduce &amp;&amp; make demo-data</code> and are downloadable above. The page does the counting live; it does not run the model in your browser.</li>
-      <li>Before this page deploys, CI runs <code>tests/test_demo_data.py</code>, which rebuilds the committed knob table, the PR-AUC of 0.7278 and the whole business case file from these exact rows. If any number drifted, the page would not publish.</li>
-      <li>At the tick marks (0.5, 0.6, 0.7, 0.8, 0.9, 0.95) the counts here equal the README's table exactly.</li>
+      <li>The scores are raw fraud scores on a strictly temporal holdout: trained on the first ~40 hours, tested on the last 7.65 (the last training transaction is one second before the first test one; no second is shared). No model file is committed. They come from the model the repo's committed code retrains deterministically (<code>make reproduce</code>), exported by <code>make demo-data</code>, and are downloadable above. The page does the counting live; it does not run the model in your browser.</li>
+      <li>This page deploys only after the repo's whole <code>ci</code> workflow passes on the same commit. That run fetches the public ULB file (sha256-checked), retrains, and requires these rows back byte for byte (<code>scripts/demo_data.py --verify</code>); rebuilds the committed knob table, the PR-AUC of 0.7278 and the business case's policies, sweep, intervals and sentences from them (<code>tests/test_demo_data.py</code>); and loads this page in headless Chromium, checking its counts against the committed table at every tick mark (0.5 to 1.0) and its headline against the business case (<code>scripts/check_site.py</code>).</li>
       <li>75 frauds is a small number. One fraud is 1.3 points of recall, which is why the headline carries intervals. They are a floor on the uncertainty: the bootstrap treats rows as independent and fraud comes in bursts.</li>
       <li>There is no "type in a transaction" box on purpose. ULB's 28 features are anonymized PCA components, so there is nothing meaningful for a person to type.</li>
       <li>No dollar savings are claimed anywhere. What a review or a missed fraud costs is a business number this repo cannot know.</li>
@@ -240,13 +243,15 @@ footer { padding: 1.4rem 0 2.4rem; color: var(--faint); font-size: .85rem; }
   function lanesFor(flagAt, clearAt, symmetric, t) {
     // Symmetric mode uses the repo's exact rule (model.curve_from_scores):
     // confidence = max(p, 1-p); below t -> review. Split mode is
-    // decoupled_curve_from_scores: p >= flag -> block, p <= clear -> approve.
+    // decoupled_curve_from_scores' rule on RAW scores: p >= flag -> block,
+    // p <= clear -> approve. Overlapping cuts are an error, as in ADR 008.
     return function (p) {
       if (symmetric) {
         var conf = Math.max(p, 1 - p);
         if (conf < t) return 1;
         return p >= 0.5 ? 2 : 0;
       }
+      if (flagAt <= clearAt) throw new Error("block cut must be above the approve cut");
       if (p >= flagAt) return 2;
       if (p <= clearAt) return 0;
       return 1;
@@ -304,7 +309,7 @@ footer { padding: 1.4rem 0 2.4rem; color: var(--faint); font-size: .85rem; }
   function sx(r) { return X0 + (X1 - X0) * Math.min(r, xMax) / xMax; }
   function sy(panel, v, top) { return panel[1] - (panel[1] - panel[0]) * Math.min(v, top) / top; }
   function drawCurve() {
-    for (var t = 0.5; t <= 0.9851; t += 0.0025) {
+    for (var t = 0.5; t <= 1.00001; t += 0.0025) {
       var c = count(lanesFor(0, 0, true, t));
       curve.push([c.n[1] / N, (c.n[2] - c.fraud[2]) * 10000 / N, c.fraud[0]]);
     }
@@ -349,13 +354,13 @@ footer { padding: 1.4rem 0 2.4rem; color: var(--faint); font-size: .85rem; }
     var t = b.operating_threshold, P_ = b.policies, ci = b.bootstrap.intervals_95;
     var A = P_["A_single_threshold_0.5"], B = P_["B_single_threshold_" + t], C = P_["C_review_band_" + t];
     var r = function (x) { return nf(x, 1); };
-    $("h-fa").textContent = r(A.per_10k_transactions.false_alerts) + " → " + r(C.per_10k_transactions.false_alerts);
-    $("h-fa-ci").textContent = pct(P_.B_vs_A.false_alert_reduction_share, 0) + " fewer, CI [" + pct(ci.false_alert_reduction_share.ci_lower, 0) + ", " + pct(ci.false_alert_reduction_share.ci_upper, 0) + "]";
-    $("h-miss").textContent = A.counts.fraud_missed + " → " + C.counts.fraud_missed;
+    $("h-fa").textContent = r(A.per_10k_transactions.false_alerts) + " → " + r(B.per_10k_transactions.false_alerts);
+    $("h-fa-ci").textContent = pct(P_.B_vs_A.false_alert_reduction_share, 0) + " fewer, CI [" + pct(ci.false_alert_reduction_share.ci_lower, 0) + ", " + pct(ci.false_alert_reduction_share.ci_upper, 0) + "]. The cut alone does this; adding the review band leaves it at " + r(C.per_10k_transactions.false_alerts) + ".";
+    $("h-miss").textContent = A.counts.fraud_missed + " → " + B.counts.fraud_missed + " → " + C.counts.fraud_missed;
     var mci = ci.paired_A_minus_C_frauds_cleared_without_review;
-    $("h-miss-ci").textContent = "paired CI " + nf(mci.ci_lower, 0) + " to " + nf(mci.ci_upper, 0) + " fewer; the other " + C.counts.fraud_in_review + " go to review. Raising the bar to " + t + " with no review queue clears " + B.counts.fraud_missed + ".";
+    $("h-miss-ci").textContent = "the higher cut alone clears more; the review band sends " + C.counts.fraud_in_review + " of them to a human. C against A: paired CI " + nf(mci.ci_lower, 0) + " to " + nf(mci.ci_upper, 0) + " fewer.";
     $("h-cost").textContent = nf(C.per_10k_transactions.review_queue, 0);
-    $("h-cost-ci").textContent = pct(C.counts.sent_to_review / C.counts.n_transactions) + " of traffic, CI [" + nf(ci.C_review_queue_per_10k.ci_lower, 0) + ", " + nf(ci.C_review_queue_per_10k.ci_upper, 0) + "]";
+    $("h-cost-ci").textContent = pct(C.counts.sent_to_review / C.counts.n_transactions) + " of traffic, CI [" + nf(ci.C_review_queue_per_10k.ci_lower, 0) + ", " + nf(ci.C_review_queue_per_10k.ci_upper, 0) + "]. " + C.counts.fraud_in_review + " frauds in " + nf(C.counts.sent_to_review, 0) + " reviews, about 1 in " + Math.round(C.counts.sent_to_review / C.counts.fraud_in_review) + ".";
   }
 
   function fail(msg) {
@@ -374,7 +379,7 @@ footer { padding: 1.4rem 0 2.4rem; color: var(--faint); font-size: .85rem; }
     document.querySelectorAll("[data-nfraud]").forEach(function (e) { e.textContent = FRAUD_IDX.length; });
     document.querySelectorAll("[data-hours]").forEach(function (e) { e.textContent = d.fold_hours; });
     var dl = $("committed");
-    d.committed_thresholds.forEach(function (t) { if (t >= 0.5 && t <= 0.985) { var op = document.createElement("option"); op.value = t; dl.appendChild(op); } });
+    d.committed_thresholds.forEach(function (t) { var op = document.createElement("option"); op.value = t; dl.appendChild(op); });
     var byAmt = FRAUD_IDX.slice().sort(function (a, b) { return AMT[b] - AMT[a]; });
     var box = $("frauds"), maxA = AMT[byAmt[0]];
     byAmt.forEach(function (i) {
@@ -388,7 +393,7 @@ footer { padding: 1.4rem 0 2.4rem; color: var(--faint); font-size: .85rem; }
     ["t", "flag", "clear", "mins"].forEach(function (id) { $(id).addEventListener("input", render); });
     $("split").addEventListener("change", function () {
       var on = $("split").checked;
-      $("row-t").hidden = on; $("row-flag").hidden = !on; $("row-clear").hidden = !on;
+      $("row-t").hidden = on; $("row-flag").hidden = !on; $("row-clear").hidden = !on; $("split-note").hidden = !on;
       render();
     });
     document.querySelectorAll("[data-pick]").forEach(function (b) {
