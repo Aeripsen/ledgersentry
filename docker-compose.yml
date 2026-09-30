@@ -18,6 +18,16 @@ services:
     build: .
     image: ledgersentry:latest
     command: streamlit run dashboard/app.py --server.port 8501 --server.address 0.0.0.0
+    # The image's own HEALTHCHECK probes the API on 8000, which does not run in
+    # this container, so without this override the dashboard is always
+    # "unhealthy" (found by scripts/compose_smoke.sh in CI). Streamlit answers
+    # its own health endpoint.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     environment:
       - PYTHONPATH=/app/src
     ports:

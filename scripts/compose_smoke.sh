@@ -9,7 +9,16 @@ set -euo pipefail
 
 OUT=${OUT:-compose-run}
 mkdir -p "$OUT"
-trap 'docker compose down -v > /dev/null 2>&1 || true' EXIT
+cleanup() {
+  rc=$?
+  if [ "$rc" -ne 0 ]; then
+    docker compose ps -a || true
+    docker compose logs --tail=100 || true
+  fi
+  docker compose down -v > /dev/null 2>&1 || true
+  exit "$rc"
+}
+trap cleanup EXIT
 
 docker compose up -d --build --wait --wait-timeout 300
 docker compose ps | tee "$OUT/ps.txt"
