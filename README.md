@@ -419,23 +419,26 @@ transforming it) and 20.6% in scikit-learn. Building the matrix straight from th
 the next fix and is not done.
 
 **On the real image, on Linux.** `.github/workflows/loadtest-linux.yml` builds the image
-and runs the same A/B against the container on a GitHub-hosted runner (run 36783469204,
-commit `e7fdf24`, `artifacts/loadtest_linux/`): the image's Python 3.12.14, the pinned
-uvicorn 0.51.0, scikit-learn's Linux wheel with libgomp, `docker run --network host` with no
-`--cpus` limit, and workers through `WEB_CONCURRENCY`. The before arm is the same image and
-command with `OMP_NUM_THREADS` unset in the shell before `exec uvicorn`. The runner has 4
-vCPUs (2 physical cores, AMD EPYC 9V74) shared with the client, the model is the synthetic
-fixture (the ULB file is not on the runner), and the probe inside the image records a
-2-thread team for the before arm. 12 runs, 3 per arm and worker count, no failed requests.
-One worker: the shipped arm's median is 1.72x the before arm's at 1 client (510.5 against
-296.3 req/s) and 1.63x to 1.72x from 4 clients up, worst case at least 1.59x. Four workers:
-624.6 against 238.9 req/s at 4 clients (2.61x, worst case 2.16x), 1,020.2 against 393.0 at 32
-clients (2.60x, worst case 1.86x) and 972.7 against 375.7 at 128 clients (2.59x, worst case
-2.39x). At 2 clients the 4-worker runs split into a fast and a slow mode in both arms, cause
-not isolated, so that level has no usable ratio. From 8 clients up the runner sat at 86% to
-100% CPU in both arms, so those columns measure a saturated runner. An earlier run of this
-workflow (36780955572) read the machine's load while the containers were still starting,
-which made its pre-run field wrong; it was replaced by this run and is not committed.
+and runs the same A/B against the container on a GitHub-hosted runner (run 36786204980,
+commit `cab1b75`, `artifacts/loadtest_linux/`): `docker run --network host` with no `--cpus`
+limit, the image's own command, and workers through `WEB_CONCURRENCY`. The before arm is the
+same image and command with `OMP_NUM_THREADS` unset in the shell before `exec uvicorn`. A
+probe inside the image records what the server runs: Python 3.12.14, uvicorn 0.51.0,
+FastAPI 0.139.0, scikit-learn 1.9.0 and numpy 2.5.1 (the `requirements.txt` pins), OpenMP
+from libgomp, and a 2-thread team for the before arm. The runner has 4 vCPUs (2 physical
+cores, AMD EPYC 9V74) shared with the client, and the model is the synthetic fixture (the
+ULB file is not on the runner). 12 runs, 3 per arm and worker count, no failed requests.
+One worker: the shipped arm's median is 1.69x the before arm's at 1 client (506.8 against
+299.4 req/s) and 1.60x to 1.65x from 4 clients up, worst case at least 1.58x. Four workers:
+921.8 against 264.9 req/s at 4 clients (3.48x, worst case 2.18x), 1,131.0 against 406.6 at
+32 clients (2.78x, worst case 2.61x) and 994.7 against 386.4 at 128 clients (2.57x, worst
+case 2.55x). At 2 clients one of the three shipped 4-worker runs got 341.1 req/s against
+788.9 and 792.9 in the other two, cause not isolated, so that level has no usable worst
+case. From 8 clients up the runner sat at 97% to 100% CPU in both arms, so those columns
+measure a saturated runner. Two earlier runs of this workflow were replaced and are not
+committed: 36780955572 read the machine's load while the containers were still starting,
+and 36783469204 recorded the runner's Python and library versions as if they were the
+server's.
 
 **What these numbers are not.** A laptop and a shared 4-vCPU runner, with the client on the
 same machine as the server, under synthetic closed-loop load in 10 s windows. A closed loop
