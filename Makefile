@@ -3,7 +3,7 @@
 
 PY ?= python
 
-.PHONY: install install-analysis test lint train reproduce bench loadtest bootstrap compare compare-boosters shap cost business business-verify demo-data demo-verify site-check serve dashboard k8s-e2e tf-kind install-mlops drift-report mlflow-ui k8s-schema compose-smoke
+.PHONY: install install-analysis test lint train reproduce bench loadtest loadtest-profile bootstrap compare compare-boosters shap cost business business-verify demo-data demo-verify site-check serve dashboard k8s-e2e tf-kind install-mlops drift-report mlflow-ui k8s-schema compose-smoke
 
 install:
 	$(PY) -m pip install -r requirements.txt
@@ -34,11 +34,20 @@ reproduce:
 bench:
 	$(PY) scripts/bench.py
 
-# HTTP load test: starts the service the way the Dockerfile does (including its
-# OMP_NUM_THREADS=1), steps concurrency 1..128, writes artifacts/loadtest_<label>.json.
+# HTTP load test, both halves of the A/B in one command: the shipped arm (the
+# Dockerfile's OMP_NUM_THREADS=1) and the before arm (thread variables unset),
+# alternating ABBA, 3 rounds at 1 and 4 workers on /predict, 2 rounds of the
+# 100-row batch endpoint, then the py-spy profiles the README quotes.
+# Writes artifacts/loadtest_ab/<endpoint>/*.json + summary.json and
+# artifacts/profiles/. Needs requirements-loadtest.txt. README "Load test".
 loadtest:
-	$(PY) scripts/loadtest.py --env OMP_NUM_THREADS=1 --label predict_w1_omp1
-	$(PY) scripts/loadtest.py --env OMP_NUM_THREADS=1 --workers 4 --label predict_w4_omp1
+	$(PY) scripts/loadtest.py --ab-rounds 3 --ab-workers 1,4
+	$(PY) scripts/loadtest.py --endpoint batch --ab-rounds 2 --ab-workers 1
+	$(MAKE) loadtest-profile
+
+loadtest-profile:
+	$(PY) scripts/loadtest.py --levels 4 --pyspy-at 4 --label profile_predict_w1_omp1 --out artifacts/profiles/profile_predict_w1_omp1.json
+	$(PY) scripts/loadtest.py --endpoint batch --levels 4 --pyspy-at 4 --label profile_batch_w1_omp1 --out artifacts/profiles/profile_batch_w1_omp1.json
 
 # 95% confidence intervals on the headline, so the four decimals it prints get
 # read with the uncertainty they actually carry.

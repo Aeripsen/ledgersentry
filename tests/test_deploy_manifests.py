@@ -137,7 +137,26 @@ def test_kind_overlay_changes_max_batch_so_ci_can_prove_the_wiring() -> None:
 
 
 def test_dockerfile_pins_one_openmp_thread() -> None:
-    # The load test (README "Load test") measured default OpenMP threading
-    # costing about 5x the CPU for less throughput on the /predict path.
-    df = (REPO / "Dockerfile").read_text()
-    assert "ENV OMP_NUM_THREADS=1" in df
+    # Parsed the way docker build applies ENV (comments dropped, last one wins),
+    # so a commented-out or later-overridden line fails here. README "Load test".
+    from ledgersentry.loadtest import dockerfile_env
+
+    assert dockerfile_env(REPO / "Dockerfile").get("OMP_NUM_THREADS") == "1"
+
+
+def test_dockerfile_env_gives_the_model_one_openmp_thread_at_runtime() -> None:
+    # Not just the text: a fresh process with the image's thread ENV, running a
+    # real HistGradientBoosting predict, must get a 1-thread OpenMP team (the
+    # value scikit-learn hands the predict loop) and a 1-thread runtime pool.
+    import joblib
+
+    from ledgersentry.loadtest import dockerfile_thread_env, run_probe, server_env
+
+    shipped = run_probe(server_env(1, dockerfile_thread_env(REPO / "Dockerfile"), {}))
+    assert shipped["hgb_predict_openmp_threads"] == 1, shipped
+    assert shipped["openmp_pool_num_threads"] == 1, shipped
+    # Control: the same probe with the variable unset really does fan out, so the
+    # assertion above is testing something on any machine with 2+ physical cores.
+    if joblib.cpu_count(only_physical_cores=True) > 1:
+        unset = run_probe(server_env(1, {}, {}))
+        assert unset["hgb_predict_openmp_threads"] > 1, unset

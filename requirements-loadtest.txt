@@ -1,0 +1,7 @@
+# The HTTP load test (scripts/loadtest.py, `make loadtest`). Install on top of
+# requirements.txt. psutil is required: it measures server and machine CPU and
+# stops uvicorn's worker children; the harness refuses to run without it rather
+# than write a result with those fields missing. py-spy is only needed for
+# --pyspy-at (the committed profiles in artifacts/profiles/).
+psutil==7.2.2
+py-spy==0.4.2

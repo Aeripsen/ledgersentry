@@ -39,6 +39,16 @@ jobs:
       - name: Benchmark on synthetic fallback (smoke test)
         run: python scripts/bench.py --n-single 200
 
+      # The HTTP load-test harness against a real uvicorn server, short: it has
+      # to start the shipped config, measure server and machine CPU, record the
+      # commit and the OpenMP team, and see no failed requests.
+      - name: Load-test harness on synthetic fallback (smoke test)
+        run: |
+          pip install -r requirements-loadtest.txt
+          python scripts/loadtest.py --levels 1,4 --warmup 0.5 --duration 2 --payloads 200 --out /tmp/loadtest_smoke.json
+          python scripts/loadtest.py --check /tmp/loadtest_smoke.json
+          python -c "import json; d = json.load(open('/tmp/loadtest_smoke.json')); assert d['summary']['total_errors'] == 0; assert d['server']['openmp_probe']['hgb_predict_openmp_threads'] == 1, d['server']"
+
       - name: Bootstrap CIs on synthetic fallback (smoke test)
         run: python scripts/bootstrap.py
 

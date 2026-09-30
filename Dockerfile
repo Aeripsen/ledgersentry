@@ -24,14 +24,17 @@ ENV PYTHONUNBUFFERED=1
 # which all assume 8000.
 ENV PORT=8000
 
-# One OpenMP thread per process. HistGradientBoosting's predict opens an OpenMP
-# team on every call; for a single-row request that team is pure overhead, and
-# with several requests in flight the teams fight each other and the request
-# threads for the same cores. Measured with scripts/loadtest.py (README "Load
-# test"): more throughput on about a fifth of the CPU. Scale out with processes
-# (WEB_CONCURRENCY, which uvicorn reads) or replicas, not threads. scikit-learn
-# documents that it sizes the team from the cgroup CPU quota when there is one
-# (deploy/k8s sets a 1-CPU limit); this pins 1 thread on hosts with no quota too.
+# One OpenMP thread per process. With OMP_NUM_THREADS unset, every
+# HistGradientBoosting predict, a 1-row one included, runs as an OpenMP parallel
+# region over min(omp_get_max_threads(), physical cores, cgroup CPU quota)
+# threads: scikit-learn 1.9.0, sklearn/utils/_openmp_helpers.pyx,
+# _openmp_effective_n_threads. The runtime keeps its threads between calls, so
+# the per-request cost is the fork/join barrier and spin-waiting; with several
+# requests in flight those teams also compete with each other and with the
+# request threads for the same cores. Measured with scripts/loadtest.py (README
+# "Load test"). Scale out with processes (WEB_CONCURRENCY, which uvicorn reads)
+# or replicas, not threads. Under the k8s 1-CPU limit the quota already caps the
+# team at 1; this pins it on hosts with no quota too.
 ENV OMP_NUM_THREADS=1
 
 # Make the image self-contained. If no trained artifact was copied in (the
