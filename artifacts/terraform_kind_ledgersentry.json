@@ -4,8 +4,8 @@
     "terraform_version": "1.16.4",
     "provider_version": "3.2.1",
     "kubernetes_version": "v1.37.0",
-    "git_sha": "05cc9ff5668ffdfd7b046cae9bec8d0c33d6dd70",
-    "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36771694619"
+    "git_sha": "45b8754c9d415a55ee40491351b827b37cf7c34c",
+    "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36777977754"
   },
   "apply_exit_code": 0,
   "resources_created": 6,
@@ -24,7 +24,7 @@
     "missing_fields": [
       "f_entity_daily_tx_count"
     ],
-    "latency_ms": 2.299
+    "latency_ms": 2.453
   },
   "parity_with_yaml_exit_code": 0,
   "destroy_exit_code": 0,

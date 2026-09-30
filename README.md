@@ -581,12 +581,19 @@ not model quality. Full steps and captured output: [`DEPLOY.md`](DEPLOY.md).
 - **Kubernetes, run in CI** - [`deploy/k8s/base`](deploy/k8s/base): ConfigMap,
   Deployment (liveness `/health`, readiness `/ready`, non-root, `maxUnavailable: 0`),
   Service, CPU HPA and PodDisruptionBudget. [`.github/workflows/k8s.yml`](.github/workflows/k8s.yml)
-  deploys it to a kind cluster, load-tests it through the Service with k6, and runs a
-  rolling restart under load that fails CI on any failed request. Latest:
-  108,825 requests through a rolling restart, 0 failed
+  deploys it to a kind cluster, checks the PodDisruptionBudget through the Eviction
+  API, load-tests it through the Service with k6, and runs a rolling restart under
+  load that fails CI on any failed request. Latest: 62,532 requests through a
+  rolling restart, 0 failed
   ([`artifacts/k8s_kind_ledgersentry.json`](artifacts/k8s_kind_ledgersentry.json)).
   The first run failed 4 of 114,308 on keep-alive connection resets; the fix is a
-  preStop drain ([`src/ledgersentry/drain.py`](src/ledgersentry/drain.py)).
+  preStop drain ([`src/ledgersentry/drain.py`](src/ledgersentry/drain.py)). In a
+  24-run A/B on fresh runners, 9 of 12 rolling restarts without the drain failed
+  requests and 0 of 12 with it
+  ([`artifacts/k8s_drain_ab_ledgersentry.json`](artifacts/k8s_drain_ab_ledgersentry.json)).
+- **docker compose, run in CI** - the same workflow brings up `docker-compose.yml`
+  and smoke-tests the API and the dashboard. Its first run found the dashboard's
+  healthcheck probing the API's port; fixed.
 - **Terraform, applied in CI** - [`deploy/terraform/kubernetes`](deploy/terraform/kubernetes)
   creates the same objects with the `hashicorp/kubernetes` provider. CI applies it
   to kind, requires an empty second plan, diffs the live objects against the YAML,
@@ -598,8 +605,10 @@ not model quality. Full steps and captured output: [`DEPLOY.md`](DEPLOY.md).
   (needs a Render account).
 
 All of it is a single-node kind cluster on a 4-vCPU GitHub runner under synthetic
-load, so the throughput figures in `DEPLOY.md` describe that runner, not a
-production service.
+load (one fixed request body, served by the synthetic-fixture model), so the
+throughput figures in `DEPLOY.md` describe that runner, not a production service,
+and the HPA scaling 2 to 5 pods on one node shows the control loop working, not
+added capacity.
 
 ## Data
 

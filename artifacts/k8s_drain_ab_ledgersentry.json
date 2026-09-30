@@ -1,0 +1,894 @@
+{
+  "what": "ledgersentry: scripts/k8s_e2e.sh repeated on fresh runners with the connection drain (preStop touches the drain file, responses get `Connection: close`) and without it (DRAIN=off, preStop is a plain sleep 5). One rolling restart of 5 pods under 16-VU closed-loop load per run.",
+  "unit": "one run = one rolling restart; failures are counted per run",
+  "by_drain": {
+    "on": {
+      "valid_runs": 12,
+      "runs_with_any_failed_request": 0,
+      "failed_requests_per_run": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "requests_per_run": [
+        102902,
+        71931,
+        69492,
+        72940,
+        150807,
+        57732,
+        106671,
+        71723,
+        160324,
+        156288,
+        87079,
+        70249
+      ],
+      "failed_requests_total": 0,
+      "requests_total": 1178138
+    },
+    "off": {
+      "valid_runs": 12,
+      "runs_with_any_failed_request": 9,
+      "failed_requests_per_run": [
+        0,
+        0,
+        5,
+        0,
+        2,
+        5,
+        4,
+        5,
+        5,
+        2,
+        4,
+        1
+      ],
+      "requests_per_run": [
+        126212,
+        88588,
+        74257,
+        69851,
+        76106,
+        92348,
+        107095,
+        68421,
+        118513,
+        71321,
+        89895,
+        67148
+      ],
+      "failed_requests_total": 33,
+      "requests_total": 1049755
+    }
+  },
+  "runs_compared": {
+    "test": "one-sided Fisher exact on runs with any failed request, off vs on",
+    "p_value": 0.0002
+  },
+  "across_runs": {
+    "note": "every valid run, drain on and off alike; min / median / max",
+    "steady_all_pods_running_over_before_scale_out": {
+      "min": 0.92,
+      "median": 1.0,
+      "max": 2.43
+    },
+    "restart_after_over_before": {
+      "min": 0.7,
+      "median": 1.0,
+      "max": 1.18
+    },
+    "pods_serving_steady_phase": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      3,
+      3,
+      3
+    ],
+    "pods_serving_fresh_client_before_restart": [
+      4,
+      4,
+      4,
+      4,
+      4,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5
+    ],
+    "hpa_desired_max_first_seen_s": [
+      19,
+      19,
+      19,
+      20,
+      20,
+      20,
+      24,
+      24,
+      25,
+      34,
+      34,
+      34,
+      35,
+      35,
+      35,
+      35,
+      35,
+      35,
+      35,
+      35,
+      35,
+      35,
+      39,
+      40
+    ],
+    "hpa_current_max_first_seen_s": [
+      34,
+      34,
+      34,
+      35,
+      35,
+      35,
+      35,
+      40,
+      40,
+      50,
+      50,
+      50,
+      50,
+      50,
+      50,
+      50,
+      50,
+      50,
+      50,
+      50,
+      50,
+      51,
+      54,
+      55
+    ],
+    "pdb_held": 24
+  },
+  "runs": [
+    {
+      "job": "ab-off-1",
+      "report": "pool_ledgersentry\\36777997492\\ab-off-1",
+      "drain": "off",
+      "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36777997492",
+      "git_sha": "45b8754c9d415a55ee40491351b827b37cf7c34c",
+      "restart_requests": 126212,
+      "restart_failed": 0,
+      "restart_failed_connection": 0,
+      "steady_failed": 0,
+      "valid": true,
+      "invalid_because": [],
+      "steady_req_per_s": {
+        "before_scale_out": 408.6,
+        "all_pods_running": 422.3
+      },
+      "restart_req_per_s": {
+        "before_restart": 1088.9,
+        "during_restart": 945.3,
+        "after_restart": 1103.6
+      },
+      "pods_serving": {
+        "steady_phase": 2,
+        "restart_phase_before_restart": 5
+      },
+      "hpa_desired_max_first_seen_s": 20,
+      "hpa_current_max_first_seen_s": 35,
+      "pdb_held": true
+    },
+    {
+      "job": "ab-off-1",
+      "report": "pool_ledgersentry\\36776368018\\ab-off-1",
+      "drain": "off",
+      "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36776368018",
+      "git_sha": "578ad1abb4b373d70045248066c035fdae6d34b3",
+      "restart_requests": 88588,
+      "restart_failed": 0,
+      "restart_failed_connection": 0,
+      "steady_failed": 0,
+      "valid": true,
+      "invalid_because": [],
+      "steady_req_per_s": {
+        "before_scale_out": 280.0,
+        "all_pods_running": 279.2
+      },
+      "restart_req_per_s": {
+        "before_restart": 785.3,
+        "during_restart": 653.9,
+        "after_restart": 780.1
+      },
+      "pods_serving": {
+        "steady_phase": 2,
+        "restart_phase_before_restart": 5
+      },
+      "hpa_desired_max_first_seen_s": 19,
+      "hpa_current_max_first_seen_s": 35,
+      "pdb_held": true
+    },
+    {
+      "job": "ab-off-2",
+      "report": "pool_ledgersentry\\36777997492\\ab-off-2",
+      "drain": "off",
+      "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36777997492",
+      "git_sha": "45b8754c9d415a55ee40491351b827b37cf7c34c",
+      "restart_requests": 74257,
+      "restart_failed": 5,
+      "restart_failed_connection": 5,
+      "steady_failed": 0,
+      "valid": true,
+      "invalid_because": [],
+      "steady_req_per_s": {
+        "before_scale_out": 235.3,
+        "all_pods_running": 233.7
+      },
+      "restart_req_per_s": {
+        "before_restart": 659.6,
+        "during_restart": 540.4,
+        "after_restart": 655.5
+      },
+      "pods_serving": {
+        "steady_phase": 2,
+        "restart_phase_before_restart": 5
+      },
+      "hpa_desired_max_first_seen_s": 35,
+      "hpa_current_max_first_seen_s": 50,
+      "pdb_held": true
+    },
+    {
+      "job": "ab-off-2",
+      "report": "pool_ledgersentry\\36776368018\\ab-off-2",
+      "drain": "off",
+      "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36776368018",
+      "git_sha": "578ad1abb4b373d70045248066c035fdae6d34b3",
+      "restart_requests": 69851,
+      "restart_failed": 0,
+      "restart_failed_connection": 0,
+      "steady_failed": 0,
+      "valid": true,
+      "invalid_because": [],
+      "steady_req_per_s": {
+        "before_scale_out": 224.4,
+        "all_pods_running": 225.9
+      },
+      "restart_req_per_s": {
+        "before_restart": 610.8,
+        "during_restart": 494.9,
+        "after_restart": 630.3
+      },
+      "pods_serving": {
+        "steady_phase": 2,
+        "restart_phase_before_restart": 5
+      },
+      "hpa_desired_max_first_seen_s": 34,
+      "hpa_current_max_first_seen_s": 50,
+      "pdb_held": true
+    },
+    {
+      "job": "ab-off-3",
+      "report": "pool_ledgersentry\\36777997492\\ab-off-3",
+      "drain": "off",
+      "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36777997492",
+      "git_sha": "45b8754c9d415a55ee40491351b827b37cf7c34c",
+      "restart_requests": 76106,
+      "restart_failed": 2,
+      "restart_failed_connection": 2,
+      "steady_failed": 0,
+      "valid": true,
+      "invalid_because": [],
+      "steady_req_per_s": {
+        "before_scale_out": 238.1,
+        "all_pods_running": 249.9
+      },
+      "restart_req_per_s": {
+        "before_restart": 676.0,
+        "during_restart": 565.6,
+        "after_restart": 665.3
+      },
+      "pods_serving": {
+        "steady_phase": 2,
+        "restart_phase_before_restart": 5
+      },
+      "hpa_desired_max_first_seen_s": 35,
+      "hpa_current_max_first_seen_s": 50,
+      "pdb_held": true
+    },
+    {
+      "job": "ab-off-3",
+      "report": "pool_ledgersentry\\36776368018\\ab-off-3",
+      "drain": "off",
+      "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36776368018",
+      "git_sha": "578ad1abb4b373d70045248066c035fdae6d34b3",
+      "restart_requests": 92348,
+      "restart_failed": 5,
+      "restart_failed_connection": 5,
+      "steady_failed": 0,
+      "valid": true,
+      "invalid_because": [],
+      "steady_req_per_s": {
+        "before_scale_out": 355.8,
+        "all_pods_running": 359.0
+      },
+      "restart_req_per_s": {
+        "before_restart": 811.5,
+        "during_restart": 695.4,
+        "after_restart": 819.5
+      },
+      "pods_serving": {
+        "steady_phase": 2,
+        "restart_phase_before_restart": 4
+      },
+      "hpa_desired_max_first_seen_s": 20,
+      "hpa_current_max_first_seen_s": 35,
+      "pdb_held": true
+    },
+    {
+      "job": "ab-off-4",
+      "report": "pool_ledgersentry\\36777997492\\ab-off-4",
+      "drain": "off",
+      "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36777997492",
+      "git_sha": "45b8754c9d415a55ee40491351b827b37cf7c34c",
+      "restart_requests": 107095,
+      "restart_failed": 4,
+      "restart_failed_connection": 4,
+      "steady_failed": 0,
+      "valid": true,
+      "invalid_because": [],
+      "steady_req_per_s": {
+        "before_scale_out": 370.6,
+        "all_pods_running": 372.7
+      },
+      "restart_req_per_s": {
+        "before_restart": 941.6,
+        "during_restart": 810.6,
+        "after_restart": 932.7
+      },
+      "pods_serving": {
+        "steady_phase": 2,
+        "restart_phase_before_restart": 4
+      },
+      "hpa_desired_max_first_seen_s": 19,
+      "hpa_current_max_first_seen_s": 34,
+      "pdb_held": true
+    },
+    {
+      "job": "ab-off-4",
+      "report": "pool_ledgersentry\\36776368018\\ab-off-4",
+      "drain": "off",
+      "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36776368018",
+      "git_sha": "578ad1abb4b373d70045248066c035fdae6d34b3",
+      "restart_requests": 68421,
+      "restart_failed": 5,
+      "restart_failed_connection": 5,
+      "steady_failed": 0,
+      "valid": true,
+      "invalid_because": [],
+      "steady_req_per_s": {
+        "before_scale_out": 229.1,
+        "all_pods_running": 228.9
+      },
+      "restart_req_per_s": {
+        "before_restart": 613.0,
+        "during_restart": 494.4,
+        "after_restart": 608.2
+      },
+      "pods_serving": {
+        "steady_phase": 2,
+        "restart_phase_before_restart": 5
+      },
+      "hpa_desired_max_first_seen_s": 35,
+      "hpa_current_max_first_seen_s": 50,
+      "pdb_held": true
+    },
+    {
+      "job": "ab-off-5",
+      "report": "pool_ledgersentry\\36777997492\\ab-off-5",
+      "drain": "off",
+      "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36777997492",
+      "git_sha": "45b8754c9d415a55ee40491351b827b37cf7c34c",
+      "restart_requests": 118513,
+      "restart_failed": 5,
+      "restart_failed_connection": 5,
+      "steady_failed": 0,
+      "valid": true,
+      "invalid_because": [],
+      "steady_req_per_s": {
+        "before_scale_out": 367.6,
+        "all_pods_running": 364.6
+      },
+      "restart_req_per_s": {
+        "before_restart": 1019.0,
+        "during_restart": 912.4,
+        "after_restart": 1037.1
+      },
+      "pods_serving": {
+        "steady_phase": 2,
+        "restart_phase_before_restart": 5
+      },
+      "hpa_desired_max_first_seen_s": 19,
+      "hpa_current_max_first_seen_s": 34,
+      "pdb_held": true
+    },
+    {
+      "job": "ab-off-5",
+      "report": "pool_ledgersentry\\36776368018\\ab-off-5",
+      "drain": "off",
+      "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36776368018",
+      "git_sha": "578ad1abb4b373d70045248066c035fdae6d34b3",
+      "restart_requests": 71321,
+      "restart_failed": 2,
+      "restart_failed_connection": 2,
+      "steady_failed": 0,
+      "valid": true,
+      "invalid_because": [],
+      "steady_req_per_s": {
+        "before_scale_out": 225.9,
+        "all_pods_running": 227.2
+      },
+      "restart_req_per_s": {
+        "before_restart": 637.5,
+        "during_restart": 503.8,
+        "after_restart": 635.8
+      },
+      "pods_serving": {
+        "steady_phase": 2,
+        "restart_phase_before_restart": 4
+      },
+      "hpa_desired_max_first_seen_s": 34,
+      "hpa_current_max_first_seen_s": 50,
+      "pdb_held": true
+    },
+    {
+      "job": "ab-off-6",
+      "report": "pool_ledgersentry\\36777997492\\ab-off-6",
+      "drain": "off",
+      "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36777997492",
+      "git_sha": "45b8754c9d415a55ee40491351b827b37cf7c34c",
+      "restart_requests": 89895,
+      "restart_failed": 4,
+      "restart_failed_connection": 4,
+      "steady_failed": 0,
+      "valid": true,
+      "invalid_because": [],
+      "steady_req_per_s": {
+        "before_scale_out": 353.1,
+        "all_pods_running": 424.4
+      },
+      "restart_req_per_s": {
+        "before_restart": 807.1,
+        "during_restart": 662.4,
+        "after_restart": 784.6
+      },
+      "pods_serving": {
+        "steady_phase": 3,
+        "restart_phase_before_restart": 5
+      },
+      "hpa_desired_max_first_seen_s": 35,
+      "hpa_current_max_first_seen_s": 50,
+      "pdb_held": true
+    },
+    {
+      "job": "ab-off-6",
+      "report": "pool_ledgersentry\\36776368018\\ab-off-6",
+      "drain": "off",
+      "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36776368018",
+      "git_sha": "578ad1abb4b373d70045248066c035fdae6d34b3",
+      "restart_requests": 67148,
+      "restart_failed": 1,
+      "restart_failed_connection": 1,
+      "steady_failed": 0,
+      "valid": true,
+      "invalid_because": [],
+      "steady_req_per_s": {
+        "before_scale_out": 230.1,
+        "all_pods_running": 221.1
+      },
+      "restart_req_per_s": {
+        "before_restart": 610.4,
+        "during_restart": 481.1,
+        "after_restart": 586.1
+      },
+      "pods_serving": {
+        "steady_phase": 2,
+        "restart_phase_before_restart": 4
+      },
+      "hpa_desired_max_first_seen_s": 35,
+      "hpa_current_max_first_seen_s": 50,
+      "pdb_held": true
+    },
+    {
+      "job": "ab-on-1",
+      "report": "pool_ledgersentry\\36777997492\\ab-on-1",
+      "drain": "on",
+      "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36777997492",
+      "git_sha": "45b8754c9d415a55ee40491351b827b37cf7c34c",
+      "restart_requests": 102902,
+      "restart_failed": 0,
+      "restart_failed_connection": 0,
+      "steady_failed": 0,
+      "valid": true,
+      "invalid_because": [],
+      "steady_req_per_s": {
+        "before_scale_out": 356.1,
+        "all_pods_running": 373.7
+      },
+      "restart_req_per_s": {
+        "before_restart": 995.4,
+        "during_restart": 857.1,
+        "after_restart": 782.3
+      },
+      "pods_serving": {
+        "steady_phase": 2,
+        "restart_phase_before_restart": 5
+      },
+      "hpa_desired_max_first_seen_s": 24,
+      "hpa_current_max_first_seen_s": 34,
+      "pdb_held": true
+    },
+    {
+      "job": "ab-on-1",
+      "report": "pool_ledgersentry\\36776368018\\ab-on-1",
+      "drain": "on",
+      "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36776368018",
+      "git_sha": "578ad1abb4b373d70045248066c035fdae6d34b3",
+      "restart_requests": 71931,
+      "restart_failed": 0,
+      "restart_failed_connection": 0,
+      "steady_failed": 0,
+      "valid": true,
+      "invalid_because": [],
+      "steady_req_per_s": {
+        "before_scale_out": 233.2,
+        "all_pods_running": 232.7
+      },
+      "restart_req_per_s": {
+        "before_restart": 645.8,
+        "during_restart": 503.0,
+        "after_restart": 646.5
+      },
+      "pods_serving": {
+        "steady_phase": 2,
+        "restart_phase_before_restart": 4
+      },
+      "hpa_desired_max_first_seen_s": 24,
+      "hpa_current_max_first_seen_s": 40,
+      "pdb_held": true
+    },
+    {
+      "job": "ab-on-2",
+      "report": "pool_ledgersentry\\36777997492\\ab-on-2",
+      "drain": "on",
+      "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36777997492",
+      "git_sha": "45b8754c9d415a55ee40491351b827b37cf7c34c",
+      "restart_requests": 69492,
+      "restart_failed": 0,
+      "restart_failed_connection": 0,
+      "steady_failed": 0,
+      "valid": true,
+      "invalid_because": [],
+      "steady_req_per_s": {
+        "before_scale_out": 232.1,
+        "all_pods_running": 226.8
+      },
+      "restart_req_per_s": {
+        "before_restart": 628.2,
+        "during_restart": 493.9,
+        "after_restart": 609.7
+      },
+      "pods_serving": {
+        "steady_phase": 2,
+        "restart_phase_before_restart": 5
+      },
+      "hpa_desired_max_first_seen_s": 34,
+      "hpa_current_max_first_seen_s": 50,
+      "pdb_held": true
+    },
+    {
+      "job": "ab-on-2",
+      "report": "pool_ledgersentry\\36776368018\\ab-on-2",
+      "drain": "on",
+      "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36776368018",
+      "git_sha": "578ad1abb4b373d70045248066c035fdae6d34b3",
+      "restart_requests": 72940,
+      "restart_failed": 0,
+      "restart_failed_connection": 0,
+      "steady_failed": 0,
+      "valid": true,
+      "invalid_because": [],
+      "steady_req_per_s": {
+        "before_scale_out": 238.4,
+        "all_pods_running": 234.5
+      },
+      "restart_req_per_s": {
+        "before_restart": 655.7,
+        "during_restart": 530.6,
+        "after_restart": 641.5
+      },
+      "pods_serving": {
+        "steady_phase": 2,
+        "restart_phase_before_restart": 5
+      },
+      "hpa_desired_max_first_seen_s": 35,
+      "hpa_current_max_first_seen_s": 50,
+      "pdb_held": true
+    },
+    {
+      "job": "ab-on-3",
+      "report": "pool_ledgersentry\\36777997492\\ab-on-3",
+      "drain": "on",
+      "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36777997492",
+      "git_sha": "45b8754c9d415a55ee40491351b827b37cf7c34c",
+      "restart_requests": 150807,
+      "restart_failed": 0,
+      "restart_failed_connection": 0,
+      "steady_failed": 0,
+      "valid": true,
+      "invalid_because": [],
+      "steady_req_per_s": {
+        "before_scale_out": 463.2,
+        "all_pods_running": 425.0
+      },
+      "restart_req_per_s": {
+        "before_restart": 1201.1,
+        "during_restart": 1017.2,
+        "after_restart": 1421.0
+      },
+      "pods_serving": {
+        "steady_phase": 2,
+        "restart_phase_before_restart": 5
+      },
+      "hpa_desired_max_first_seen_s": 40,
+      "hpa_current_max_first_seen_s": 55,
+      "pdb_held": true
+    },
+    {
+      "job": "ab-on-3",
+      "report": "pool_ledgersentry\\36776368018\\ab-on-3",
+      "drain": "on",
+      "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36776368018",
+      "git_sha": "578ad1abb4b373d70045248066c035fdae6d34b3",
+      "restart_requests": 57732,
+      "restart_failed": 0,
+      "restart_failed_connection": 0,
+      "steady_failed": 0,
+      "valid": true,
+      "invalid_because": [],
+      "steady_req_per_s": {
+        "before_scale_out": 231.8,
+        "all_pods_running": 437.7
+      },
+      "restart_req_per_s": {
+        "before_restart": 605.8,
+        "during_restart": 464.4,
+        "after_restart": 425.4
+      },
+      "pods_serving": {
+        "steady_phase": 3,
+        "restart_phase_before_restart": 5
+      },
+      "hpa_desired_max_first_seen_s": 35,
+      "hpa_current_max_first_seen_s": 51,
+      "pdb_held": true
+    },
+    {
+      "job": "ab-on-4",
+      "report": "pool_ledgersentry\\36777997492\\ab-on-4",
+      "drain": "on",
+      "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36777997492",
+      "git_sha": "45b8754c9d415a55ee40491351b827b37cf7c34c",
+      "restart_requests": 106671,
+      "restart_failed": 0,
+      "restart_failed_connection": 0,
+      "steady_failed": 0,
+      "valid": true,
+      "invalid_because": [],
+      "steady_req_per_s": {
+        "before_scale_out": 353.4,
+        "all_pods_running": 356.5
+      },
+      "restart_req_per_s": {
+        "before_restart": 926.2,
+        "during_restart": 778.2,
+        "after_restart": 936.2
+      },
+      "pods_serving": {
+        "steady_phase": 2,
+        "restart_phase_before_restart": 5
+      },
+      "hpa_desired_max_first_seen_s": 25,
+      "hpa_current_max_first_seen_s": 40,
+      "pdb_held": true
+    },
+    {
+      "job": "ab-on-4",
+      "report": "pool_ledgersentry\\36776368018\\ab-on-4",
+      "drain": "on",
+      "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36776368018",
+      "git_sha": "578ad1abb4b373d70045248066c035fdae6d34b3",
+      "restart_requests": 71723,
+      "restart_failed": 0,
+      "restart_failed_connection": 0,
+      "steady_failed": 0,
+      "valid": true,
+      "invalid_because": [],
+      "steady_req_per_s": {
+        "before_scale_out": 250.4,
+        "all_pods_running": 237.0
+      },
+      "restart_req_per_s": {
+        "before_restart": 639.2,
+        "during_restart": 481.1,
+        "after_restart": 645.5
+      },
+      "pods_serving": {
+        "steady_phase": 2,
+        "restart_phase_before_restart": 5
+      },
+      "hpa_desired_max_first_seen_s": 35,
+      "hpa_current_max_first_seen_s": 50,
+      "pdb_held": true
+    },
+    {
+      "job": "ab-on-5",
+      "report": "pool_ledgersentry\\36777997492\\ab-on-5",
+      "drain": "on",
+      "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36777997492",
+      "git_sha": "45b8754c9d415a55ee40491351b827b37cf7c34c",
+      "restart_requests": 160324,
+      "restart_failed": 0,
+      "restart_failed_connection": 0,
+      "steady_failed": 0,
+      "valid": true,
+      "invalid_because": [],
+      "steady_req_per_s": {
+        "before_scale_out": 423.6,
+        "all_pods_running": 1028.3
+      },
+      "restart_req_per_s": {
+        "before_restart": 1383.3,
+        "during_restart": 1197.7,
+        "after_restart": 1397.1
+      },
+      "pods_serving": {
+        "steady_phase": 3,
+        "restart_phase_before_restart": 5
+      },
+      "hpa_desired_max_first_seen_s": 35,
+      "hpa_current_max_first_seen_s": 50,
+      "pdb_held": true
+    },
+    {
+      "job": "ab-on-5",
+      "report": "pool_ledgersentry\\36776368018\\ab-on-5",
+      "drain": "on",
+      "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36776368018",
+      "git_sha": "578ad1abb4b373d70045248066c035fdae6d34b3",
+      "restart_requests": 156288,
+      "restart_failed": 0,
+      "restart_failed_connection": 0,
+      "steady_failed": 0,
+      "valid": true,
+      "invalid_because": [],
+      "steady_req_per_s": {
+        "before_scale_out": 460.9,
+        "all_pods_running": 452.0
+      },
+      "restart_req_per_s": {
+        "before_restart": 1357.9,
+        "during_restart": 1227.1,
+        "after_restart": 1370.2
+      },
+      "pods_serving": {
+        "steady_phase": 2,
+        "restart_phase_before_restart": 5
+      },
+      "hpa_desired_max_first_seen_s": 39,
+      "hpa_current_max_first_seen_s": 54,
+      "pdb_held": true
+    },
+    {
+      "job": "ab-on-6",
+      "report": "pool_ledgersentry\\36777997492\\ab-on-6",
+      "drain": "on",
+      "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36777997492",
+      "git_sha": "45b8754c9d415a55ee40491351b827b37cf7c34c",
+      "restart_requests": 87079,
+      "restart_failed": 0,
+      "restart_failed_connection": 0,
+      "steady_failed": 0,
+      "valid": true,
+      "invalid_because": [],
+      "steady_req_per_s": {
+        "before_scale_out": 282.4,
+        "all_pods_running": 279.6
+      },
+      "restart_req_per_s": {
+        "before_restart": 771.5,
+        "during_restart": 660.9,
+        "after_restart": 770.3
+      },
+      "pods_serving": {
+        "steady_phase": 2,
+        "restart_phase_before_restart": 5
+      },
+      "hpa_desired_max_first_seen_s": 35,
+      "hpa_current_max_first_seen_s": 50,
+      "pdb_held": true
+    },
+    {
+      "job": "ab-on-6",
+      "report": "pool_ledgersentry\\36776368018\\ab-on-6",
+      "drain": "on",
+      "run_url": "https://github.com/Aeripsen/ledgersentry/actions/runs/36776368018",
+      "git_sha": "578ad1abb4b373d70045248066c035fdae6d34b3",
+      "restart_requests": 70249,
+      "restart_failed": 0,
+      "restart_failed_connection": 0,
+      "steady_failed": 0,
+      "valid": true,
+      "invalid_because": [],
+      "steady_req_per_s": {
+        "before_scale_out": 240.1,
+        "all_pods_running": 239.3
+      },
+      "restart_req_per_s": {
+        "before_restart": 633.3,
+        "during_restart": 505.3,
+        "after_restart": 619.6
+      },
+      "pods_serving": {
+        "steady_phase": 2,
+        "restart_phase_before_restart": 5
+      },
+      "hpa_desired_max_first_seen_s": 20,
+      "hpa_current_max_first_seen_s": 35,
+      "pdb_held": true
+    }
+  ]
+}
