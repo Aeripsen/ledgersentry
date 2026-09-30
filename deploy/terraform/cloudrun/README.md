@@ -18,8 +18,8 @@ terraform destroy -var project_id=PROJECT_ID
 | `project_id` | (required) | GCP project to deploy into |
 | `region` | `us-central1` | Cloud Run region |
 | `service_name` | `ledgersentry` | Cloud Run service name |
-| `image` | `ghcr.io/aeripsen/ledgersentry:latest` | image Cloud Run pulls (push it first - see ../../DEPLOY.md) |
+| `image` | `ghcr.io/aeripsen/ledgersentry:latest` | image Cloud Run pulls (push it first - see ../../../DEPLOY.md) |
 | `allow_unauthenticated` | `true` | `false` keeps the API private |
 
 Files: `versions.tf` (provider pins), `variables.tf`, `main.tf` (the service + IAM),
-`outputs.tf` (`service_url`). Full build-and-push steps: [../../DEPLOY.md](../../DEPLOY.md).
+`outputs.tf` (`service_url`). Full build-and-push steps: [../../../DEPLOY.md](../../../DEPLOY.md).

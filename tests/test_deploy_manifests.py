@@ -11,7 +11,7 @@ REPO = Path(__file__).resolve().parents[1]
 
 
 def _k8s_docs() -> dict[str, dict]:
-    text = (REPO / "deploy" / "k8s" / "ledgersentry.yaml").read_text()
+    text = (REPO / "deploy" / "k8s" / "base" / "ledgersentry.yaml").read_text()
     return {d["kind"]: d for d in yaml.safe_load_all(text) if d}
 
 
@@ -67,3 +67,63 @@ def test_dockerfile_exposes_8000_and_healthchecks() -> None:
     assert "EXPOSE 8000" in df
     assert "HEALTHCHECK" in df
     assert "/health" in df
+
+
+def test_k8s_rollout_never_drops_capacity() -> None:
+    dep = _k8s_docs()["Deployment"]
+    rolling = dep["spec"]["strategy"]["rollingUpdate"]
+    # New pod must pass /ready before an old one goes: the rolling-restart
+    # load test in scripts/k8s_e2e.sh depends on this.
+    assert rolling["maxUnavailable"] == 0
+    assert rolling["maxSurge"] >= 1
+    pod = dep["spec"]["template"]["spec"]
+    container = pod["containers"][0]
+    assert container["lifecycle"]["preStop"]["exec"]["command"][0] == "sleep"
+    sleep_s = int(container["lifecycle"]["preStop"]["exec"]["command"][1])
+    assert sleep_s < pod["terminationGracePeriodSeconds"]
+    assert "exec uvicorn" in (REPO / "Dockerfile").read_text()
+
+
+def test_k8s_configmap_is_wired_and_matches_code_defaults() -> None:
+    from ledgersentry.config import Settings
+
+    docs = _k8s_docs()
+    cm = docs["ConfigMap"]
+    container = docs["Deployment"]["spec"]["template"]["spec"]["containers"][0]
+    assert {"configMapRef": {"name": cm["metadata"]["name"]}} in container["envFrom"]
+    # Base values are the code defaults, so a deploy serves exactly the model
+    # behind the committed metrics. The kind overlay changes one on purpose.
+    defaults = Settings()
+    for key, value in cm["data"].items():
+        field = key.removeprefix("LEDGERSENTRY_").lower()
+        assert float(value) == float(getattr(defaults, field)), key
+
+
+def test_k8s_hpa_and_pdb_target_the_deployment() -> None:
+    docs = _k8s_docs()
+    dep = docs["Deployment"]
+    hpa = docs["HorizontalPodAutoscaler"]["spec"]
+    assert hpa["scaleTargetRef"] == {
+        "apiVersion": "apps/v1", "kind": "Deployment", "name": dep["metadata"]["name"],
+    }
+    assert hpa["minReplicas"] <= dep["spec"]["replicas"] <= hpa["maxReplicas"]
+    # CPU utilization is a percent of the request, so a request must exist.
+    assert dep["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"]["cpu"]
+    pdb = docs["PodDisruptionBudget"]["spec"]
+    assert pdb["selector"]["matchLabels"] == dep["spec"]["template"]["metadata"]["labels"]
+    assert pdb["minAvailable"] < hpa["minReplicas"]
+
+
+def test_terraform_kubernetes_settings_match_the_yaml_configmap() -> None:
+    import re
+
+    tf = (REPO / "deploy" / "terraform" / "kubernetes" / "variables.tf").read_text()
+    tf_settings = dict(re.findall(r'(LEDGERSENTRY_\w+)\s*=\s*"([^"]*)"', tf))
+    assert tf_settings == _k8s_docs()["ConfigMap"]["data"]
+
+
+def test_kind_overlay_changes_max_batch_so_ci_can_prove_the_wiring() -> None:
+    text = (REPO / "deploy" / "k8s" / "overlays" / "kind" / "kustomization.yaml").read_text()
+    overlay = yaml.safe_load(text)
+    value = yaml.safe_load(overlay["patches"][0]["patch"])[0]["value"]
+    assert value != _k8s_docs()["ConfigMap"]["data"]["LEDGERSENTRY_MAX_BATCH"]

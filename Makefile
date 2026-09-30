@@ -3,7 +3,7 @@
 
 PY ?= python
 
-.PHONY: install install-analysis test lint train reproduce bench bootstrap compare compare-boosters shap cost serve dashboard
+.PHONY: install install-analysis test lint train reproduce bench bootstrap compare compare-boosters shap cost serve dashboard k8s-e2e tf-kind
 
 install:
 	$(PY) -m pip install -r requirements.txt
@@ -65,3 +65,12 @@ serve:
 
 dashboard:
 	$(PY) -m streamlit run dashboard/app.py
+
+# Deploy to a throwaway kind cluster, smoke + load test, rolling restart under
+# load (needs docker, kind, kubectl). Same script the k8s CI workflow runs.
+k8s-e2e:
+	bash scripts/k8s_e2e.sh
+
+# terraform apply deploy/terraform/kubernetes to kind, re-plan, parity, destroy.
+tf-kind:
+	bash scripts/tf_kind_e2e.sh

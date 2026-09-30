@@ -1,0 +1,23 @@
+# What CI applies to a throwaway kind cluster (.github/workflows/k8s.yml):
+# the base, in its own namespace, running the image CI just built and loaded
+# into the kind node with `kind load docker-image ledgersentry:ci`.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: ledgersentry
+resources:
+  - namespace.yaml
+  - ../../base
+images:
+  - name: ghcr.io/aeripsen/ledgersentry
+    newName: ledgersentry
+    newTag: ci
+patches:
+  # A value that differs from the code default (10000), so the smoke test can
+  # check /openapi.json and prove the ConfigMap really reaches the process.
+  - target:
+      kind: ConfigMap
+      name: ledgersentry-config
+    patch: |-
+      - op: replace
+        path: /data/LEDGERSENTRY_MAX_BATCH
+        value: "2000"

@@ -1,0 +1,173 @@
+# LedgerSentry on Kubernetes: the FastAPI serving image behind a Service, with
+# its serving knobs in a ConfigMap, CPU autoscaling, and a disruption budget.
+#
+# Liveness  -> GET /health : always 200 while the process is up, so the kubelet
+#              never restarts a pod that is merely still loading its model.
+# Readiness -> GET /ready  : 200 only once the compiled scorer is built, so the
+#              Service sends traffic to a pod only when it can actually score.
+# This split is the whole reason the service exposes both endpoints
+# (src/ledgersentry/service.py).
+#
+# This file is the base. deploy/k8s/overlays/kind swaps in a locally built image
+# and is what CI applies to a real kind cluster (.github/workflows/k8s.yml).
+# deploy/terraform/kubernetes creates the same objects through Terraform, and CI
+# diffs the two (scripts/k8s_parity.py) so they cannot drift apart.
+#
+# Apply:    kubectl apply -k deploy/k8s/base
+# Full steps and the captured CI output: DEPLOY.md.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ledgersentry-config
+  labels:
+    app: ledgersentry
+data:
+  # Read by src/ledgersentry/config.py (env beats yaml beats code defaults).
+  # These are the code defaults, so the served model behaves exactly like the
+  # one behind the committed metrics. The kind overlay overrides MAX_BATCH on
+  # purpose so CI can prove this ConfigMap actually reaches the process.
+  LEDGERSENTRY_MAX_BATCH: "10000"
+  LEDGERSENTRY_PSI_BINS: "10"
+  LEDGERSENTRY_PSI_WATCH: "0.1"
+  LEDGERSENTRY_PSI_ALERT: "0.25"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ledgersentry
+  labels:
+    app: ledgersentry
+spec:
+  # Starting size. Once the HPA below exists it owns the replica count.
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ledgersentry
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # Bring a new pod up and wait for /ready before taking an old one away,
+      # so a rollout never drops serving capacity below the current count.
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: ledgersentry
+    spec:
+      securityContext:
+        runAsNonRoot: true          # enforced by the image's uid-10001 user
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      # Kubernetes injects LEDGERSENTRY_SERVICE_HOST, LEDGERSENTRY_PORT=tcp://...
+      # and friends for a Service named ledgersentry, which share the settings
+      # prefix. The loader ignores them today (checked against pydantic-settings
+      # 2.14.2), but a future setting named `port` would be silently overridden
+      # by a URL, so they are switched off. Service discovery here is DNS.
+      enableServiceLinks: false
+      # SIGTERM -> uvicorn stops accepting, finishes in-flight requests, exits.
+      # 30 s is far above the time a /predict takes.
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: api
+          # Build + push this first (DEPLOY.md); swap in your registry path.
+          image: ghcr.io/aeripsen/ledgersentry:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: PORT
+              value: "8000"
+          envFrom:
+            - configMapRef:
+                name: ledgersentry-config
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          lifecycle:
+            # A terminating pod is removed from the Service's endpoints
+            # asynchronously; kube-proxy on every node catches up a moment
+            # later. Sleeping before SIGTERM keeps the pod answering during
+            # that window instead of refusing connections kube-proxy still
+            # routes to it. CI measures failed requests through a rolling
+            # restart to check this holds.
+            preStop:
+              exec:
+                command: ["sleep", "5"]
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ledgersentry
+  labels:
+    app: ledgersentry
+spec:
+  type: ClusterIP
+  selector:
+    app: ledgersentry           # must match the Deployment's pod labels above
+  ports:
+    - name: http
+      port: 80
+      targetPort: http          # -> the container's named 8000 port
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ledgersentry
+  labels:
+    app: ledgersentry
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ledgersentry
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    # Scoring is CPU-bound (compiled tree ensemble, no I/O), so CPU against the
+    # 250m request is the signal. Needs metrics-server in the cluster.
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ledgersentry
+  labels:
+    app: ledgersentry
+spec:
+  # A node drain may evict pods, but never the last ready one.
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: ledgersentry
