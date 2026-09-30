@@ -3,6 +3,7 @@ in a doc. These pin the render.yaml / Kubernetes / Dockerfile contract so an edi
 that breaks a selector, a probe path, or the non-root uid turns CI red instead of
 failing silently at deploy time (the tools themselves - docker/kubectl/terraform -
 are not in CI, so this is the offline guard for their inputs)."""
+import re
 from pathlib import Path
 
 import yaml
@@ -78,8 +79,13 @@ def test_k8s_rollout_never_drops_capacity() -> None:
     assert rolling["maxSurge"] >= 1
     pod = dep["spec"]["template"]["spec"]
     container = pod["containers"][0]
-    assert container["lifecycle"]["preStop"]["exec"]["command"][0] == "sleep"
-    sleep_s = int(container["lifecycle"]["preStop"]["exec"]["command"][1])
+    shell, flag, script = container["lifecycle"]["preStop"]["exec"]["command"]
+    assert (shell, flag) == ("sh", "-c")
+    # preStop must create the file DrainMiddleware watches, then outwait kube-proxy
+    from ledgersentry.drain import DRAIN_FILE
+
+    assert f"touch {DRAIN_FILE.as_posix()}" in script
+    sleep_s = int(re.search(r"sleep (\d+)", script).group(1))
     assert sleep_s < pod["terminationGracePeriodSeconds"]
     assert "exec uvicorn" in (REPO / "Dockerfile").read_text()
 
@@ -115,8 +121,6 @@ def test_k8s_hpa_and_pdb_target_the_deployment() -> None:
 
 
 def test_terraform_kubernetes_settings_match_the_yaml_configmap() -> None:
-    import re
-
     tf = (REPO / "deploy" / "terraform" / "kubernetes" / "variables.tf").read_text()
     tf_settings = dict(re.findall(r'(LEDGERSENTRY_\w+)\s*=\s*"([^"]*)"', tf))
     assert tf_settings == _k8s_docs()["ConfigMap"]["data"]

@@ -100,15 +100,19 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 3
           lifecycle:
-            # A terminating pod is removed from the Service's endpoints
-            # asynchronously; kube-proxy on every node catches up a moment
-            # later. Sleeping before SIGTERM keeps the pod answering during
-            # that window instead of refusing connections kube-proxy still
-            # routes to it. CI measures failed requests through a rolling
-            # restart to check this holds.
+            # Rolling-restart drain, in two parts (CI counts failed requests
+            # through a rolling restart under load to check them):
+            # 1. touch /tmp/draining: src/ledgersentry/drain.py then answers every
+            #    request with `Connection: close`, so clients drop their
+            #    keep-alive connection to this pod after the current response
+            #    and reconnect to a pod that is staying.
+            # 2. sleep 5: the pod is removed from the Service's endpoints
+            #    asynchronously and kube-proxy catches up a moment later; the
+            #    pod keeps answering during that window instead of refusing
+            #    connections still routed to it. SIGTERM comes after this.
             preStop:
               exec:
-                command: ["sleep", "5"]
+                command: ["sh", "-c", "touch /tmp/draining && sleep 5"]
           resources:
             requests:
               cpu: 250m
@@ -158,6 +162,28 @@ spec:
         target:
           type: Utilization
           averageUtilization: 70
+  # Written out even though these are the Kubernetes defaults: the Terraform
+  # provider always sends a behavior block, and stating it here keeps the two
+  # definitions identical (scripts/k8s_parity.py). Scale up fast (up to +4 pods
+  # or +100% per 15 s); scale down only after 5 min of lower load.
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      selectPolicy: Max
+      policies:
+        - type: Pods
+          value: 4
+          periodSeconds: 15
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      selectPolicy: Max
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
