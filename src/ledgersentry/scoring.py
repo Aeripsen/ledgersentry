@@ -34,6 +34,9 @@ from .model import FraudDetector
 
 @dataclass(frozen=True)
 class ScoreResult:
+    """One transaction's outcome: decision in {"fraud", "legit", "review"}, the
+    raw P(fraud), and the confidence max(p, 1 - p) the threshold is applied to."""
+
     decision: str
     p_fraud: float
     confidence: float
@@ -41,6 +44,8 @@ class ScoreResult:
 
 @dataclass(frozen=True)
 class BatchResult:
+    """Column-wise outcomes for a frame, aligned with its rows."""
+
     decisions: np.ndarray  # dtype object, values in {"fraud", "legit", "review"}
     p_fraud: np.ndarray
     confidence: np.ndarray
@@ -58,11 +63,16 @@ class TransactionScorer(Protocol):
 
     def score_one(
         self, features: Mapping[str, Any], review_threshold: float = 0.0
-    ) -> ScoreResult: ...
+    ) -> ScoreResult:
+        """Decide one transaction given as a plain dict of features. Missing
+        numeric fields score as NaN, missing categories as "unknown"."""
+        ...
 
     def score_frame(
         self, df: pd.DataFrame, review_threshold: float = 0.0
-    ) -> BatchResult: ...
+    ) -> BatchResult:
+        """Decide every row of a frame in one model call."""
+        ...
 
 
 def expected_columns(preprocessor: Any) -> tuple[list[str], list[str]]:

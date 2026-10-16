@@ -142,6 +142,9 @@ def _missing_fields(feats: dict, scorer: CompiledScorer) -> list[str]:
 
 
 class Transaction(BaseModel):
+    """Body of POST /predict: one transaction's fields and the review threshold
+    to decide it at."""
+
     features: dict = Field(
         ...,
         description=(
@@ -199,6 +202,8 @@ def ready() -> dict[str, Any]:
 
 
 class BatchRequest(BaseModel):
+    """Body of POST /predict/batch and POST /drift: up to MAX_BATCH feature dicts."""
+
     transactions: list[dict] = Field(
         ...,
         max_length=MAX_BATCH,
@@ -209,6 +214,11 @@ class BatchRequest(BaseModel):
 
 @app.post("/predict")
 def predict(req: Transaction) -> dict[str, Any]:
+    """Score one transaction: the latency path. Returns the decision ("fraud",
+    "legit" or "review"), the raw P(fraud), the confidence max(p, 1 - p) the
+    review threshold is compared against, any expected fields that were imputed,
+    and the scoring time in milliseconds (feature build plus model, not HTTP). 503 if no
+    artifact is loaded, 422 if a numeric field is not a number."""
     try:
         scorer = _scorer()
     except FileNotFoundError as e:
@@ -323,6 +333,9 @@ def drift(req: BatchRequest) -> dict[str, Any]:
 
 @app.get("/curve")
 def curve() -> dict[str, Any]:
+    """The latest training run's metrics file (artifacts/metrics.json), including
+    the coverage / precision / recall table over review thresholds, so a client
+    can pick a threshold from the same numbers the model was evaluated on."""
     path = ARTIFACT_DIR / "metrics.json"
     if not path.exists():
         raise HTTPException(status_code=503, detail="no metrics; run training first")

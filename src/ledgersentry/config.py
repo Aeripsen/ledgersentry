@@ -28,6 +28,10 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
+    """Every tunable in one place. Precedence: constructor arguments, then
+    LEDGERSENTRY_* env vars, then ledgersentry.yaml, then these defaults, which
+    are exactly the committed run (no .env or secrets-dir sources)."""
+
     model_config = SettingsConfigDict(
         env_prefix="LEDGERSENTRY_",
         yaml_file=REPO_ROOT / "ledgersentry.yaml",

@@ -55,13 +55,15 @@ class FraudDetector(BaseEstimator):
         max_iter: int = 200,
         learning_rate: float = 0.1,
         model: str = "hist_gbdt",
-    ):
+    ) -> None:
         self.random_state = random_state
         self.max_iter = max_iter
         self.learning_rate = learning_rate
         self.model = model
 
     def fit(self, X: ArrayLike, y: ArrayLike) -> FraudDetector:
+        """Fit the registered classifier on TRAIN rows only, with balanced
+        per-class sample weights so the rare fraud class is not drowned out."""
         y = np.asarray(y).astype(int)
         self.classes_ = np.unique(y)
 
