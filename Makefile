@@ -3,7 +3,7 @@
 
 PY ?= python
 
-.PHONY: install install-analysis test lint train reproduce bench loadtest loadtest-profile bootstrap compare compare-boosters shap cost business business-verify demo-data demo-verify site-check serve dashboard k8s-e2e tf-kind install-mlops drift-report mlflow-ui k8s-schema compose-smoke
+.PHONY: install install-analysis test lint train reproduce bench loadtest loadtest-profile bootstrap compare compare-boosters shap cost business business-verify demo-data demo-verify headline site-check serve dashboard k8s-e2e tf-kind install-mlops drift-report mlflow-ui k8s-schema compose-smoke
 
 install:
 	$(PY) -m pip install -r requirements.txt
@@ -96,6 +96,12 @@ demo-data:
 # data/creditcard.csv.
 demo-verify:
 	$(PY) scripts/demo_data.py --verify
+
+# The headline numbers, recomputed from the committed per-transaction scores in
+# seconds, offline. Fails unless they equal the committed artifacts. Does not
+# retrain; `make reproduce` does.
+headline:
+	$(PY) scripts/headline.py
 
 # Load the demo page in headless Chromium and check what it displays against
 # the committed artifacts. Needs playwright + `python -m playwright install chromium`.
