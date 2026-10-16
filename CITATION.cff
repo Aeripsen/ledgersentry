@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use this software or its evaluation protocol, please cite it as below."
+type: software
+title: "LedgerSentry: real-time card fraud detection with a reject-to-review option and leakage-safe temporal evaluation"
+authors:
+  - family-names: Jafari
+    given-names: Sepehr
+version: 0.1.0
+license: MIT
+repository-code: "https://github.com/Aeripsen/ledgersentry"
+url: "https://aeripsen.github.io/ledgersentry/"
+abstract: >-
+  A gradient-boosted card-fraud classifier that abstains on uncertain
+  transactions and routes them to human review instead of forcing a fraud or
+  legit call. Evaluated on a strictly temporal holdout of the public ULB
+  credit-card fraud dataset (56,961 held-out transactions, 75 frauds) with
+  bootstrap confidence intervals, calibration, a byte-identical reproduction
+  check, and a FastAPI service, Streamlit dashboard and container deployment.
+keywords:
+  - fraud detection
+  - selective classification
+  - reject option
+  - temporal evaluation
+  - imbalanced classification
+  - gradient boosting
+  - FastAPI
