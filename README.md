@@ -17,11 +17,11 @@ on its own at the default 0.5 cut:
 - **The price is stated:** 709 of every 10,000 transactions go to a human reviewer (7.1%), and 16 of those 4,039 are fraud. Whether reviewers catch them is not measured.
 
 Every figure comes from `artifacts/business_case_ulb_creditcard.json` (`make business`,
-details [below](#in-operations-terms-alerts-review-load-fraud-caught)). One fold and 75 frauds:
+details [here](docs/DETAILS.md#in-operations-terms-alerts-review-load-fraud-caught)). One fold and 75 frauds:
 the intervals are wide, and they are a floor, because fraud comes in bursts. No model file is
 committed; the scores come from the model the committed code retrains deterministically
 (`make reproduce`). What CI checks about the live page is
-[here](#the-live-demo-and-what-ci-checks).
+[here](docs/DETAILS.md#the-live-demo-and-what-ci-checks).
 
 Real-time financial-transaction fraud detection with a tunable reject-to-review option.
 A gradient-boosted classifier that scores each transaction and, when it isn't confident
@@ -30,74 +30,86 @@ architecture (my real-time network-intrusion-detection flagship) retargeted from
 flows to financial transactions: same reject-option idea, same leakage-safe evaluation
 discipline, same honesty rules, different domain.
 
-**The 90-second version:**
+## The problem
 
-- **Real result:** PR-AUC **0.7278, 95% CI [0.6214, 0.8232]** on the ULB
-  credit-card fraud set (284,807 real anonymized transactions, 492 fraud, 0.17%)
-  with a strictly temporal holdout - train on the first ~40 hours, test on the last
-  ~7.6 hours, nothing from the future leaks back (measured, not assumed: the last
-  training transaction is one second before the first test one, and no second is
-  shared across the boundary; `split_boundary` in the business-case artifact). No-skill baseline on that fold is
-  0.0013, so that is roughly a 550x lift. **The interval is published because the
-  fold has 75 frauds and 75 positives do not earn four decimals** - it is measured
-  (1000-resample bootstrap, committed), not hedged with a disclaimer.
-- **The knob is the product:** raising the auto-flag bar from 0.5 to 0.95 cuts false fraud
-  alerts **96% (26.9 to 1.1 per 10,000 transactions, 95% CI 93% to 99%)** and makes the
-  automated flags **89.8% precise**; the review band on the uncertain 0.05 to 0.95 middle
-  (7.1% of traffic) is what stops that bar from clearing 22 of 75 frauds unseen, cutting
-  that to 6. The bar does the precision, the queue does the recall, and the queue's price
-  (709 per 10,000) is stated beside it. See [in operations terms](#in-operations-terms-alerts-review-load-fraud-caught).
-- **Calibrated when it counts:** the raw score is a good ranker and a bad probability
-  (measured: Brier worse than predicting the base rate). A Platt map fit on a
-  train-only slice cuts test-fold Brier 4.2x without moving PR-AUC a bit, so a fraud
-  desk can set the review threshold by expected cost. Isotonic was measured too, and
-  rejected for damaging ranking - the numbers for both are committed.
-- **Fast enough to sit inline:** single-row scoring p99 **1.73 ms** measured against a
-  stated 10 ms budget, with a committed benchmark harness, a profile-driven
-  optimization (before: 5.50 ms), and a CI test that fails if it regresses.
-- **Everything reproduces:** pinned deps, `make reproduce` retrains on the real data
-  and fails unless the metrics match the committed file **byte for byte**. Without the
-  data file, the same pipeline runs a deterministic synthetic fixture so tests and CI
-  stay green offline; real and synthetic numbers are never mixed (`is_synthetic` tag).
+Card fraud is rare (0.17% of this dataset) and adversarial, so a model forced to answer
+fraud or legit for every transaction has to choose between two bad errors: false alerts that
+block real customers, and fraud cleared with nobody looking. Real fraud desks have a third
+answer, a human review queue, and their daily question is how much review capacity buys how
+much accuracy. LedgerSentry scores each transaction, decides the confident ones on its own,
+sends the uncertain middle to review, and measures that trade on held-out real data instead
+of asserting it.
 
-## Money boundary
+## Measured results, and the command that reproduces them
 
-This is fraud-**detection** software and research only. No trading, no moving money, no
-personalized financial advice, anywhere in this repo.
+**PR-AUC 0.7278, 95% CI [0.6214, 0.8232]**, on 56,961 held-out real card transactions with 75
+frauds, against a no-skill baseline of 0.0013. The same model at two settings of the knob:
 
-## Why the usual approach on this dataset is wrong
+| On the 56,961-transaction holdout | Cut at 0.5, no review | Review band at 0.95 |
+|---|---|---|
+| Auto-flags that are really fraud (precision) | 29.2% (63 of 216) | 89.8% (53 of 59) |
+| Frauds auto-flagged (automatic recall) | 63 of 75 (84.0%) | 53 of 75 (70.7%) |
+| Frauds sent to a human | 0 | 16 |
+| Frauds surfaced (flagged or sent to review) | 63 of 75 (84%) | 69 of 75 (92%) |
+| Frauds cleared with no human look | 12 | 6 |
+| Traffic sent to review | 0 | 4,039 (7.1%) |
 
-The ULB set is the most-used fraud dataset there is, and most results on it are broken
-the same three ways:
+The 84% recall and the 89.8% precision belong to different columns; the table is there so
+neither gets quoted without its price. Also measured and committed: Platt calibration cuts the
+test-fold Brier score 4.2x without moving PR-AUC, and single-row scoring runs at p99 1.73 ms
+against a 10 ms budget (`artifacts/benchmark_ulb_creditcard.json`, one Windows laptop).
 
-1. **Accuracy on 99.9%-legit data.** On this repo's own test fold, predicting
-   "legit" every single time scores **99.87%** accuracy and catches zero of the 75
-   frauds. This repo's actual model scores **99.71%**, which is *worse than doing
-   nothing* - measured, committed, and published rather than hidden, because our own
-   model failing the metric is the best possible proof that accuracy measures the
-   imbalance and not the model. Every "99.9% accurate" fraud notebook is reporting
-   the base rate back as an achievement. The honest headline at this imbalance is
-   **PR-AUC against its own no-skill baseline** (0.0013 here), plus the operating
-   table. And ROC-AUC misleads more subtly: on these identical predictions it reads
-   **0.9740** against PR-AUC's 0.7278, because its no-skill baseline is 0.5 at any
-   imbalance and 56,886 easy negatives swamp its false-positive rate. All three
-   numbers are committed under `demoted_metrics` and pinned by `verify_repro.py` -
-   demoted, never headline. [ADR 002](docs/adr/002-pr-auc-not-accuracy.md).
-2. **Shuffled splits.** A random split trains on Tuesday's fraud to predict Monday's,
-   and grades the model on cards it already memorized. Fraud is adversarial and
-   non-stationary; the only split that predicts deployment is a temporal one, entities
-   kept whole. That is why this repo's 0.73 is not comparable to shuffled-split 0.86s,
-   and refuses to be. [ADR 001](docs/adr/001-temporal-grouped-split.md).
-3. **A forced binary answer.** Real fraud operations run three outcomes, not two -
-   auto-clear, auto-flag, human review - and their actual daily decision is how much
-   review capacity buys how much precision. The model here abstains below a confidence
-   bar, and the deliverable is the measured coverage/precision/recall table over that
-   bar, not one number. [ADR 003](docs/adr/003-reject-to-review-knob.md).
+```bash
+pip install -r requirements.txt
+python scripts/headline.py   # seconds, offline: recomputes every number above from the
+                             # committed per-transaction scores; exits 1 if any differs
+make reproduce               # retrains on the real data (one public file, see Data) and
+                             # requires the metrics file back byte for byte
+```
 
-The differentiation of this repo is not the dataset (nothing could be), it is the
-rigor: the strict temporal holdout, the metric that cannot lie at this base rate, the
-reject knob a fraud team actually operates, measured calibration, measured latency,
-and byte-identical reproduction of every committed number.
+`headline.py` proves the numbers follow from the committed scores; it never trains.
+`make reproduce` proves the scores follow from the code, and CI's `demo` job repeats it on the
+sha256-checked public file.
+
+## Why a temporal holdout
+
+A shuffled split trains on transactions from after the ones it is graded on, so the model
+learns this week's fraud and is tested on last week's, which inflates every metric and says
+nothing about deployment. Here the model trains on the first ~40 hours and is tested only on
+the final 7.65 hours, with the last training transaction one second before the first test one
+(`split_boundary` in the business-case artifact), which is why this 0.73 is not comparable to
+shuffled-split results and does not claim to be ([ADR 001](docs/adr/001-temporal-grouped-split.md)).
+
+## The reject-to-review knob, explained
+
+The model gives each transaction a fraud score p. One number, the review threshold t, turns
+that into three outcomes: p at or above t is flagged as fraud, p at or below 1 - t is cleared,
+and anything strictly between goes to a person as `"review"`. At t = 0.5 nothing is reviewed
+and every call is automatic. Raising t does two separate things, and the measurements keep
+them apart:
+
+- **The higher bar makes the automatic flags precise.** Moving from 0.5 to 0.95 with no queue
+  at all cuts false alerts 96% (26.9 to 1.1 per 10,000), but on its own it clears 22 of the
+  75 frauds unseen.
+- **The review band catches what the higher bar would wave through.** 16 of those 22 land in
+  the queue instead, so only 6 are cleared unseen. The price is 709 reviews per 10,000
+  transactions, and whether a reviewer catches those 16 is not measured.
+
+`/predict` takes `review_threshold` per request, so the desk can move the knob without a
+retrain; the dashboard and the [live demo](https://aeripsen.github.io/ledgersentry/) put it on
+a slider. Why abstain at all: [ADR 003](docs/adr/003-reject-to-review-knob.md). Separate
+flag and clear cuts are measured in [ADR 008](docs/adr/008-decoupled-reject-knob.md) and not
+yet served.
+
+## Summary lines, generated from the artifact
+
+`make business` writes these into `resume_sentences`, and
+
+`tests/test_demo_data.py` fails if this README stops quoting them word for word:
+
+> Raising the auto-flag threshold from 0.5 to 0.95 cut false fraud alerts 96% (26.9 to 1.1 per 10,000 transactions, 95% CI 93% to 99%) on a temporal holdout of 56,961 real card transactions; a review band on the 0.05 to 0.95 middle routed to a human 16 of the 22 frauds that threshold alone auto-clears, at 709 reviews per 10,000.
+
+> Split the 97.2% of fraud value that a single 0.05 threshold surfaces (95% CI 89.5% to 99.95%) into an 89.8%-precise auto-flag tier and a review tier of 7.1% of traffic; against the 0.5 default, frauds cleared without human review fell from 12 to 6 of 75 (paired bootstrap 95% CI 2 to 11 fewer).
 
 ## Architecture
 
@@ -132,771 +144,85 @@ the compiled scorer (005), calibration (006), the headline's confidence interval
 decoupling the reject knob's two cuts (008), and comparing feature sets and boosting
 configs without cheating the holdout (009).
 
-## Results on real data (ULB credit-card fraud, measured 2026-07-15)
-
-Dataset: ULB "Credit Card Fraud Detection" - 284,807 real anonymized European card
-transactions over 2 days, 492 fraud (0.173%). ULB publishes no card/customer id, so
-the grouped split degrades (documented in `data.py`) to a **pure temporal split**:
-227,846 train rows (417 fraud) / 56,961 test rows (75 fraud, 0.132%) - the model is
-evaluated only on the final ~7.6 hours of transactions it has never seen.
-
-**PR-AUC on the real imbalanced holdout: 0.7278, 95% CI [0.6214, 0.8232]**
-(no-skill baseline on this fold: 0.0013, roughly a 550x lift). Published
-XGBoost-class numbers on real card data run ~0.86-0.88, but on random
-(non-temporal) splits of different datasets - not directly comparable, and not
-claimed to be. See `docs/model_card.md` for the full honesty notes. Source of
-truth: `artifacts/metrics_ulb_creditcard.json` (`is_synthetic: false`).
-
-**Uncertainty, published beside the number instead of disclaimed.** The fold holds
-75 frauds, so the headline gets an interval: PR-AUC **[0.6214, 0.8232]** and recall
-**[0.75, 0.9167]**, from a seeded 1000-resample percentile bootstrap
-(`python scripts/bootstrap.py` -> `artifacts/bootstrap_ulb_creditcard.json`). The
-recall interval is cross-checked against a closed-form Wilson interval computed
-independently, **[0.7408, 0.9060]**, and they agree to about a point at each end.
-What that buys: the conclusion "far better than no-skill" is safe (the interval's
-floor is still ~480x the baseline), and any argument resting on the decimals is
-not. One extra caught fraud moves recall 1.33 points. The interval covers sampling
-noise only, not fold-choice variance - rolling-origin evaluation is the fix for
-that and is still an open gap below.
-
-**Coverage vs precision AND recall on real data (the reject-to-review knob working).**
-The test fold has **75 frauds**; "caught / queue / missed" shows how each threshold
-splits them into auto-flagged, routed-to-human-review, and auto-cleared-as-legit
-(the only true misses). Recall (auto) = caught / 75.
-
-| Review threshold | Coverage | Sent to review | Flagged fraud | Precision on flagged | Fraud caught / queue / missed | Recall (auto) |
-|---|---|---|---|---|---|---|
-| 0.50 | 100.00% | 0 | 216 | 29.17% | 63 / 0 / 12 | 84.0% |
-| 0.70 | 99.45% | 312 | 129 | 44.19% | 57 / 9 / 9 | 76.0% |
-| 0.80 | 98.98% | 583 | 105 | 53.33% | 56 / 10 / 9 | 74.7% |
-| 0.90 | 97.22% | 1,582 | 73 | 73.97% | 54 / 13 / 8 | 72.0% |
-| 0.95 | 92.91% | 4,039 | 59 | 89.83% | 53 / 16 / 6 | 70.7% |
-
-Reading it: fully automated the model catches **63 of 75 frauds (84% recall)** and 29%
-of its flags are truly fraud. At threshold 0.95 the automated flags become **89.8%
-precise** (the higher bar does that) while the most uncertain 7.1% of traffic goes to
-review, and note the misses *drop* from 12 to 6 instead of rising to the 22 a plain 0.95
-cut would clear, because the uncertain frauds go to the review queue (16 of them) instead
-of being auto-cleared. So at 0.95, 69 of 75 frauds are surfaced (auto-flag + review) and
-only 6 slip through unseen; whether a reviewer catches the 16 is not measured. That precision lift for a bounded
-human-review budget, with recall stated honestly beside it, is the product. (Above 0.95
-the uncalibrated confidence cliff sends almost everything to review - measured, shown in
-the model card's full 8-row table, and called out as a limitation rather than hidden.)
-
-### In operations terms: alerts, review load, fraud caught
-
-The table above is a model table. A fraud desk asks different questions: how many alerts
-per 10,000 transactions, how many of them are wrong, how big the review queue gets, and
-how much fraud gets through by value. `make business` (`python scripts/business_case.py`)
-answers them on the same fold and the same model, and refuses to write anything unless
-its counts match `artifacts/metrics_ulb_creditcard.json` at every threshold. Output:
-`artifacts/business_case_ulb_creditcard.json`, including a 50-row threshold sweep.
-
-Four named policies on the 56,961 held-out transactions (75 frauds, 7.65 hours):
-
-| Policy | Alerts / 10k | False alerts / 10k | Review queue / 10k | Legit flagged or queued / 10k | Frauds auto-flagged / in review / cleared unseen | Fraud value surfaced |
-|---|---|---|---|---|---|---|
-| A. single threshold 0.5, no review | 37.9 | 26.9 | 0.0 | 26.9 | 63 / 0 / 12 | 66.4% |
-| B. single threshold 0.95, no review | 10.4 | 1.1 | 0.0 | 1.1 | 53 / 0 / 22 | 49.7% |
-| C. review band 0.95 | 10.4 | 1.1 | 709.1 | 707.3 | 53 / 16 / 6 | 97.2% |
-| D. single threshold 0.05, no review | 719.4 | 707.3 | 0.0 | 707.3 | 69 / 0 / 6 | 97.2% |
-
-Where each effect comes from:
-
-- **The false-alert cut is the threshold's, not the queue's.** A to B (raise the bar from
-  0.5 to 0.95, no review) cuts false alerts **96.1% (95% CI 92.7% to 98.7%)**, from 26.9 to
-  1.1 per 10,000. C raises exactly B's 59 alerts and B's 6 false alerts
-  (`C_vs_B.same_false_alerts: true`). The review queue removes no false alert.
-- **The queue changes what gets cleared unseen.** B clears 22 frauds without a human look;
-  C sends 16 of them to review and clears 6. Against A's 12, that is 6 fewer, paired
-  bootstrap 95% CI 2 to 11 fewer (the difference is taken within each resample, not read
-  off two intervals). "Cleared unseen" is the honest word: nothing here measures whether a
-  reviewer catches the 16 frauds hidden among 4,039 reviews (about one per 252 items).
-- **The cut moves legitimate traffic, it does not remove it.** Counting the queue, C
-  flags or queues 719.4 transactions per 10,000 against A's 37.9, and 707.3 of them are
-  legitimate. At a million transactions a day the same band is about 71,000 reviews.
-- **C finds no fraud a low single threshold misses.** C surfaces exactly the set policy D
-  flags (`surfaced_equals_single_low_threshold: true`): same 69 frauds, same 97.2% of
-  fraud value. What C adds over D is a split of that set into 59 alerts that are 89.8%
-  precise and a review tier, where D raises 4,098 alerts at 1.7% precision.
-- **By value:** C (and D) surface 97.2% of the fold's fraud Amount (CI 89.5% to 99.95%);
-  A surfaces 66.4%. The paired difference is 4.4 to 61.1 points. That width is the point:
-  the fold has 75 frauds and a few large ones carry the total. Amounts come from the
-  dataset's own `Amount` column; its documentation names no currency, so they are shares.
-
-**How 0.95 was chosen.** It was read off the test-fold curve in the committed metrics
-table, not selected on a validation slice, so it is a reported operating point, not a
-tuned one. The neighbours are in `operating_threshold_selection`: at 0.94 the band
-surfaces 82.4% of fraud value with 8 cleared unseen; at 0.96 it surfaces 97.3% with 5,
-for 10.4% of traffic in review.
-
-**Resume-length lines.** The script writes these into `resume_sentences`, and
-`tests/test_demo_data.py` fails if this README stops quoting them word for word:
-
-> Raising the auto-flag threshold from 0.5 to 0.95 cut false fraud alerts 96% (26.9 to 1.1 per 10,000 transactions, 95% CI 93% to 99%) on a temporal holdout of 56,961 real card transactions; a review band on the 0.05 to 0.95 middle routed to a human 16 of the 22 frauds that threshold alone auto-clears, at 709 reviews per 10,000.
-
-> Split the 97.2% of fraud value that a single 0.05 threshold surfaces (95% CI 89.5% to 99.95%) into an 89.8%-precise auto-flag tier and a review tier of 7.1% of traffic; against the 0.5 default, frauds cleared without human review fell from 12 to 6 of 75 (paired bootstrap 95% CI 2 to 11 fewer).
-
-What this does not claim. Nothing here is priced: no analyst cost, no average loss per
-fraud, nothing from the illustrative `expected_cost_curve` artifact. No per-hour load is
-published: the fold is 7.65 hours of a two-day 2013 dataset, which says nothing about a
-real desk's hourly volume. Intervals are a seeded 1000-resample bootstrap with the same
-limits as `bootstrap.py` (sampling noise only, one fold).
-
-What checks what. CI (`tests/test_demo_data.py`) rebuilds every policy, sweep row,
-interval and sentence in the artifact from the committed per-transaction scores. The step
-before that, retraining from `data/creditcard.csv` and getting those same scores, is
-checked in CI by the `demo` job, which fetches the sha256-checked public ULB file, retrains,
-and requires the committed scores file back byte for byte (`scripts/demo_data.py --verify`).
-`make business-verify`, which regenerates the whole business file and requires a byte match,
-runs locally (last run on CPython 3.13.13 with the pinned `requirements.txt`). The artifact
-records no interpreter version, only the pinned library versions.
-
-### Synthetic fixture (offline CI baseline, labeled synthetic)
-
-With no real file in `data/`, the same pipeline runs a deterministic seeded fixture
-(8,000 rows, ~1% fraud) so tests and CI are green with zero downloads: PR-AUC
-**0.7884** against a 0.0095 no-skill baseline (`artifacts/metrics_synthetic.json`,
-`is_synthetic: true`). Full table and caveats in `docs/model_card.md` - synthetic
-numbers are a pipeline proof, not a benchmark claim, and are never mixed with the
-real ones.
-
-### Continuing work: booster head-to-head and SHAP attribution (measured 2026-07-21)
-
-Two additions since the headline run, both committed as artifacts and neither
-retrofitted into the headline, which stays exactly as shipped.
-
-**LightGBM beats the incumbent on this fold, and the headline is not being
-quietly swapped.** `python scripts/compare_boosters.py` runs LightGBM through
-the exact `compare.py` machinery (same temporal holdout, selection on the inner
-validation slice only, paired bootstrap on the delta) against the shipped
-`hist_gbdt` config (`artifacts/comparison_boosters_ulb_creditcard.json`).
-Validation picks `lgbm_slow` (400 rounds, lr 0.05): test PR-AUC **0.8081** vs
-the incumbent's 0.7278, paired delta **+0.0804, 95% CI [0.0239, 0.1379]**,
-winning 99.8% of resamples - an interval that excludes zero, unlike the velocity
-null above. At the incumbent's exact budget (200 rounds, lr 0.1, matched 31-leaf
-capacity), `lgbm_default` posts +0.0635 but its interval [-0.0003, 0.1240] still
-grazes zero. The identity check passed: the rebuilt incumbent lands on the
-committed CI [0.6214, 0.8232] exactly. The headline stays 0.7278 on purpose:
-promoting LightGBM means a compiled optional wheel in the serving path and a
-retrain of every committed artifact, and that migration should be its own
-change, made with this artifact as the evidence - not a side effect of measuring.
-
-**The model's fraud signal, attributed.** `python scripts/shap_report.py` runs
-exact TreeExplainer attribution on the shipped `ledgersentry.joblib` over all
-56,961 test rows (`artifacts/shap_ulb_creditcard.json` + a summary beeswarm PNG),
-additivity checked against the model's own margin (max error < 1e-14, committed).
-Globally `f_V14` leads (mean |SHAP| 0.1381); on the 75 fraud rows the evidence
-concentrates hard in four PCA components - **V14 (+3.10 log-odds on average),
-V12, V4, V10** - which matches what the literature reports for tree models on
-ULB. Honest limits: the units are log-odds, not probability points, and on ULB
-the top features are anonymized components, so this is proof of method and of
-what the model keys on, not reason codes a human could act on. Per-decision
-reason codes at `/predict` remain an open gap below.
-
-## Measured latency and throughput
-
-Fraud scoring is only "real-time" if it fits inside payment authorization, where the
-whole round-trip is budgeted in tens to a few hundred milliseconds and the risk check
-gets a slice. This repo holds itself to an explicit engineering target - **single-row
-scoring p99 under 10 ms on commodity hardware** (our own bar, not an industry-published
-figure) - and measures against it with a committed harness instead of asserting it:
-`python scripts/bench.py`, results in `artifacts/benchmark.json` with the exact
-environment recorded.
-
-Measured on the real ULB artifact and its 56,961-row held-out test split (this
-machine, single-thread, no GPU, 2026-07-16):
-
-| Path | mean | p50 | p95 | p99 | throughput |
-|---|---|---|---|---|---|
-| single-row, pandas (before) | 4.13 ms | 3.98 ms | 4.93 ms | 5.50 ms | 242 rows/s |
-| single-row, compiled (after) | **1.02 ms** | 1.04 ms | 1.39 ms | **1.73 ms** | 985 rows/s |
-| batch, pandas | - | - | - | - | 605,569 rows/s |
-| batch, compiled | - | - | - | - | 662,976 rows/s |
-
-Numbers are the committed `artifacts/benchmark.json` run, quoted exactly. Run-to-run
-OS noise is real: across repeat runs on this machine the pandas path's p99 ranged
-5.5-10.1 ms (straddling the budget), the compiled path's 1.4-2.4 ms (never near it).
-
-Profiling showed single-row scoring spending ~two thirds of its time in
-pandas/`ColumnTransformer` machinery on a 1-row frame, not in the model. The fix
-(`scoring.py`) compiles the fitted preprocessor once - one-hot category maps and
-numeric column order - and builds the model's input matrix directly in numpy per
-request. Same model, same numbers: tests pin the compiled transform byte-exact to the
-`ColumnTransformer` output, decisions included, and a latency-regression test fails CI
-if per-row pandas work creeps back in. The before path is kept in the repo
-(`PandasScorer`) as the reference implementation and benchmark baseline. Read the
-batch rows honestly: at volume the `ColumnTransformer` amortizes fine, so the compiled
-path buys latency on the request path, not batch throughput.
-
-The streaming replay (`python scripts/stream.py --n 0`) replays the held-out test
-split one row at a time through the same compiled scorer the service uses and prints
-its own measured percentiles.
-
-### Load test: the HTTP service under concurrent clients
-
-`make loadtest` runs an A/B against a real uvicorn server and drives `POST /predict` with
-1, 2, 4 ... 128 concurrent keep-alive connections over real held-out ULB rows. The shipped
-arm applies the Dockerfile's `ENV OMP_NUM_THREADS=1`, parsed from the Dockerfile, so a bare
-`python scripts/loadtest.py` also measures what ships; the before arm (`--arm ompdefault`)
-unsets it. The arms alternate (ABBA) over 3 rounds at 1 and 4 workers. It is a closed loop:
-each connection sends its next request as soon as the last response is read. Each level
-runs 2 s of warmup and 10 s of measurement, and latency is client-side, send to last byte,
-so unlike `bench.py` it includes HTTP parsing, validation and logging. It serves the
-image's app with the image's thread setting, but it is not the image: host 127.0.0.1, this
-machine's Python and uvicorn, and workers set through `WEB_CONCURRENCY`, which the image's
-uvicorn reads and which neither the Dockerfile nor the k8s manifests set. It needs
-`pip install -r requirements-loadtest.txt` (psutil for the CPU columns; the harness stops
-without it).
-
-Every result file records the commit (`86ee9fc`, clean tree), the model file's sha256, the
-server's thread environment, the OpenMP team scikit-learn picks under it (probed in a fresh
-process with the server's environment), the machine, and its CPU load in the second before
-the run. All 12 runs are in `artifacts/loadtest_ab/predict/`;
-`python scripts/loadtest.py --ab-summary artifacts/loadtest_ab/predict` rebuilds
-`summary.json` and the numbers below from them, and `--table` prints every level of every
-run. No run was left out, and none had a failed request.
-
-Machine: Intel Core i7-10750H (6 cores, 12 threads), 16 GB RAM, Windows 11, Python 3.13.13,
-uvicorn 0.52.4 with httptools (`requirements.txt` pins 0.51.0; the Linux runs below use the
-pinned image). Client and server share the laptop with other work running; the files record
-2.9% to 65.8% machine CPU in the second before each run.
-
-Median req/s over 3 runs (min to max), median p99:
-
-| server, `POST /predict` | 1 client | 4 clients | 32 clients | 128 clients | server CPU (100 = one core) |
-|---|---|---|---|---|---|
-| 1 worker, `OMP_NUM_THREADS=1` (shipped) | 343.0 (277.6 to 349.0), 3.9 ms | 323.7 (286.5 to 324.0), 17.7 ms | 336.4 (299.4 to 337.8), 108.2 ms | 330.8 (302.2 to 333.2), 401.4 ms | 96 to 124 |
-| 1 worker, unset (before) | 314.4 (295.9 to 322.9), 4.4 ms | 266.5 (257.7 to 271.6), 20.4 ms | 242.1 (239.8 to 272.6), 197.4 ms | 230.4 (214.4 to 249.0), 659.0 ms | 590 to 1,052 |
-| 4 workers, `OMP_NUM_THREADS=1` (shipped) | 334.0 (311.3 to 347.3), 4.0 ms | **1,128.6** (785.8 to 1,129.7), **4.2 ms** | 1,181.0 (1,139.3 to 1,192.9), 44.4 ms | 1,215.6 (1,185.9 to 1,225.3), 140.9 ms | 97 to 467 |
-| 4 workers, unset (before) | 318.8 (256.3 to 322.3), 4.3 ms | 404.4 (397.7 to 595.5), 18.8 ms | 578.1 (418.6 to 624.5), 99.6 ms | 519.9 (493.2 to 538.7), 401.8 ms | 561 to 1,088 |
-
-**The bottleneck.** With the thread variables unset, one worker used 5.9 to 10.5 of the 12
-logical cores and got less throughput than the shipped arm, which used 1.0 to 1.2. The
-cause: scikit-learn runs every HistGradientBoosting `predict`, a 1-row one included, as an
-OpenMP parallel region. With `OMP_NUM_THREADS` unset its team is the smallest of
-`omp_get_max_threads()`, the physical cores and any cgroup CPU quota
-([`_openmp_effective_n_threads`, scikit-learn 1.9.0](https://github.com/scikit-learn/scikit-learn/blob/1.9.0/sklearn/utils/_openmp_helpers.pyx));
-the probe in every before-arm file records 6 threads here. The OpenMP runtime keeps its
-threads between calls, so the cost per request is the fork/join barrier and threads
-spin-waiting, not thread creation. One row gives that team almost nothing to split, and with
-requests in flight the teams compete with each other and with the request threads. The
-evidence is the CPU accounting and the A/B, not a profile: py-spy's `--gil` view sees only
-threads holding the GIL, and OpenMP worker threads never do. The Dockerfile now sets
-`OMP_NUM_THREADS=1`. One test parses the Dockerfile's ENV lines the way `docker build`
-applies them (a commented-out or overridden pin fails), and another starts a fresh process
-with that environment, runs a real HistGradientBoosting predict, and checks the team is 1
-thread, against an unset control that must fan out.
-
-**A confound in the before numbers.** In the before arm the machine sat at 96% to 100% CPU
-from 2 clients up, and the load generator shares those cores, so part of the before arm's
-lower throughput is the client being starved, not only the server. The shipped arm left the
-machine at 14% to 78%. The ratios below are ratios on this laptop with the client on it, not
-server-only numbers.
-
-**What it bought.** One worker: the shipped arm's median is 1.21x the before arm's at 4
-clients and 1.44x at 128; the worst case (slowest shipped run over fastest before run) is
-1.05x and 1.21x. At 1 and 2 clients the runs overlap (worst case 0.86x and 0.92x). One
-thread per process leaves a worker bound by the GIL at 310 to 343 req/s (the medians): a py-spy `--gil`
-profile at 4 clients (`artifacts/profiles/profile_predict_w1_omp1_c4.txt`, 841 samples, the
-command is in the JSON next to it) has 49.1% of GIL-holding samples inside the scoring call,
-46.4% in scikit-learn's predict, and 10.8% in logging. Throughput has to come from
-processes. With 4 workers: at 4 clients the median is 1,128.6 against 404.4 req/s (2.79x) at
-a median p99 of 4.2 ms, but one of the three shipped runs got 785.8 req/s at p99 10.8 ms, so
-the worst case is 1.32x. At 32 clients it is 1,181.0 against 578.1 (2.04x, worst case
-1.82x), and at 128 clients 1,215.6 against 519.9 (2.34x, worst case 2.20x).
-
-**The batch endpoint.** On `POST /predict/batch` with 100 rows per request and one worker
-(2 rounds per arm, `artifacts/loadtest_ab/batch/`), the shipped arm is faster at every level:
-109.2 against 103.0 req/s at 1 client (1.06x, worst case 1.03x), up to 1.31x at 128 clients,
-on 1.0 to 1.2 cores instead of 5.9 to 10.7. An earlier version of this section said one
-thread was 13% slower here with a single client; with the arms alternated and repeated that
-did not reproduce, so it is withdrawn. Batch serving tops out near 10,900 rows/s (109.2
-req/s of 100 rows), far below the in-process 663k rows/s: the profile at 4 clients
-(`artifacts/profiles/profile_batch_w1_omp1_c4.txt`, 884 samples) has 16.3% of GIL-holding
-samples in JSON decoding, 31.9% in pandas (building a DataFrame from the posted dicts and
-transforming it) and 20.6% in scikit-learn. Building the matrix straight from the dicts is
-the next fix and is not done.
-
-**On the real image, on Linux.** `.github/workflows/loadtest-linux.yml` builds the image
-and runs the same A/B against the container on a GitHub-hosted runner (run 36786204980,
-commit `cab1b75`, `artifacts/loadtest_linux/`): `docker run --network host` with no `--cpus`
-limit, the image's own command, and workers through `WEB_CONCURRENCY`. The before arm is the
-same image and command with `OMP_NUM_THREADS` unset in the shell before `exec uvicorn`. A
-probe inside the image records what the server runs: Python 3.12.14, uvicorn 0.51.0,
-FastAPI 0.139.0, scikit-learn 1.9.0 and numpy 2.5.1 (the `requirements.txt` pins), OpenMP
-from libgomp, and a 2-thread team for the before arm. The runner has 4 vCPUs (2 physical
-cores, AMD EPYC 9V74) shared with the client, and the model is the synthetic fixture (the
-ULB file is not on the runner). 12 runs, 3 per arm and worker count, no failed requests.
-One worker: the shipped arm's median is 1.69x the before arm's at 1 client (506.8 against
-299.4 req/s) and 1.60x to 1.65x from 4 clients up, worst case at least 1.58x. Four workers:
-921.8 against 264.9 req/s at 4 clients (3.48x, worst case 2.18x), 1,131.0 against 406.6 at
-32 clients (2.78x, worst case 2.61x) and 994.7 against 386.4 at 128 clients (2.57x, worst
-case 2.55x). At 2 clients one of the three shipped 4-worker runs got 341.1 req/s against
-788.9 and 792.9 in the other two, cause not isolated, so that level has no usable worst
-case. From 8 clients up the runner sat at 97% to 100% CPU in both arms, so those columns
-measure a saturated runner. Two earlier runs of this workflow were replaced and are not
-committed: 36780955572 read the machine's load while the containers were still starting,
-and 36783469204 recorded the runner's Python and library versions as if they were the
-server's.
-
-**What these numbers are not.** A laptop and a shared 4-vCPU runner, with the client on the
-same machine as the server, under synthetic closed-loop load in 10 s windows. A closed loop
-understates the tail past saturation, and past about 4 to 8 clients the client competes
-with the server for CPU. Not production traffic. The 4-worker rows are not what ships: the
-image runs one worker unless `WEB_CONCURRENCY` is set, and the k8s pods run one worker under
-a 1-CPU limit, where the cgroup quota already caps scikit-learn's team at 1. So this change
-is not expected to move the in-cluster k6 numbers (see Deploy), and no in-cluster gain is
-claimed.
-
 ## Quickstart
 
 ```bash
-git clone <this repo, once published>
-cd ledgersentry
-python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
+git clone https://github.com/Aeripsen/ledgersentry && cd ledgersentry
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-pip install -e .                 # optional - scripts/train.py works without it
 
-python scripts/train.py          # no data file present -> synthetic fixture (offline)
-                                  # writes artifacts/ledgersentry.joblib + metrics.json
-pytest                           # run the test suite (MLflow tests skip without mlflow)
-ruff check .                     # lint
-mypy                             # type-check src/
+pytest -q                       # the full suite, offline (MLflow tests skip without mlflow)
+python scripts/headline.py      # the headline numbers, recomputed from committed scores
+python scripts/train.py         # trains; with data/ empty it uses the synthetic fixture
 
-# reproduce the REAL ULB numbers (one public file, no login):
-curl -o data/creditcard.csv https://storage.googleapis.com/download.tensorflow.org/data/creditcard.csv
-python scripts/train.py          # detects the file, trains + evaluates on real data
-python scripts/verify_repro.py   # FAILS unless the regenerated metrics are byte-identical
-                                  # to the committed artifacts/metrics_ulb_creditcard.json
-# (same thing as one target: make reproduce)
-
-python scripts/calibrate.py      # the calibration pipeline -> calibration_<source>.json
-python scripts/bench.py          # the latency/throughput benchmark -> benchmark.json
-python scripts/loadtest.py       # HTTP load test, 1..128 clients (pip install -r requirements-loadtest.txt)
-python scripts/bootstrap.py      # 95% CIs on the headline -> bootstrap_<source>.json
-python scripts/compare.py        # feature-set x boosting-config comparison, selected
-                                  # on an inner validation slice -> comparison_<source>.json
-python scripts/cost.py           # expected cost per review threshold, illustrative
-                                  # cost triples -> expected_cost_curve_<source>.json
-python scripts/business_case.py  # alerts, review load, fraud caught/missed by count and
-                                  # Amount, nothing priced -> business_case_<source>.json
-
-# optional analysis extras (lightgbm + shap; see requirements-analysis.txt for
-# why shap installs --no-deps):
-make install-analysis
-python scripts/compare_boosters.py  # lightgbm vs the incumbent, paired bootstrap
-                                     # -> comparison_boosters_<source>.json
-python scripts/shap_report.py       # SHAP attribution on the shipped artifact
-                                     # -> shap_<source>.json + shap_summary_<source>.png
-```
-
-Config: defaults are exactly the committed run; override with `LEDGERSENTRY_*` env vars
-or a `ledgersentry.yaml` (see `ledgersentry.example.yaml`). A typo'd option is a loud
-error, not a silent no-op.
-
-## Serving + dashboard
-
-Requires `artifacts/ledgersentry.joblib` to exist first - run `python scripts/train.py`
-(above) at least once.
-
-```bash
-# FastAPI service: /health, /ready, /predict, /predict/batch, /drift, /curve
-uvicorn ledgersentry.service:app --app-dir src --reload
-# in another shell:
-curl -X POST http://127.0.0.1:8000/predict \
-  -H "Content-Type: application/json" \
+uvicorn ledgersentry.service:app --app-dir src        # API on :8000
+curl -X POST http://127.0.0.1:8000/predict -H "Content-Type: application/json" \
   -d '{"features": {"amount": 420.85, "category": "travel", "timestamp": "2026-03-04T02:11:00"}, "review_threshold": 0.9}'
-
-# Streaming replay: real per-row latency, printed at the end (see "Measured latency" above)
-python scripts/stream.py --n 0
-
-# Streamlit dashboard: review-threshold slider, live coverage/precision, live feed
-streamlit run dashboard/app.py
-
-# Or run the API + dashboard as one container stack (api:8000, dashboard:8501):
-docker compose up --build
+streamlit run dashboard/app.py                         # the knob as a slider, on :8501
+docker compose up --build                              # or both, as one stack
 ```
 
-One-click and orchestrated hosting (Render / Kubernetes / Terraform) is in the
-[Deploy](#deploy) section below, with the exact steps in [`DEPLOY.md`](DEPLOY.md).
+With no file in `data/`, training uses a seeded synthetic fixture so everything runs offline;
+its numbers are labeled `is_synthetic: true` and never mixed with the ULB ones. Every other
+script (calibration, bootstrap, cost, comparisons, SHAP, load test) is in the
+[command reference](docs/DETAILS.md#command-reference).
 
-`/predict` derives its expected input columns from the FITTED preprocessor inside the
-loaded artifact (not a hardcoded schema), so it isn't locked to the synthetic fixture's
-columns - swap in a real dataset (see "Data" below), retrain, and the same endpoint
-serves whatever `f_*` features that source produced. Missing numeric fields default to
-NaN (which the gradient-boosted model handles natively - not a misleading fake 0.0),
-missing `category` defaults to `"unknown"`, and the response lists any imputed fields
-under `missing_fields`.
+## Limitations
 
-## Experiment tracking and drift reports (MLflow, Evidently)
+- **One fold, 75 frauds.** The intervals are wide and cover sampling noise only; fold-choice
+  variance is unmeasured until rolling-origin evaluation lands.
+- **The dataset limits what can be learned.** ULB is two days of 2013 European card
+  transactions with PCA-anonymized features and no card id, so the grouped split degrades to a
+  purely temporal one, per-card velocity features cannot work (measured: they hurt), and SHAP
+  names components, not reasons a person could act on.
+- **Review outcomes are not measured.** Nothing here shows a reviewer finding the 16 frauds in
+  a 4,039-item queue. The 0.95 operating point was read off the test-fold curve, so it is
+  reported, not tuned on a validation slice.
+- **Raw scores rank but are not probabilities.** Above 0.95 the knob sends almost everything
+  to review. Platt calibration is measured; it is not yet shipped inside the served artifact.
+- **The shipped model is not the best one measured.** LightGBM beat it on this fold (paired
+  delta +0.0804 PR-AUC, 95% CI [0.0239, 0.1379]); the headline stays on the shipped model until
+  that migration is its own change.
+- **Serving is tested, not hosted.** Only the static demo is public. Container, Kubernetes and
+  Terraform runs serve the synthetic-fixture model and test the serving path, not model
+  quality. `/predict` returns no reason codes.
+- **Two of the four loaders have no full run.** Sparkov and IEEE-CIS need Kaggle logins.
 
-```bash
-pip install -r requirements-mlops.txt       # make install-mlops
-python scripts/train.py                     # logs a run once mlflow is installed
-python scripts/compare.py                   # one run per variant, read back from the store
-python scripts/compare_boosters.py          # the same for the three booster configs
-python scripts/evidently_report.py          # make drift-report
-mlflow ui --backend-store-uri sqlite:///mlflow.db   # make mlflow-ui, then http://127.0.0.1:5000
-```
+## Full write-up
 
-**MLflow** (`src/ledgersentry/tracking.py`, a no-op until mlflow is installed;
-`LEDGERSENTRY_MLFLOW=0` turns it off, `MLFLOW_TRACKING_URI` points it at a server). Runs go to
-a local SQLite store (`mlflow.db`, artifacts in `mlruns/`, both gitignored).
+Everything measured, how, and what it does not claim, is in [`docs/DETAILS.md`](docs/DETAILS.md):
 
-- `train.py` logs every run to experiment `ledgersentry-train`: the training config, PR-AUC
-  and its no-skill baseline, recall, the demoted ROC-AUC and accuracy under a `demoted.` prefix,
-  the review-knob curve as stepped metrics, the bootstrap 95% CI when
-  `bootstrap_<source>.json` was computed on the same predictions, and the fitted
-  preprocessor+model. It logs after the metrics files are written, so `make reproduce` is
-  unaffected. The logged model is loaded back from the store and must reproduce P(fraud)
-  exactly on all 56,961 test rows, or `train.py` raises and exits non-zero.
-- Serialization is chosen by model type, not by trial and error: skops for sklearn-native
-  models (the default `hist_gbdt` and the `logreg` baseline) against two reviewed trusted types,
-  `FraudDetector` and sklearn's `TreePredictor`; cloudpickle only for the optional `lgbm` model,
-  whose compiled booster skops cannot walk (tagged, and load it only from a store you wrote). A
-  skops failure on a sklearn model fails the run instead of falling back to pickle. The model is
-  logged in MLflow's sklearn flavor only: `FraudDetector` has no `predict()`, so MLflow adds no
-  python_function flavor, and `mlflow models serve` does not apply to it.
-- `compare.py` and `compare_boosters.py` log one run per variant to `ledgersentry-compare` as
-  they measure it (8 + 3 runs on ULB): validation and test PR-AUC, recall, and
-  whether the validation rule selected it. The variants the report pairs against the incumbent
-  carry the paired-bootstrap delta and its interval: 2 of 8 in `compare`
-  (`base+velocity|gbdt_default`, `base+velocity|gbdt_shallow`) and 2 of 3 boosters
-  (`lgbm_default`, `lgbm_slow`), 4 of 11 runs in all. After logging, each
-  script reads its runs back from the store with `mlflow.search_runs`, requires every logged
-  metric and the selection tags to equal the report it just computed (or it raises), and
-  writes the read-back to `artifacts/mlflow_comparison_ulb_creditcard.json` and
-  `artifacts/mlflow_comparison_boosters_ulb_creditcard.json`. Those two files are the durable
-  record of the tracked runs; the store itself is gitignored.
-- Every run is tagged `data_source` and `is_synthetic`, because CI trains on the synthetic
-  fixture and its PR-AUC of 1.0 is a property of the generator, not a result.
+- [The 90-second version](docs/DETAILS.md#the-90-second-version)
+- [Why the usual approach on this dataset is wrong](docs/DETAILS.md#why-the-usual-approach-on-this-dataset-is-wrong) (accuracy, shuffled splits, forced binary answers)
+- [Results on real data](docs/DETAILS.md#results-on-real-data-ulb-credit-card-fraud-measured-2026-07-15): the full knob table, bootstrap intervals, [in operations terms](docs/DETAILS.md#in-operations-terms-alerts-review-load-fraud-caught), the synthetic fixture, the booster head-to-head and SHAP
+- [Measured latency and throughput](docs/DETAILS.md#measured-latency-and-throughput) and the [load test](docs/DETAILS.md#load-test-the-http-service-under-concurrent-clients)
+- [Command reference](docs/DETAILS.md#command-reference) and [Serving + dashboard](docs/DETAILS.md#serving--dashboard)
+- [Experiment tracking and drift reports (MLflow, Evidently)](docs/DETAILS.md#experiment-tracking-and-drift-reports-mlflow-evidently)
+- [The live demo, and what CI checks](docs/DETAILS.md#the-live-demo-and-what-ci-checks)
+- [Deploy](docs/DETAILS.md#deploy), with exact steps and captured output in [`DEPLOY.md`](DEPLOY.md)
+- [Repository layout](docs/DETAILS.md#repository-layout) and [Roadmap](docs/DETAILS.md#roadmap)
 
-What is not built: a model registry. Serving loads `artifacts/ledgersentry.joblib`, not an MLflow
-model alias, and there is no promotion gate (see the roadmap for why that gate would matter).
-`registry.py` is the estimator factory, not a model registry.
-
-**Evidently** (`scripts/evidently_report.py`). Two time windows of the committed split, each
-scored by a model that did not train on it: reference = the inner validation slice (the last
-20% of the training window, 10:48 to 16:20 on day 2, 52 frauds, scored by a model fit on
-the earlier 80%, the carve `compare.py` selects on), current = the test fold (16:20 to 23:59
-on day 2, 75 frauds, scored by the shipped model). The script refuses to write unless the
-committed `metrics_`, `comparison_` and `bootstrap_ulb_creditcard.json` all exist and both
-windows reproduce them (current PR-AUC and its bootstrap CI, reference PR-AUC); a missing file
-is a failure, not a skipped check. It is a batch report over two fixed windows: nothing is
-scheduled and nothing alerts. From `artifacts/evidently_summary_ulb_creditcard.json` and
-[`reports/evidently_ulb_creditcard.html`](https://aeripsen.github.io/ledgersentry/reports/evidently_ulb_creditcard.html) (open it in the browser):
-
-| | Reference | Current |
-|---|---|---|
-| PR-AUC (95% bootstrap CI, 1,000 resamples) | 0.7578 (0.6436 to 0.8701) | 0.7278 (0.6214 to 0.8232) |
-| Precision / recall at threshold 0.5 | 0.3559 / 0.8077 | 0.2917 / 0.8400 |
-| False-positive rate at 0.5 | 0.0017 | 0.0027 |
-
-Drift: Evidently flags 2 of 31 features (normed Wasserstein above 0.1): `hour_of_day` at 3.77
-and `f_V2` at 0.117, and its own dataset-drift test passes (share of drifted columns below 0.5).
-The repo's PSI on the same windows flags only `hour_of_day` (PSI 6.53).
-
-How to read it: `hour_of_day` drifting is the clock moving, not the data changing; two
-consecutive windows of one day cannot share hours, so a production monitor would compare
-against the same hours on an earlier day or exclude it. `f_V2` is the only candidate real
-signal and it is weak: 0.117 against a 0.1 threshold, while PSI puts it at 0.02, far under the
-0.10 watch band. The two measure different things (normed Wasserstein: how far the probability
-mass moves, in units of the reference's spread; PSI: the log-ratio of decile proportions), so
-disagreement at the margin is expected rather than a bug in either. The PR-AUC drop of 0.03
-cannot be pinned on drift, for two reasons. Each window's interval contains the other's point
-estimate (75 and 52 frauds). And the two windows are scored by different models, fit on
-80% and 100% of the training window, so the change mixes a model difference with a window
-difference. What it does show is that at the default threshold precision fell and the
-false-positive rate rose by about 60% while recall held, which is the kind of change a fraud
-desk would feel as review load.
-
-What CI checks. The `mlops` job downloads ULB from its public URL and checks the file's sha256,
-then:
-
-1. Runs the MLflow tests (`tests/test_mlflow_roundtrip.py`) against a throwaway SQLite store:
-   a training run on the synthetic fixture is logged, read back and its model reloaded; a model
-   that differs by 1e-15 stops the run; the LightGBM model is the only cloudpickle one; a
-   comparison batch is read back, and a store that disagrees with its report is caught.
-2. Runs `scripts/check_evidently_html.py` on the served page. The HTML carries random widget ids,
-   so it cannot be byte-diffed. The checker decodes the report data Evidently embeds in the page
-   and compares it with the summary: the column counters, the dataset-drift line, every
-   per-column drift row, and both windows' quality counters.
-3. Trains on ULB (exits non-zero if the reloaded model differs), runs `compare.py` and
-   `compare_boosters.py` (each exits non-zero if the store disagrees with its report), and
-   requires both comparison reports to equal the committed ones on every field except
-   `measured_at`, `fit_seconds` and the Python patch version (`scripts/same_json.py`).
-4. Rebuilds the Evidently report and runs the HTML checker on the regenerated page.
-5. Queries the store: one training run (skops, reloaded identically) and 8 + 3 comparison runs.
-6. `git diff --exit-code` on `metrics_ulb_creditcard.json`, the drift summary and the two MLflow
-   read-back files.
-
-It uploads `mlflow.db` and the HTML as a build artifact kept 30 days. The base test job also
-runs the HTML checker test, without Evidently installed.
-
-## The live demo, and what CI checks
-
-[aeripsen.github.io/ledgersentry](https://aeripsen.github.io/ledgersentry/) is a static page: an
-interactive counter over committed held-out scores. No server, and no model runs anywhere for it.
-It reads two committed files: `artifacts/demo_scores_ulb_creditcard.json` (one row per held-out
-transaction: raw score, label, Amount) and `artifacts/business_case_ulb_creditcard.json`
-(aggregates; the headline tiles and their intervals are read from it as committed).
-
-`pages.yml` deploys only after the whole `ci` workflow has passed on the same commit. Inside `ci`:
-
-- **Provenance** (`demo` job): fetch the sha256-checked public ULB file, retrain exactly as
-  `train.py` does, rebuild the export, and require `demo_scores_ulb_creditcard.json` back byte
-  for byte (`python scripts/demo_data.py --verify`; locally, step 3 of `make reproduce`).
-- **Consistency** (`tests/test_demo_data.py`): the committed rows rebuild the committed knob
-  table, the PR-AUC of 0.7278, and the business case's policies, 50-row sweep, bootstrap blocks
-  and generated sentences, using business.py's own functions. A missing artifact fails the test;
-  it does not skip.
-- **The page itself** (`site` job): `python scripts/check_site.py` serves the site as
-  `pages.yml` assembles it, loads it in headless Chromium, moves the knob to every committed
-  threshold (0.5 to 1.0) and checks the counts it shows against the committed table, checks the
-  split-cut mode against the same table at (t, 1 - t), checks the headline against the business
-  case, and fails on a JavaScript error or on horizontal scroll at a 390 px phone width.
-
-The split-cut mode works on raw scores, which rank but are not probabilities. ADR 008's decoupled
-cuts use calibrated scores for exactly that reason, and the page says so beside the toggle. The
-analyst-minutes box multiplies the review count by the viewer's own assumption; the repo measures
-counts only.
-
-## Deploy
-
-The serving image is self-contained: a build from a clean checkout has no model
-(the `.joblib` is gitignored), so the Docker build generates the deterministic
-synthetic-fixture model exactly as `scripts/train.py` does offline, and the API is
-green on first boot with zero data download. That also means every deploy result
-below served the **synthetic model**, not the ULB one: they test the serving path,
-not model quality. Full steps and captured output: [`DEPLOY.md`](DEPLOY.md).
-
-- **Kubernetes, run in CI** - [`deploy/k8s/base`](deploy/k8s/base): ConfigMap,
-  Deployment (liveness `/health`, readiness `/ready`, non-root, `maxUnavailable: 0`),
-  Service, CPU HPA and PodDisruptionBudget. [`.github/workflows/k8s.yml`](.github/workflows/k8s.yml)
-  deploys it to a kind cluster, checks the PodDisruptionBudget through the Eviction
-  API, load-tests it through the Service with k6, and runs a rolling restart under
-  load that fails CI on any failed request. Latest: 62,532 requests through a
-  rolling restart, 0 failed
-  ([`artifacts/k8s_kind_ledgersentry.json`](artifacts/k8s_kind_ledgersentry.json)).
-  The first run failed 4 of 114,308 on keep-alive connection resets; the fix is a
-  preStop drain ([`src/ledgersentry/drain.py`](src/ledgersentry/drain.py)). In a
-  24-run A/B on fresh runners, 9 of 12 rolling restarts without the drain failed
-  requests and 0 of 12 with it
-  ([`artifacts/k8s_drain_ab_ledgersentry.json`](artifacts/k8s_drain_ab_ledgersentry.json)).
-- **docker compose, run in CI** - the same workflow brings up `docker-compose.yml`
-  and smoke-tests the API and the dashboard. Its first run found the dashboard's
-  healthcheck probing the API's port; fixed.
-- **Terraform, applied in CI** - [`deploy/terraform/kubernetes`](deploy/terraform/kubernetes)
-  creates the same objects with the `hashicorp/kubernetes` provider. CI applies it
-  to kind, requires an empty second plan, diffs the live objects against the YAML,
-  and destroys ([`artifacts/terraform_kind_ledgersentry.json`](artifacts/terraform_kind_ledgersentry.json)).
-- **Terraform, GCP Cloud Run** - [`deploy/terraform/cloudrun`](deploy/terraform/cloudrun)
-  is `fmt`-checked and validated in CI, **never applied** (needs a GCP project with
-  billing).
-- **Render** - [`render.yaml`](render.yaml) is a one-click Blueprint, **not deployed**
-  (needs a Render account).
-
-All of it is a single-node kind cluster on a 4-vCPU GitHub runner under synthetic
-load (one fixed request body, served by the synthetic-fixture model), so the
-throughput figures in `DEPLOY.md` describe that runner, not a production service,
-and the HPA scaling 2 to 5 pods on one node shows the control loop working, not
-added capacity.
+Also: [model card](docs/model_card.md), [architecture](docs/architecture.md),
+[threat model](docs/threat_model.md), [decision records](docs/adr), [changelog](CHANGELOG.md).
 
 ## Data
 
-`src/ledgersentry/data.py` is dataset-agnostic: drop a real file in `data/` and
-`load()` uses it automatically instead of the synthetic fallback. No dataset is
-committed to or downloaded by this repo - fetching is a manual step. All four loaders
-are exercised in CI against tiny true-schema fixture CSVs (`tests/test_loaders.py`),
-so a loader regression turns CI red without shipping any real data.
+No dataset is committed to this repo. The headline uses the public ULB credit-card set
+(284,807 transactions, 492 fraud), one download with no login:
 
-| Source | Why | Drop it at | Get it from |
-|---|---|---|---|
-| **ULB Credit Card Fraud** | classic baseline, the real-data run above - 284,807 European transactions, 492 fraud | `data/creditcard.csv` | no login needed: `curl -o data/creditcard.csv https://storage.googleapis.com/download.tensorflow.org/data/creditcard.csv` (TensorFlow's hosted copy of the [Kaggle set](https://www.kaggle.com/mlg-ulb/creditcardfraud); verify 284,807 rows / 492 fraud after download) |
-| **Sparkov** (kartik2112, Kaggle) | streaming/real-time demo - has genuine timestamps, 1.85M simulated transactions, 1,000 customers x 800 merchants | `data/fraudTrain.csv` [+ `fraudTest.csv`] | [kaggle.com/datasets/kartik2112/fraud-detection](https://www.kaggle.com/datasets/kartik2112/fraud-detection) (Kaggle login) |
-| **IEEE-CIS Fraud Detection** (Vesta) | headline benchmark - 590,540 real e-commerce transactions, 393 features | `data/train_transaction.csv` [+ `train_identity.csv`] | [kaggle.com/c/ieee-fraud-detection](https://www.kaggle.com/c/ieee-fraud-detection) (Kaggle login) |
-| **Amazon `fraud-dataset-benchmark`** | comparability - a standardized multi-dataset benchmark harness | `data/fdb_train.csv` [+ `fdb_test.csv`] (export `obj.train.to_csv(...)` yourself; the package has no file-export of its own) | [github.com/amazon-science/fraud-dataset-benchmark](https://github.com/amazon-science/fraud-dataset-benchmark) |
-
-## Repository layout
-
-```
-src/ledgersentry/
-  config.py      pydantic-settings: env > yaml > defaults (defaults = the committed run)
-  data.py        canonical schema, LOADERS spec table, synthetic fixture, the split
-  registry.py    estimator factory: hist_gbdt (default) + shallow/deep variants +
-                 logreg baseline + optional lgbm; one register() call to add
-                 a classifier
-  model.py       FraudDetector + reject knob + curve / expected-cost math
-  velocity.py    rolling velocity/aggregate features (count/sum/mean over time
-                 windows, stream-level + per-entity); opt-in, not in the headline
-  compare.py     feature-set x boosting-config comparison on the same holdout,
-                 selected on an inner validation slice (ADR 009)
-  compare_boosters.py  LightGBM vs the incumbent through the same machinery;
-                 needs the optional install (requirements-analysis.txt)
-  shap_report.py exact TreeExplainer attribution on the shipped artifact;
-                 optional install, explains, never trains
-  cost.py        expected cost per review threshold on the calibrated knob,
-                 priced under illustrative cost triples
-  business.py    the knob in operations units (alerts / 10k, review load, fraud
-                 caught vs missed by count and Amount), three named policies,
-                 bootstrap CIs; counts only, checked against the metrics file
-  scoring.py     TransactionScorer protocol: CompiledScorer (serving) + PandasScorer
-                 (reference + benchmark baseline), pinned equal by tests
-  train.py       load -> split -> fit -> evaluate -> artifacts (+ drift reference)
-  calibration.py Platt/isotonic calibration pipeline, separate from train (ADR 006)
-  bootstrap.py   95% CIs on the headline (percentile bootstrap + a Wilson
-                 cross-check), its own pipeline for the same reason (ADR 007)
-  drift.py       per-feature PSI vs the training reference frozen in the artifact
-  bench.py       latency/throughput harness -> artifacts/benchmark.json
-  loadtest.py    HTTP load test under concurrent clients -> artifacts/loadtest_ab/, profiles/
-  service.py     FastAPI: /predict, /predict/batch, /drift, /health, /ready, /curve
-  stream.py      timestamp-ordered replay of the held-out test split
-dashboard/app.py Streamlit: review-threshold slider, live coverage/precision, feed
-scripts/         thin CLI entry points (train, stream, calibrate, bootstrap,
-                 compare, compare_boosters, shap_report, cost, bench, loadtest,
-                 verify_repro)
-tests/           determinism, split leakage, reject knob, all four loaders
-                 (true-schema fixtures), compiled-vs-reference scoring parity, latency
-                 regression guard, calibration monotonicity, bootstrap determinism +
-                 a hand-computed Wilson interval, velocity causality, paired-delta
-                 comparison, expected-cost accounting, drift, API behavior
-docs/
-  model_card.md    full measured results (real + synthetic, clearly separated) + limits
-  architecture.md  both pipelines, the three seams, the module map (mermaid)
-  threat_model.md  trust boundaries, the artifact-is-code rule, what deployment owns
-  adr/             the nine load-bearing decisions, rejected alternatives named
-artifacts/       committed, per-source: metrics_*.json, calibration_*.json,
-                 bootstrap_*.json, benchmark_*.json, comparison_*.json,
-                 shap_*.json (+ *.json = latest run);
-                 ledgersentry.joblib gitignored
-Makefile         install / test / lint / train / reproduce / bench / serve / dashboard
-Dockerfile / docker-compose.yml   one self-contained image, two services (api:8000,
-                 dashboard:8501); build generates the synthetic model if none baked in
-render.yaml      Render Blueprint: one-click Docker web-service deploy
-deploy/k8s/      base manifests, kind overlay, in-cluster k6 load test
-deploy/terraform/  kubernetes/ (applied to kind in CI), cloudrun/ (validated only)
-DEPLOY.md        exact steps and captured CI output for every target
+```bash
+curl -o data/creditcard.csv https://storage.googleapis.com/download.tensorflow.org/data/creditcard.csv
 ```
 
-## Roadmap
+`data.py` also loads Sparkov, IEEE-CIS and Amazon's fraud-dataset-benchmark when their files
+are dropped into `data/`; file names, sources and what each is for are in
+[Data sources](docs/DETAILS.md#data-sources). All four loaders are tested in CI against tiny
+true-schema fixtures, so a loader regression turns CI red without shipping any real data.
 
-**Offline baseline (done)**
-- [x] Dataset-agnostic loader: real sources when present, deterministic synthetic
-      fallback otherwise
-- [x] Leakage-safe grouped + approximately-temporal split, `entity_id` excluded from
-      features
-- [x] Baseline `FraudDetector` (HistGradientBoostingClassifier, balanced sample
-      weights), reject-to-review knob, coverage-vs-precision curve
-- [x] PR-AUC (not accuracy) reported against its own random-baseline for context
-- [x] Tests (determinism, no group leakage, PR-AUC range, reject-knob behavior) + CI
-      (ruff + mypy + pytest + synthetic train/calibrate/bench smoke runs)
+## Money boundary
 
-**Streaming demo + dashboard (done)**
-- [x] `/predict` FastAPI endpoint: score a transaction, review threshold as a request
-      parameter; expected columns read off the fitted preprocessor, not hardcoded to
-      the synthetic schema
-- [x] Replay the held-out test split in timestamp order -> scorer -> live feed, with
-      measured latency (replays whatever source is in data/ - ULB here - and labels
-      it honestly)
-- [x] Dashboard with the review-threshold knob as a live slider (coverage vs precision,
-      live)
-- [x] Dockerfile + docker-compose, plus deploy targets: Kubernetes manifests
-      (`deploy/k8s/`) deployed to kind in CI with a load test and a rolling restart
-      under load, a Terraform kubernetes module applied to kind in CI, a Cloud Run
-      Terraform module (validated only) and a Render Blueprint (not deployed)
-
-**Real-data run (ULB done)**
-- [x] Train and report on real data: ULB credit-card fraud, 284,807 transactions,
-      temporal holdout, PR-AUC 0.7278 - reported beside the synthetic-fixture
-      numbers, never silently swapped in for them
-- [x] CI tests for all four real-dataset loaders (tiny true-schema fixtures in
-      `tests/fixtures/`), including a regression test for the FDB amount-column
-      mapping
-
-**Hardening**
-- [x] Confidence calibration: Platt scaling fit on a temporally-later train-only
-      slice; Brier 0.002188 -> 0.000516 on the untouched test fold, ranking
-      untouched. Isotonic measured beside it and rejected for damaging PR-AUC
-      (ties). Full numbers + the expected-cost tie-in: `docs/model_card.md`
-- [x] Committed latency/throughput benchmark with a regression guard (above)
-- [x] HTTP load test stepped to saturation (`make loadtest`, both A/B arms), which found
-      OpenMP oversubscription on the request path, fixed in the Dockerfile (above), and
-      measured on the real image on a GitHub-hosted Linux runner (`loadtest-linux`
-      workflow). CI runs a short smoke of the harness against a real server. Open: the
-      batch endpoint's DataFrame build, and any in-cluster measurement of the change
-- [x] Drift monitoring: per-feature PSI against a training reference frozen into
-      the artifact, served at `POST /drift` (marginals + null-spikes; honest
-      about what it cannot see - `src/ledgersentry/drift.py`)
-- [x] MLflow tracking of every train/compare run, read back and checked against what was
-      logged, and an Evidently drift + performance report over two time windows of the real
-      split, all run on ULB in CI (see "Experiment tracking")
-- [ ] Model registry: serve by a champion alias and promote on the paired-bootstrap rule. Not
-      done, and the rule matters: `comparison_boosters_ulb_creditcard.json` shows `lgbm_slow`
-      beating the shipped model with a paired interval that excludes zero, so an automated
-      gate would promote a model the service does not ship today
-- [x] Threat model: trust boundaries, the artifact-is-code rule, what is
-      deliberately left to deployment - `docs/threat_model.md`
-- [x] 95% confidence intervals on the headline: seeded percentile bootstrap plus
-      an independent Wilson cross-check on recall, published beside the point
-      estimate rather than in a footnote. PR-AUC [0.6214, 0.8232], recall
-      [0.75, 0.9167] - `docs/adr/007-bootstrap-confidence-intervals.md`
-- [x] Reject knob with its two cuts decoupled: explicit `(flag_at, clear_at)`
-      operating points beside the symmetric sweep, which one threshold could not
-      express. Measured payoff on ULB: same 58 flags at the same 87.93%
-      precision as symmetric t=0.5, with auto-cleared frauds cut from 24 to 15 -
-      `docs/adr/008-decoupled-reject-knob.md`
-- [x] Velocity / aggregate features (`velocity.py`): rolling count/sum/mean of
-      amount over 1min/5min/1h/24h plus the inter-transaction gap, stream-level
-      and per-entity. Compared against the base set across four boosting configs
-      on the same holdout, selected on an inner validation slice
-      (`python scripts/compare.py` -> `artifacts/comparison_ulb_creditcard.json`).
-      Result on ULB is negative and kept: velocity **hurt** the default config
-      (paired delta -0.0119 PR-AUC, 95% CI [-0.0251, -0.0001]), because ULB has no
-      card id so the per-entity family degenerates and the V1..V28 components
-      already carry the stream-level signal. The headline stays base-features-only.
-- [x] Expected cost curve committed (`python scripts/cost.py` ->
-      `artifacts/expected_cost_curve_ulb_creditcard.json`): expected dollar cost
-      per review threshold on the calibrated knob, priced under three illustrative
-      cost triples so the optimum's dependence on the assumptions is visible.
-      Turns the previously-deleted, unsourced cost figures into a reproducible
-      artifact. Costs stay required arguments with no defaults.
-- [x] Booster head-to-head: LightGBM through the same comparison machinery
-      (`scripts/compare_boosters.py` ->
-      `artifacts/comparison_boosters_ulb_creditcard.json`). Validation-selected
-      `lgbm_slow` beats the incumbent, paired delta +0.0804 PR-AUC, 95% CI
-      [0.0239, 0.1379]; the headline model is deliberately NOT swapped - see
-      "Continuing work" above for why
-- [x] Global SHAP attribution on the shipped artifact
-      (`scripts/shap_report.py` -> `artifacts/shap_ulb_creditcard.json` + PNG):
-      exact TreeExplainer over the full test fold, additivity pinned, global and
-      fraud-rows-only top-15 rankings committed
-
-**Open (honest gaps)**
-- [ ] Sparkov full run (the streaming story) and IEEE-CIS full run (the headline
-      benchmark) - both Kaggle-gated downloads
-- [ ] Public hosted instance: the image is built and deployed to kind on every
-      deploy change in CI, but nothing is hosted publicly. Cloud Run needs a GCP
-      project with billing and Render needs an account; a clean build would also
-      serve the synthetic model, not the ULB one
-- [ ] Rolling-origin (multi-fold temporal) evaluation - the committed bootstrap
-      captures sampling noise only, so fold-choice variance is still unmeasured
-      and the committed numbers are one fold
-- [ ] Serve the decoupled knob: the `(flag_at, clear_at)` curve is measured and
-      committed (below), but `/predict` still takes a single `review_threshold`,
-      so those operating points are reportable and not yet servable. Same seam as
-      shipping the Platt map inside the artifact
-- [ ] Per-decision explainability at serving time: global SHAP attribution is
-      committed (above), but `/predict` still returns no reason codes, and for
-      fraud that is the part regulators actually ask for. Needs per-row SHAP on
-      the request path and a latency re-measure against the 10 ms budget
-- [ ] Act on the booster result: `lgbm_slow` beat the shipped config with an
-      interval excluding zero, so either the headline migrates to LightGBM (a
-      full retrain + re-commit of every artifact and a serving-dependency
-      decision) or the gap gets a written justification for staying
-- [ ] Commit the `logreg` baseline's numbers: it is registered and tested, so the
-      model choice is currently asserted rather than shown
+This is fraud-**detection** software and research only. No trading, no moving money, no
+personalized financial advice, anywhere in this repo.
 
 ## Attribution
 
@@ -904,9 +230,14 @@ DEPLOY.md        exact steps and captured CI output for every target
   option, from my accepted SECRYPT 2026 paper on hierarchical UDP/QUIC intrusion
   detection, retargeted here from network flows to financial transactions.
 - Sparkov, IEEE-CIS, the Amazon `fraud-dataset-benchmark`, and the ULB credit-card set
-  are public/synthetic datasets from their respective authors - see the Data table
-  above for sources. None are bundled in this repo.
+  are public/synthetic datasets from their respective authors - see
+  [Data sources](docs/DETAILS.md#data-sources). None are bundled in this repo.
 - Built with scikit-learn, pandas, and joblib.
+
+## Citing
+
+[`CITATION.cff`](CITATION.cff) holds the citation; GitHub's "Cite this repository" button
+reads it.
 
 ## License
 
