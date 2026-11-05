@@ -156,9 +156,10 @@ correct shape here.
 noise only: how much the number would move if those 7.6 hours had held a slightly
 different draw of transactions. They say nothing about **fold-choice variance** -
 pick a different temporal cut and the answer can move further than these bounds
-suggest. Rolling-origin evaluation across multiple folds is what measures that,
-and it is an open gap on the roadmap, not something a bootstrap can substitute
-for. They also resample rows **independently**, which assumes exchangeability;
+suggest. Rolling-origin validation across four folds now measures that (see
+"Rolling-origin validation" below): PR-AUC held, several operating-point numbers
+did not. The bootstrap artifact's own `limitations` field still calls it an open
+gap: that file is a committed headline artifact and this change leaves it as is. They also resample rows **independently**, which assumes exchangeability;
 fraud is bursty and campaign-driven, so real positives are time-correlated and
 these widths are best read as a **floor** on the uncertainty rather than the whole
 of it. Both caveats are committed in the artifact's own `limitations` field.
@@ -541,6 +542,87 @@ points. On ULB the top features are anonymized PCA components, so this is
 proof of method and of what the model keys on - not reason codes a human could
 act on (limitation 9).
 
+## Rolling-origin validation (measured 2026-11-05)
+
+Source of truth: `artifacts/rolling_origin_ulb_creditcard.json`
+(`make rolling`, `src/ledgersentry/rolling.py`). A separate analysis: no number
+above changes, and `make reproduce` does not run it.
+
+**Scheme.** Four expanding-window folds on ULB, never shuffled. Each cut is a
+timestamp: the point where `temporal_grouped_split`'s row budget (20, 40, 60, 80%
+of rows) runs out. Train = every transaction before the cut; test = every
+transaction from that cut to the next one (the last fold runs to the end of the
+data). ULB has one row per entity, so no entity and no second crosses a cut; the
+60% cut falls inside a second shared by 6 rows and all 6 go to the test side.
+Every test window kept at least 30 frauds, so no window was merged.
+
+| Fold | Train | Test window, ULB `Time` (s) | Test rows | Test frauds |
+|---|---|---|---|---|
+| 1 | 56,962 rows, 157 fraud | 47,695 to 73,261 (7.1 h) | 56,961 | 84 |
+| 2 | 113,923 rows, 241 fraud | 73,262 to 120,395 (13.1 h) | 56,959 | 119 |
+| 3 | 170,882 rows, 360 fraud | 120,396 to 145,248 (6.9 h) | 56,964 | 57 |
+| 4 | 227,846 rows, 417 fraud | 145,249 to 172,792 (7.65 h) | 56,961 | 75 |
+
+Fold 4 is the headline split. The script refuses to write unless that fold
+reproduces the committed PR-AUC (0.7278), its bootstrap interval
+([0.6214, 0.8232]), recall at 0.5 (0.84) and the fold sizes.
+
+**Calibration split, stated plainly.** Per fold, a second model is fit on the
+train rows before an inner cut at 80% of the train window, the Platt map is fit
+on the train rows from that inner cut up to the fold's cut, and calibration error
+is measured on the test window. The Platt slice is strictly before the test
+window and was not used to fit its model. On fold 4 this is the split
+`calibration.py` uses except at one second: the committed split puts 1 of the 5
+rows sharing 10:48:51 on the fit side and 4 on the calibration side, and this
+analysis puts all 5 on the calibration side. Platt test Brier is 0.000513 here
+against the committed 0.000516.
+
+**Results.** Raw scores; PR-AUC and ECE intervals are a 1000-resample percentile
+bootstrap, proportions use Wilson 95%.
+
+| | Fold 1 | Fold 2 | Fold 3 | Fold 4 | Pooled (335 frauds) |
+|---|---|---|---|---|---|
+| PR-AUC | 0.780 [0.693, 0.864] | 0.769 [0.684, 0.848] | 0.755 [0.630, 0.858] | 0.728 [0.621, 0.823] | 0.754 [0.709, 0.798] |
+| No-skill baseline | 0.0015 | 0.0021 | 0.0010 | 0.0013 | 0.0015 |
+| Recall at 0.5 | 0.738 [0.635, 0.820] | 0.832 [0.755, 0.889] | 0.789 [0.667, 0.875] | 0.840 [0.741, 0.906] | 0.803 [0.757, 0.842] |
+| Precision at 0.5 | 0.925 | 0.593 | 0.417 | 0.292 | 0.482 [0.441, 0.524] |
+| False alerts / 10k at 0.5 | 0.88 | 11.94 | 11.06 | 26.86 | 12.68 [11.30, 14.23] |
+| Recall at 0.95 | 0.679 [0.573, 0.769] | 0.807 [0.727, 0.868] | 0.719 [0.592, 0.819] | 0.707 [0.596, 0.798] | 0.737 [0.688, 0.782] |
+| Precision at 0.95 | 1.000 | 0.807 | 0.911 | 0.898 | 0.882 [0.839, 0.915] |
+| False alerts / 10k at 0.95 | 0.00 | 4.04 | 0.70 | 1.05 | 1.45 [1.03, 2.03] |
+| Review band 0.95, queue / 10k | 3.5 | 157.3 | 471.7 | 709.1 | 335.4 |
+| Platt: expected vs observed frauds | 107.3 vs 84 | 193.6 vs 119 | 77.3 vs 57 | 66.4 vs 75 | 444.6 vs 335 |
+| Platt ECE (10 equal-count bins) | 0.00043 | 0.00141 | 0.00047 | 0.00027 | 0.00051 [0.00042, 0.00062] |
+
+Per-fold intervals for every cell are in the artifact; the README section
+"Rolling-origin validation" carries the full table.
+
+**What changed from the single-fold story.**
+- Held: ranking. PR-AUC is 0.73 to 0.78 per fold, at least 368x its baseline, and
+  the headline fold is the lowest of the four. Recall at 0.5 stays 0.74 to 0.84,
+  precision at 0.95 stays 0.81 to 1.00, and Platt beats raw and constant
+  predictions on Brier in every fold.
+- Did not hold: the 96% false-alert cut from 0.5 to 0.95 (per fold 100% on 5
+  alerts, 66%, 94%, 96%; fold 2 is outside the headline's 93% to 99% interval);
+  precision at 0.5 (0.93 down to 0.29); the review band's load (3.5 to 709 per
+  10,000) and payoff (frauds cleared unseen 22 to 20 and 20 to 15 in folds 1 and
+  2, against 12 to 6 in folds 3 and 4).
+- Did not hold: the Platt scale. It over-predicts fraud in folds 1 to 3 and
+  pooled (445 expected vs 335 observed); only the headline fold under-predicts.
+  Fold 2's ECE is about two thirds of that window's fraud rate. Read calibrated
+  probabilities as approximate and more often too high than too low.
+
+**Limits that remain.** Four folds sharing most of their training data do not
+estimate fold-choice variance with any precision. All per-fold PR-AUC intervals
+overlap, so 0.78, 0.77, 0.75, 0.73 is not a demonstrated trend. All folds are
+inside ULB's 48 hours: this is variation within two days, not drift over weeks.
+Windows are equal in rows, not in hours (fold 2 spans 13.1 h, including the
+overnight low-volume stretch). Fold 1 trains on 13.25 hours and its Platt map was
+fit on 15 frauds. The 0.95 threshold was read off fold 4's curve, so folds 1 to 3
+are its first out-of-sample test. The intervals resample rows independently and
+are a floor on the uncertainty. The pooled PR-AUC ranks scores from four
+different models together; the per-fold values are the cleaner read.
+
 ## Limitations (honest)
 
 1. **One real dataset so far.** The real-data results above are ULB only. Sparkov,
@@ -560,8 +642,10 @@ act on (limitation 9).
    because they are what the artifact says. The synthetic fixture is worse again
    (1,581 rows / 15 fraud, PR-AUC CI [0.5889, 0.9361]), which is one more reason
    it is a pipeline proof and not a result. And a bootstrap on a single fold
-   captures sampling noise only, never fold-choice variance: rolling-origin
-   evaluation across multiple temporal folds is the real fix and is an open gap.
+   captures sampling noise only, never fold-choice variance. Rolling-origin
+   validation over four temporal folds (section above) measures it: PR-AUC moves
+   0.73 to 0.78, while the false-alert cut, the review load and the Platt scale
+   move much more. All four folds sit inside ULB's 48 hours.
 4. **The headline model's own confidence is uncalibrated.** The raw table above
    is in uncalibrated units (hence the 0.99 cliff). Calibration is built,
    measured, and shipped as a separate pipeline (see "Calibration" above) rather

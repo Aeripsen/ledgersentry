@@ -1,0 +1,716 @@
+{
+  "data_source": "ulb_creditcard",
+  "is_synthetic": false,
+  "model": "hist_gbdt",
+  "scheme": "rolling origin, expanding window",
+  "train_fractions": [
+    0.2,
+    0.4,
+    0.6,
+    0.8
+  ],
+  "min_test_fraud": 30,
+  "calibration_size": 0.2,
+  "thresholds": [
+    0.5,
+    0.95
+  ],
+  "threshold_rule": "flag when raw P(fraud) >= threshold. At 0.95 the review_band block is the symmetric knob: flag at >= 0.95, review between 0.05 and 0.95, clear at <= 0.05.",
+  "intervals": {
+    "pr_auc_and_ece": "percentile bootstrap, 1000 resamples, seed 42, rows resampled within each test window; pooled resamples within each window and concatenates",
+    "recall_precision_false_alerts": "Wilson score interval, 95%",
+    "caveat": "Both treat rows as exchangeable. Fraud arrives in bursts, so these intervals are a floor on the uncertainty."
+  },
+  "ece_definition": "10 equal-count bins of the sorted calibrated scores; sum over bins of |sum(p) - sum(y)| divided by the number of rows",
+  "folds": [
+    {
+      "fold": 1,
+      "merged_windows": 1,
+      "train": {
+        "first_seen_before": {
+          "timestamp": "2013-01-01 13:14:55",
+          "seconds_since_origin": 47695,
+          "hours_since_origin": 13.25
+        },
+        "n_rows": 56962,
+        "n_fraud": 157,
+        "last_timestamp": "2013-01-01 13:14:54"
+      },
+      "test": {
+        "first_seen_from": {
+          "timestamp": "2013-01-01 13:14:55",
+          "seconds_since_origin": 47695,
+          "hours_since_origin": 13.25
+        },
+        "first_seen_before": {
+          "timestamp": "2013-01-01 20:21:02",
+          "seconds_since_origin": 73262,
+          "hours_since_origin": 20.35
+        },
+        "n_rows": 56961,
+        "n_fraud": 84,
+        "first_timestamp": "2013-01-01 13:14:55",
+        "last_timestamp": "2013-01-01 20:21:01",
+        "hours_spanned": 7.1
+      },
+      "entities_straddling_cut": 0,
+      "no_skill_baseline": 0.001475,
+      "thresholds": [
+        {
+          "threshold": 0.5,
+          "n_flagged": 67,
+          "frauds_flagged": 62,
+          "false_alerts": 5,
+          "recall": {
+            "successes": 62,
+            "trials": 84,
+            "value": 0.7381,
+            "ci_lower": 0.6352,
+            "ci_upper": 0.8202
+          },
+          "precision": {
+            "successes": 62,
+            "trials": 67,
+            "value": 0.9254,
+            "ci_lower": 0.8369,
+            "ci_upper": 0.9677
+          },
+          "false_alerts_per_10k": {
+            "value": 0.88,
+            "ci_lower": 0.37,
+            "ci_upper": 2.05
+          },
+          "review_band": {
+            "sent_to_review": 0,
+            "frauds_in_review": 0,
+            "frauds_cleared_unseen": 22,
+            "review_per_10k": 0.0
+          }
+        },
+        {
+          "threshold": 0.95,
+          "n_flagged": 57,
+          "frauds_flagged": 57,
+          "false_alerts": 0,
+          "recall": {
+            "successes": 57,
+            "trials": 84,
+            "value": 0.6786,
+            "ci_lower": 0.5728,
+            "ci_upper": 0.7687
+          },
+          "precision": {
+            "successes": 57,
+            "trials": 57,
+            "value": 1.0,
+            "ci_lower": 0.9369,
+            "ci_upper": 1.0
+          },
+          "false_alerts_per_10k": {
+            "value": 0.0,
+            "ci_lower": 0.0,
+            "ci_upper": 0.67
+          },
+          "review_band": {
+            "sent_to_review": 20,
+            "frauds_in_review": 7,
+            "frauds_cleared_unseen": 20,
+            "review_per_10k": 3.5
+          }
+        }
+      ],
+      "calibration": {
+        "split": "calibration model fit on train rows first seen before 2013-01-01 11:46:47; Platt map fit on the remaining train rows (first seen from 2013-01-01 11:46:47 to 2013-01-01 13:14:55); measured on this test window, which neither saw",
+        "fit_slice": {
+          "n_rows": 45570,
+          "n_fraud": 142
+        },
+        "calibration_slice": {
+          "first_seen_from": {
+            "timestamp": "2013-01-01 11:46:47",
+            "seconds_since_origin": 42407,
+            "hours_since_origin": 11.78
+          },
+          "n_rows": 11392,
+          "n_fraud": 15
+        },
+        "platt_map": {
+          "a": 1.994404,
+          "b": -0.622717
+        },
+        "ece_raw": 0.032676,
+        "brier": {
+          "raw": 0.001613,
+          "platt": 0.000487,
+          "constant_cal_slice_rate": 0.001473
+        },
+        "expected_frauds_platt": 107.3,
+        "observed_frauds": 84,
+        "ece_platt": {
+          "value": 0.00043,
+          "ci_lower": 0.00029,
+          "ci_upper": 0.000613
+        }
+      },
+      "pr_auc": {
+        "value": 0.7803,
+        "ci_lower": 0.6931,
+        "ci_upper": 0.8635,
+        "ci_width": 0.1705,
+        "lift_over_no_skill": 529.0,
+        "ci_lower_lift": 469.9
+      },
+      "n_degenerate_resamples": 0
+    },
+    {
+      "fold": 2,
+      "merged_windows": 1,
+      "train": {
+        "first_seen_before": {
+          "timestamp": "2013-01-01 20:21:02",
+          "seconds_since_origin": 73262,
+          "hours_since_origin": 20.35
+        },
+        "n_rows": 113923,
+        "n_fraud": 241,
+        "last_timestamp": "2013-01-01 20:21:01"
+      },
+      "test": {
+        "first_seen_from": {
+          "timestamp": "2013-01-01 20:21:02",
+          "seconds_since_origin": 73262,
+          "hours_since_origin": 20.35
+        },
+        "first_seen_before": {
+          "timestamp": "2013-01-02 09:26:36",
+          "seconds_since_origin": 120396,
+          "hours_since_origin": 33.44
+        },
+        "n_rows": 56959,
+        "n_fraud": 119,
+        "first_timestamp": "2013-01-01 20:21:02",
+        "last_timestamp": "2013-01-02 09:26:35",
+        "hours_spanned": 13.09
+      },
+      "entities_straddling_cut": 0,
+      "no_skill_baseline": 0.002089,
+      "thresholds": [
+        {
+          "threshold": 0.5,
+          "n_flagged": 167,
+          "frauds_flagged": 99,
+          "false_alerts": 68,
+          "recall": {
+            "successes": 99,
+            "trials": 119,
+            "value": 0.8319,
+            "ci_lower": 0.7546,
+            "ci_upper": 0.8885
+          },
+          "precision": {
+            "successes": 99,
+            "trials": 167,
+            "value": 0.5928,
+            "ci_lower": 0.517,
+            "ci_upper": 0.6644
+          },
+          "false_alerts_per_10k": {
+            "value": 11.94,
+            "ci_lower": 9.42,
+            "ci_upper": 15.13
+          },
+          "review_band": {
+            "sent_to_review": 0,
+            "frauds_in_review": 0,
+            "frauds_cleared_unseen": 20,
+            "review_per_10k": 0.0
+          }
+        },
+        {
+          "threshold": 0.95,
+          "n_flagged": 119,
+          "frauds_flagged": 96,
+          "false_alerts": 23,
+          "recall": {
+            "successes": 96,
+            "trials": 119,
+            "value": 0.8067,
+            "ci_lower": 0.7266,
+            "ci_upper": 0.8676
+          },
+          "precision": {
+            "successes": 96,
+            "trials": 119,
+            "value": 0.8067,
+            "ci_lower": 0.7266,
+            "ci_upper": 0.8676
+          },
+          "false_alerts_per_10k": {
+            "value": 4.04,
+            "ci_lower": 2.69,
+            "ci_upper": 6.06
+          },
+          "review_band": {
+            "sent_to_review": 896,
+            "frauds_in_review": 8,
+            "frauds_cleared_unseen": 15,
+            "review_per_10k": 157.3
+          }
+        }
+      ],
+      "calibration": {
+        "split": "calibration model fit on train rows first seen before 2013-01-01 17:35:28; Platt map fit on the remaining train rows (first seen from 2013-01-01 17:35:28 to 2013-01-01 20:21:02); measured on this test window, which neither saw",
+        "fit_slice": {
+          "n_rows": 91135,
+          "n_fraud": 211
+        },
+        "calibration_slice": {
+          "first_seen_from": {
+            "timestamp": "2013-01-01 17:35:28",
+            "seconds_since_origin": 63328,
+            "hours_since_origin": 17.59
+          },
+          "n_rows": 22788,
+          "n_fraud": 30
+        },
+        "platt_map": {
+          "a": 2.278487,
+          "b": -0.886759
+        },
+        "ece_raw": 0.047033,
+        "brier": {
+          "raw": 0.003765,
+          "platt": 0.001246,
+          "constant_cal_slice_rate": 0.002085
+        },
+        "expected_frauds_platt": 193.6,
+        "observed_frauds": 119,
+        "ece_platt": {
+          "value": 0.001411,
+          "ci_lower": 0.001108,
+          "ci_upper": 0.001682
+        }
+      },
+      "pr_auc": {
+        "value": 0.769,
+        "ci_lower": 0.6839,
+        "ci_upper": 0.8475,
+        "ci_width": 0.1636,
+        "lift_over_no_skill": 368.1,
+        "ci_lower_lift": 327.4
+      },
+      "n_degenerate_resamples": 0
+    },
+    {
+      "fold": 3,
+      "merged_windows": 1,
+      "train": {
+        "first_seen_before": {
+          "timestamp": "2013-01-02 09:26:36",
+          "seconds_since_origin": 120396,
+          "hours_since_origin": 33.44
+        },
+        "n_rows": 170882,
+        "n_fraud": 360,
+        "last_timestamp": "2013-01-02 09:26:35"
+      },
+      "test": {
+        "first_seen_from": {
+          "timestamp": "2013-01-02 09:26:36",
+          "seconds_since_origin": 120396,
+          "hours_since_origin": 33.44
+        },
+        "first_seen_before": {
+          "timestamp": "2013-01-02 16:20:49",
+          "seconds_since_origin": 145249,
+          "hours_since_origin": 40.35
+        },
+        "n_rows": 56964,
+        "n_fraud": 57,
+        "first_timestamp": "2013-01-02 09:26:36",
+        "last_timestamp": "2013-01-02 16:20:48",
+        "hours_spanned": 6.9
+      },
+      "entities_straddling_cut": 0,
+      "no_skill_baseline": 0.001001,
+      "thresholds": [
+        {
+          "threshold": 0.5,
+          "n_flagged": 108,
+          "frauds_flagged": 45,
+          "false_alerts": 63,
+          "recall": {
+            "successes": 45,
+            "trials": 57,
+            "value": 0.7895,
+            "ci_lower": 0.6671,
+            "ci_upper": 0.8753
+          },
+          "precision": {
+            "successes": 45,
+            "trials": 108,
+            "value": 0.4167,
+            "ci_lower": 0.3281,
+            "ci_upper": 0.5109
+          },
+          "false_alerts_per_10k": {
+            "value": 11.06,
+            "ci_lower": 8.65,
+            "ci_upper": 14.15
+          },
+          "review_band": {
+            "sent_to_review": 0,
+            "frauds_in_review": 0,
+            "frauds_cleared_unseen": 12,
+            "review_per_10k": 0.0
+          }
+        },
+        {
+          "threshold": 0.95,
+          "n_flagged": 45,
+          "frauds_flagged": 41,
+          "false_alerts": 4,
+          "recall": {
+            "successes": 41,
+            "trials": 57,
+            "value": 0.7193,
+            "ci_lower": 0.5917,
+            "ci_upper": 0.8192
+          },
+          "precision": {
+            "successes": 41,
+            "trials": 45,
+            "value": 0.9111,
+            "ci_lower": 0.7927,
+            "ci_upper": 0.9649
+          },
+          "false_alerts_per_10k": {
+            "value": 0.7,
+            "ci_lower": 0.27,
+            "ci_upper": 1.81
+          },
+          "review_band": {
+            "sent_to_review": 2687,
+            "frauds_in_review": 10,
+            "frauds_cleared_unseen": 6,
+            "review_per_10k": 471.7
+          }
+        }
+      ],
+      "calibration": {
+        "split": "calibration model fit on train rows first seen before 2013-01-01 22:43:49; Platt map fit on the remaining train rows (first seen from 2013-01-01 22:43:49 to 2013-01-02 09:26:36); measured on this test window, which neither saw",
+        "fit_slice": {
+          "n_rows": 136705,
+          "n_fraud": 263
+        },
+        "calibration_slice": {
+          "first_seen_from": {
+            "timestamp": "2013-01-01 22:43:49",
+            "seconds_since_origin": 81829,
+            "hours_since_origin": 22.73
+          },
+          "n_rows": 34177,
+          "n_fraud": 97
+        },
+        "platt_map": {
+          "a": 1.625506,
+          "b": -3.835677
+        },
+        "ece_raw": 0.0555,
+        "brier": {
+          "raw": 0.006582,
+          "platt": 0.000443,
+          "constant_cal_slice_rate": 0.001003
+        },
+        "expected_frauds_platt": 77.3,
+        "observed_frauds": 57,
+        "ece_platt": {
+          "value": 0.000474,
+          "ci_lower": 0.000329,
+          "ci_upper": 0.00066
+        }
+      },
+      "pr_auc": {
+        "value": 0.7547,
+        "ci_lower": 0.6296,
+        "ci_upper": 0.8575,
+        "ci_width": 0.2278,
+        "lift_over_no_skill": 753.9,
+        "ci_lower_lift": 629.0
+      },
+      "n_degenerate_resamples": 0
+    },
+    {
+      "fold": 4,
+      "merged_windows": 1,
+      "train": {
+        "first_seen_before": {
+          "timestamp": "2013-01-02 16:20:49",
+          "seconds_since_origin": 145249,
+          "hours_since_origin": 40.35
+        },
+        "n_rows": 227846,
+        "n_fraud": 417,
+        "last_timestamp": "2013-01-02 16:20:48"
+      },
+      "test": {
+        "first_seen_from": {
+          "timestamp": "2013-01-02 16:20:49",
+          "seconds_since_origin": 145249,
+          "hours_since_origin": 40.35
+        },
+        "first_seen_before": null,
+        "n_rows": 56961,
+        "n_fraud": 75,
+        "first_timestamp": "2013-01-02 16:20:49",
+        "last_timestamp": "2013-01-02 23:59:52",
+        "hours_spanned": 7.65
+      },
+      "entities_straddling_cut": 0,
+      "no_skill_baseline": 0.001317,
+      "thresholds": [
+        {
+          "threshold": 0.5,
+          "n_flagged": 216,
+          "frauds_flagged": 63,
+          "false_alerts": 153,
+          "recall": {
+            "successes": 63,
+            "trials": 75,
+            "value": 0.84,
+            "ci_lower": 0.7408,
+            "ci_upper": 0.906
+          },
+          "precision": {
+            "successes": 63,
+            "trials": 216,
+            "value": 0.2917,
+            "ci_lower": 0.2351,
+            "ci_upper": 0.3555
+          },
+          "false_alerts_per_10k": {
+            "value": 26.86,
+            "ci_lower": 22.93,
+            "ci_upper": 31.46
+          },
+          "review_band": {
+            "sent_to_review": 0,
+            "frauds_in_review": 0,
+            "frauds_cleared_unseen": 12,
+            "review_per_10k": 0.0
+          }
+        },
+        {
+          "threshold": 0.95,
+          "n_flagged": 59,
+          "frauds_flagged": 53,
+          "false_alerts": 6,
+          "recall": {
+            "successes": 53,
+            "trials": 75,
+            "value": 0.7067,
+            "ci_lower": 0.5956,
+            "ci_upper": 0.7976
+          },
+          "precision": {
+            "successes": 53,
+            "trials": 59,
+            "value": 0.8983,
+            "ci_lower": 0.7954,
+            "ci_upper": 0.9526
+          },
+          "false_alerts_per_10k": {
+            "value": 1.05,
+            "ci_lower": 0.48,
+            "ci_upper": 2.3
+          },
+          "review_band": {
+            "sent_to_review": 4039,
+            "frauds_in_review": 16,
+            "frauds_cleared_unseen": 6,
+            "review_per_10k": 709.1
+          }
+        }
+      ],
+      "calibration": {
+        "split": "calibration model fit on train rows first seen before 2013-01-02 10:48:51; Platt map fit on the remaining train rows (first seen from 2013-01-02 10:48:51 to 2013-01-02 16:20:49); measured on this test window, which neither saw",
+        "fit_slice": {
+          "n_rows": 182276,
+          "n_fraud": 365
+        },
+        "calibration_slice": {
+          "first_seen_from": {
+            "timestamp": "2013-01-02 10:48:51",
+            "seconds_since_origin": 125331,
+            "hours_since_origin": 34.81
+          },
+          "n_rows": 45570,
+          "n_fraud": 52
+        },
+        "platt_map": {
+          "a": 1.3034,
+          "b": -3.810298
+        },
+        "ece_raw": 0.02101,
+        "brier": {
+          "raw": 0.002012,
+          "platt": 0.000513,
+          "constant_cal_slice_rate": 0.001315
+        },
+        "expected_frauds_platt": 66.4,
+        "observed_frauds": 75,
+        "ece_platt": {
+          "value": 0.000273,
+          "ci_lower": 0.000132,
+          "ci_upper": 0.000469
+        }
+      },
+      "pr_auc": {
+        "value": 0.7278,
+        "ci_lower": 0.6214,
+        "ci_upper": 0.8232,
+        "ci_width": 0.2018,
+        "lift_over_no_skill": 552.6,
+        "ci_lower_lift": 471.8
+      },
+      "n_degenerate_resamples": 0
+    }
+  ],
+  "pooled": {
+    "n_rows": 227845,
+    "n_fraud": 335,
+    "no_skill_baseline": 0.00147,
+    "pr_auc": {
+      "value": 0.7541,
+      "ci_lower": 0.7088,
+      "ci_upper": 0.7978,
+      "ci_width": 0.089,
+      "lift_over_no_skill": 512.9
+    },
+    "pr_auc_note": "PR-AUC over the concatenated test windows. Each window is scored by its own fold's model, so this ranks scores from different models against each other; the per-fold values and their spread are the cleaner read.",
+    "pr_auc_across_folds": {
+      "min": 0.7278,
+      "max": 0.7803,
+      "mean": 0.758
+    },
+    "thresholds": [
+      {
+        "threshold": 0.5,
+        "n_flagged": 558,
+        "frauds_flagged": 269,
+        "false_alerts": 289,
+        "recall": {
+          "successes": 269,
+          "trials": 335,
+          "value": 0.803,
+          "ci_lower": 0.7571,
+          "ci_upper": 0.842
+        },
+        "precision": {
+          "successes": 269,
+          "trials": 558,
+          "value": 0.4821,
+          "ci_lower": 0.4409,
+          "ci_upper": 0.5235
+        },
+        "false_alerts_per_10k": {
+          "value": 12.68,
+          "ci_lower": 11.3,
+          "ci_upper": 14.23
+        },
+        "review_band": {
+          "sent_to_review": 0,
+          "frauds_in_review": 0,
+          "frauds_cleared_unseen": 66,
+          "review_per_10k": 0.0
+        }
+      },
+      {
+        "threshold": 0.95,
+        "n_flagged": 280,
+        "frauds_flagged": 247,
+        "false_alerts": 33,
+        "recall": {
+          "successes": 247,
+          "trials": 335,
+          "value": 0.7373,
+          "ci_lower": 0.6877,
+          "ci_upper": 0.7816
+        },
+        "precision": {
+          "successes": 247,
+          "trials": 280,
+          "value": 0.8821,
+          "ci_lower": 0.8391,
+          "ci_upper": 0.9148
+        },
+        "false_alerts_per_10k": {
+          "value": 1.45,
+          "ci_lower": 1.03,
+          "ci_upper": 2.03
+        },
+        "review_band": {
+          "sent_to_review": 7642,
+          "frauds_in_review": 41,
+          "frauds_cleared_unseen": 47,
+          "review_per_10k": 335.4
+        }
+      }
+    ],
+    "calibration": {
+      "ece_platt": {
+        "value": 0.00051,
+        "ci_lower": 0.000419,
+        "ci_upper": 0.000621
+      },
+      "expected_frauds_platt": 444.6,
+      "observed_frauds": 335
+    }
+  },
+  "identity_checks": {
+    "checked": true,
+    "scoring_model_matches": {
+      "against": [
+        "metrics_ulb_creditcard.json",
+        "bootstrap_ulb_creditcard.json"
+      ],
+      "values": {
+        "pr_auc_ci": [
+          0.6214,
+          0.8232
+        ],
+        "n_train": 227846,
+        "n_test": 56961,
+        "n_test_fraud": 75,
+        "pr_auc": 0.7278,
+        "recall_at_0.5": 0.84
+      }
+    },
+    "calibration_compared": {
+      "against": "calibration_ulb_creditcard.json",
+      "here_vs_committed": {
+        "n_fit": [
+          182276,
+          182277
+        ],
+        "n_cal": [
+          45570,
+          45569
+        ],
+        "brier_test_platt": [
+          0.000513,
+          0.000516
+        ],
+        "platt_a": [
+          1.3034,
+          1.318156
+        ],
+        "platt_b": [
+          -3.810298,
+          -3.820769
+        ]
+      },
+      "why_not_identical": "the committed calibration split cuts through a second shared by 5 rows (1 fit side, 4 calibration side); this analysis keeps that second whole on the calibration side"
+    }
+  }
+}
