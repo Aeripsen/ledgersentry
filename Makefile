@@ -3,7 +3,7 @@
 
 PY ?= python
 
-.PHONY: install install-analysis test lint train reproduce bench loadtest loadtest-profile bootstrap compare compare-boosters shap cost business business-verify demo-data demo-verify site-check serve dashboard k8s-e2e tf-kind install-mlops drift-report mlflow-ui k8s-schema compose-smoke
+.PHONY: install install-analysis test lint train reproduce rolling rolling-verify bench loadtest loadtest-profile bootstrap compare compare-boosters shap cost business business-verify demo-data demo-verify site-check serve dashboard k8s-e2e tf-kind install-mlops drift-report mlflow-ui k8s-schema compose-smoke
 
 install:
 	$(PY) -m pip install -r requirements.txt
@@ -53,6 +53,18 @@ loadtest-profile:
 # read with the uncertainty they actually carry.
 bootstrap:
 	$(PY) scripts/bootstrap.py
+
+# Rolling-origin validation: 4 expanding-window temporal folds, the last one the
+# headline split. Retrains 8 models (scoring + calibration per fold), about 3
+# minutes on ULB. Writes artifacts/rolling_origin_<source>.json and touches no
+# other artifact. Refuses to write if fewer than 4 folds keep 30 frauds each,
+# so it fails on the synthetic fixture. rolling-verify regenerates in memory and
+# requires the committed file byte for byte. README "Rolling-origin validation".
+rolling:
+	$(PY) scripts/rolling_origin.py
+
+rolling-verify:
+	$(PY) scripts/rolling_origin.py --verify
 
 # Feature-set x boosting-config comparison on the same temporal holdout,
 # selected on an inner validation slice. Reports every variant.
