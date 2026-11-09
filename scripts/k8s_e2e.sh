@@ -59,14 +59,20 @@ kn() { kubectl -n "$NS" "$@"; }
 
 log "build image $APP:ci"
 docker build -q -t "$APP:ci" .
-docker pull -q "$K6_IMAGE"
 
 if ! kind get clusters 2>/dev/null | grep -qx "$CLUSTER"; then
   log "create kind cluster $CLUSTER"
   kind create cluster --name "$CLUSTER" --config deploy/k8s/kind-cluster.yaml --wait 120s
 fi
 kubectl config use-context "kind-$CLUSTER"
-kind load docker-image "$APP:ci" "$K6_IMAGE" --name "$CLUSTER"
+kind load docker-image "$APP:ci" --name "$CLUSTER"
+# Pull the registry image through each node's runtime. Exporting it from the
+# host can leave multi-platform manifest entries without their content blobs.
+log "pre-pull $K6_IMAGE in kind nodes"
+NODES=$(kind get nodes --name "$CLUSTER")
+for node in $NODES; do
+  docker exec "$node" crictl pull "$K6_IMAGE"
+done
 echo "kubernetes_version=$(kubectl version -o json | python3 -c 'import json,sys; print(json.load(sys.stdin)["serverVersion"]["gitVersion"])')" >> "$OUT/env.txt"
 
 log "install metrics-server $METRICS_SERVER"

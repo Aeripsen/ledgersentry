@@ -165,7 +165,8 @@ jobs:
   # pages.yml assembles it, drive it in headless Chromium, and compare what it
   # displays with the committed artifacts (scripts/check_site.py).
   site:
-    runs-on: ubuntu-latest
+    # Playwright 1.60.0 does not provide Chromium for Ubuntu 26.04 yet.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
